@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns="http://www.christofreichardt.de/shamirs-test-suite">
+    <packages>
+        <package name="de.christofreichardt.shamirsweb.test">
+            <classes>
+                <class simpleName="DummyUnit" enabled="true"/>
+                <class simpleName="ShamirsServiceUnit" enabled="true"/>
+                <!--
+                    <class simpleName="SecondDummy" enabled="false"/>
+                -->
+            </classes>
+        </package>
+        <!--
+            <package name="de.adesso.iam.secondtest">
+                <classes>
+                    <class simpleName="SecondDummy"/>
+                </classes>
+            </package>
+        -->
+    </packages>
+</configuration>

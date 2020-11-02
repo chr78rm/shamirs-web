@@ -1,0 +1,6 @@
+*.log
+target
+*.gz
+nbactions.xml
+sql/*.json
+
