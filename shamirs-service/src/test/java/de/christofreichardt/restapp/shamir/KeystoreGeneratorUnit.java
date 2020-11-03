@@ -20,6 +20,7 @@ import java.security.KeyStore;
 import java.security.Security;
 import java.sql.SQLException;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -120,10 +121,16 @@ public class KeystoreGeneratorUnit implements Traceable {
         tracer.entry("void", this, "init()");
 
         try {
+            List<String> propertyNames = new ArrayList<>(System.getProperties().stringPropertyNames());
+            propertyNames.stream()
+                    .sorted()
+                    .forEach((propertyName) -> tracer.out().printfIndentln("%s = %s", propertyName, System.getProperties().getProperty(propertyName)));
+            
             Security.addProvider(new ShamirsProvider());
             TracerFactory.getInstance().openQueueTracer();
             this.jdbcTemplate = new JdbcTemplate(this.dataSource);
             this.scenario = new Scenario(this.jdbcTemplate);
+            this.scenario.setup();
         } finally {
             tracer.wayout();
         }

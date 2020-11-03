@@ -78,7 +78,7 @@ public class ShamirsRS implements Traceable {
                     slice -> tracer.out().printfIndentln("slice = %s", slice)
             );
 
-            final String PARTICIPANT_ID = "8844dd34-c836-4060-ba73-c6d86ad1275d";
+            final String PARTICIPANT_ID = "8844dd34-c836-4060-ba73-c6d86ad1275d"; // christof
             keystore = this.keystoreService.findByIdAndParticipantWithPostedSlices(KEYSTORE_ID, PARTICIPANT_ID);
             keystore.getSlices().forEach(
                     slice -> tracer.out().printfIndentln("slice = %s", slice)
