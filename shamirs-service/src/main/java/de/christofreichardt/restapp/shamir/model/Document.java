@@ -6,7 +6,7 @@
 package de.christofreichardt.restapp.shamir.model;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -17,8 +17,6 @@ import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
@@ -35,23 +33,26 @@ import javax.validation.constraints.Size;
 public class Document implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    
     @Id
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 36)
     @Column(name = "id")
     private String id;
+    
     @Lob
     @Column(name = "content")
     private byte[] content;
+    
     @Basic(optional = false)
     @NotNull
     @Column(name = "effective_time")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date effectiveTime;
-    @JoinColumn(name = "actor_id", referencedColumnName = "id")
+    private LocalDateTime effectiveTime;
+    
+    @JoinColumn(name = "session_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
-    private KeystoreActor actorId;
+    private Session session;
 
     public Document() {
     }
@@ -60,7 +61,7 @@ public class Document implements Serializable {
         this.id = id;
     }
 
-    public Document(String id, Date effectiveTime) {
+    public Document(String id, LocalDateTime effectiveTime) {
         this.id = id;
         this.effectiveTime = effectiveTime;
     }
@@ -81,20 +82,20 @@ public class Document implements Serializable {
         this.content = content;
     }
 
-    public Date getEffectiveTime() {
+    public LocalDateTime getEffectiveTime() {
         return effectiveTime;
     }
 
-    public void setEffectiveTime(Date effectiveTime) {
+    public void setEffectiveTime(LocalDateTime effectiveTime) {
         this.effectiveTime = effectiveTime;
     }
 
-    public KeystoreActor getActorId() {
-        return actorId;
+    public Session getSession() {
+        return session;
     }
 
-    public void setActorId(KeystoreActor actorId) {
-        this.actorId = actorId;
+    public void setSession(Session session) {
+        this.session = session;
     }
 
     @Override
@@ -119,7 +120,7 @@ public class Document implements Serializable {
 
     @Override
     public String toString() {
-        return "de.christofreichardt.restapp.shamir.model.v2.Document[ id=" + id + " ]";
+        return "de.christofreichardt.restapp.shamir.model.Document[ id=" + id + " ]";
     }
     
 }

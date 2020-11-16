@@ -2,8 +2,7 @@
 -- cleanup
 --
 DROP TABLE IF EXISTS document;
-DROP TABLE IF EXISTS keystore_actor;
-DROP TABLE IF EXISTS task;
+DROP TABLE IF EXISTS csession;
 DROP TABLE IF EXISTS slice;
 DROP TABLE IF EXISTS participant;
 DROP TABLE IF EXISTS keystore;
@@ -44,35 +43,23 @@ ALTER TABLE slice ADD CONSTRAINT fk_participant FOREIGN KEY (participant_id) REF
 ALTER TABLE slice ADD CONSTRAINT fk_slice_keystore FOREIGN KEY (keystore_id) REFERENCES keystore(id);
 
 --
--- task
+-- session
 --
-CREATE TABLE task (
+CREATE TABLE csession (
     id CHAR(36) PRIMARY KEY,
     keystore_id CHAR(36) NOT NULL,
-    processing_state VARCHAR(20),
+    phase VARCHAR(20),
     effective_time DATETIME NOT NULL
 );
-ALTER TABLE task ADD CONSTRAINT fk_task_keystore FOREIGN KEY (keystore_id) REFERENCES keystore(id);
-
---
--- keystore_actor
---
-CREATE TABLE keystore_actor (
-    id CHAR(36) PRIMARY KEY,
-    task_id CHAR(36) NOT NULL,
-    entry_alias VARCHAR(50) NOT NULL,
-    actor_type VARCHAR(20) NOT NULL,
-    effective_time DATETIME NOT NULL
-);
-ALTER TABLE keystore_actor ADD CONSTRAINT fk_actor_task FOREIGN KEY (task_id) REFERENCES task(id);
+ALTER TABLE csession ADD CONSTRAINT fk_session_keystore FOREIGN KEY (keystore_id) REFERENCES keystore(id);
 
 --
 -- document
 --
 CREATE TABLE document (
     id CHAR(36) PRIMARY KEY,
-    actor_id CHAR(36) NOT NULL,
+    session_id CHAR(36) NOT NULL,
     content BLOB,
     effective_time DATETIME NOT NULL
 );
-ALTER TABLE document ADD CONSTRAINT fk_document_actor FOREIGN KEY (actor_id) REFERENCES keystore_actor(id);
+ALTER TABLE document ADD CONSTRAINT fk_document_session FOREIGN KEY (session_id) REFERENCES csession(id);

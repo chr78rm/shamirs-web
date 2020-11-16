@@ -67,6 +67,9 @@ public class DatabasedKeystore implements Serializable {
     
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "keystore")
     private Collection<Slice> slices;
+    
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "keystore")
+    private Collection<Session> sessions;
 
     public DatabasedKeystore() {
         this.id = UUID.randomUUID().toString();
@@ -120,6 +123,14 @@ public class DatabasedKeystore implements Serializable {
 
     public void setSlices(Collection<Slice> slices) {
         this.slices = slices;
+    }
+
+    public Collection<Session> getSessions() {
+        return sessions;
+    }
+
+    public void setSessions(Collection<Session> sessions) {
+        this.sessions = sessions;
     }
 
     @Override

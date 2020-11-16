@@ -6,8 +6,8 @@
 package de.christofreichardt.restapp.shamir.model;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.Date;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -19,23 +19,24 @@ import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author Developer
  */
 @Entity
-@Table(name = "task")
+@Table(name = "csession")
+@XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Task.findAll", query = "SELECT t FROM Task t"),
-    @NamedQuery(name = "Task.findById", query = "SELECT t FROM Task t WHERE t.id = :id"),
-    @NamedQuery(name = "Task.findByProcessingState", query = "SELECT t FROM Task t WHERE t.processingState = :processingState"),
-    @NamedQuery(name = "Task.findByEffectiveTime", query = "SELECT t FROM Task t WHERE t.effectiveTime = :effectiveTime")})
-public class Task implements Serializable {
+    @NamedQuery(name = "Session.findAll", query = "SELECT s FROM Session s"),
+    @NamedQuery(name = "Session.findById", query = "SELECT s FROM Session s WHERE s.id = :id"),
+    @NamedQuery(name = "Session.findByPhase", query = "SELECT s FROM Session s WHERE s.phase = :phase"),
+    @NamedQuery(name = "Session.findByEffectiveTime", query = "SELECT s FROM Session s WHERE s.effectiveTime = :effectiveTime")})
+public class Session implements Serializable {
 
     private static final long serialVersionUID = 1L;
     
@@ -47,30 +48,29 @@ public class Task implements Serializable {
     private String id;
     
     @Size(max = 20)
-    @Column(name = "processing_state")
-    private String processingState;
+    @Column(name = "phase")
+    private String phase;
     
     @Basic(optional = false)
     @NotNull
     @Column(name = "effective_time")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date effectiveTime;
-    
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "taskId")
-    private Collection<KeystoreActor> keystoreActorCollection;
+    private LocalDateTime effectiveTime;
     
     @JoinColumn(name = "keystore_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
-    private DatabasedKeystore keystoreId;
+    private DatabasedKeystore keystore;
+    
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "session")
+    private Collection<Document> documents;
 
-    public Task() {
+    public Session() {
     }
 
-    public Task(String id) {
+    public Session(String id) {
         this.id = id;
     }
 
-    public Task(String id, Date effectiveTime) {
+    public Session(String id, LocalDateTime effectiveTime) {
         this.id = id;
         this.effectiveTime = effectiveTime;
     }
@@ -83,36 +83,37 @@ public class Task implements Serializable {
         this.id = id;
     }
 
-    public String getProcessingState() {
-        return processingState;
+    public String getPhase() {
+        return phase;
     }
 
-    public void setProcessingState(String processingState) {
-        this.processingState = processingState;
+    public void setPhase(String phase) {
+        this.phase = phase;
     }
 
-    public Date getEffectiveTime() {
+    public LocalDateTime getEffectiveTime() {
         return effectiveTime;
     }
 
-    public void setEffectiveTime(Date effectiveTime) {
+    public void setEffectiveTime(LocalDateTime effectiveTime) {
         this.effectiveTime = effectiveTime;
     }
 
-    public Collection<KeystoreActor> getKeystoreActorCollection() {
-        return keystoreActorCollection;
+    public DatabasedKeystore getKeystore() {
+        return keystore;
     }
 
-    public void setKeystoreActorCollection(Collection<KeystoreActor> keystoreActorCollection) {
-        this.keystoreActorCollection = keystoreActorCollection;
+    public void setKeystore(DatabasedKeystore keystore) {
+        this.keystore = keystore;
     }
 
-    public DatabasedKeystore getKeystoreId() {
-        return keystoreId;
+    @XmlTransient
+    public Collection<Document> getDocuments() {
+        return documents;
     }
 
-    public void setKeystoreId(DatabasedKeystore keystoreId) {
-        this.keystoreId = keystoreId;
+    public void setDocuments(Collection<Document> documents) {
+        this.documents = documents;
     }
 
     @Override
@@ -125,10 +126,10 @@ public class Task implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Task)) {
+        if (!(object instanceof Session)) {
             return false;
         }
-        Task other = (Task) object;
+        Session other = (Session) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -137,7 +138,7 @@ public class Task implements Serializable {
 
     @Override
     public String toString() {
-        return "de.christofreichardt.restapp.shamir.model.v2.Task[ id=" + id + " ]";
+        return "de.christofreichardt.restapp.shamir.model.Session[ id=" + id + " ]";
     }
     
 }
