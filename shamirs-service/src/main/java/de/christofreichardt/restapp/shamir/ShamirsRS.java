@@ -21,8 +21,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.security.Security;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.json.Json;
 import javax.json.JsonArray;
+import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.ws.rs.Consumes;
@@ -54,7 +55,7 @@ public class ShamirsRS implements Traceable {
 
     @Autowired
     KeystoreService keystoreService;
-    
+
     @Autowired
     ParticipantService participantService;
 
@@ -86,7 +87,7 @@ public class ShamirsRS implements Traceable {
             JsonArray sharePoints = keystore.getSlices().stream()
                     .map(slice -> new ByteArrayInputStream(slice.getShare()))
                     .map(in -> {
-                        try (JsonReader jsonReader = Json.createReader(in)) {
+                        try ( JsonReader jsonReader = Json.createReader(in)) {
                             return jsonReader.read();
                         }
                     })
@@ -115,11 +116,11 @@ public class ShamirsRS implements Traceable {
         try {
             try {
                 KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
-                
+
                 DatabasedKeystore keystore = new DatabasedKeystore();
                 keystore.setDescriptiveName(keystoreInstructions.getString("descriptiveName"));
                 keystore.setStore(keystoreGenerator.keystoreBytes());
-                
+
                 Map<String, byte[]> partition = keystoreGenerator.partition();
                 Set<Slice> slices = partition.entrySet().stream()
                         .map(entry -> {
@@ -130,11 +131,11 @@ public class ShamirsRS implements Traceable {
                             slice.setShare(entry.getValue());
                             slice.setProcessingState("CREATED");
                             slice.setKeystore(keystore);
-                            
+
                             return slice;
                         })
                         .collect(Collectors.toSet());
-                
+
                 keystore.setSlices(slices);
                 this.keystoreService.persist(keystore);
             } catch (GeneralSecurityException | IOException ex) {
@@ -146,7 +147,7 @@ public class ShamirsRS implements Traceable {
                     .add("id", uuid)
                     .add("location", String.format("/shamir/v1/keystores/%s", uuid))
                     .build();
-            
+
             return Response.status(Response.Status.CREATED)
                     .entity(confirmation)
                     .type(MediaType.APPLICATION_JSON)
@@ -155,7 +156,32 @@ public class ShamirsRS implements Traceable {
             tracer.wayout();
         }
     }
-    
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("keystores")
+    public Response availableKeystores() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "availableKeystores()");
+
+        try {
+            JsonArray keystores = this.keystoreService.findAll().stream()
+                    .peek(keystore -> tracer.out().printfIndentln("keystore = %s", keystore))
+                    .map(keystore -> keystore.toJson())
+                    .collect(new JsonValueCollector());
+            JsonObject keystoresInfo = Json.createObjectBuilder()
+                    .add("keystores", keystores)
+                    .build();
+
+            return Response.status(Response.Status.OK)
+                    .entity(keystoresInfo)
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
     @PUT
     @Path("keystores/{id}")
     public Response updateKeystore(@PathParam("id") String id, JsonObject jsonObject) {

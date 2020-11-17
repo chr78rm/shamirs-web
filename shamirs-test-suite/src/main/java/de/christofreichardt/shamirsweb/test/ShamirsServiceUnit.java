@@ -194,6 +194,23 @@ public class ShamirsServiceUnit implements Traceable {
             tracer.wayout();
         }
     }
+    
+    @Test
+    void availableKeystores() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "availableKeystores()");
+
+        try {
+            Response response = this.client.target("http://localhost:8080/shamir/v1")
+                    .path("keystores")
+                    .request()
+                    .get();
+
+            tracer.out().printfIndentln("response = %s", response);
+        } finally {
+            tracer.wayout();
+        }
+    }
 
     @AfterAll
     void exit() {
