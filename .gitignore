@@ -3,4 +3,6 @@ target
 *.gz
 nbactions.xml
 sql/*.json
-
+pki/*.pem
+pki/*.p12
+pki/*.p10
