@@ -179,15 +179,8 @@ public class ShamirsServiceUnit implements Traceable {
                     .post(Entity.json(keystoreInstructions));
 
             tracer.out().printfIndentln("response = %s", response);
-
-            JsonStructure jsonStructure = response.readEntity(JsonStructure.class);
-            JsonTracer jsonTracer = new JsonTracer() {
-                @Override
-                public AbstractTracer getCurrentTracer() {
-                    return ShamirsServiceUnit.this.getCurrentTracer();
-                }
-            };
-            jsonTracer.trace(jsonStructure);
+            
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
         } finally {
             tracer.wayout();
         }

@@ -18,5 +18,6 @@ public interface KeystoreService {
     List<DatabasedKeystore> findAll();
     DatabasedKeystore findByIdWithPostedSlices(String id);
     DatabasedKeystore findByIdAndParticipantWithPostedSlices(String id, String participantId);
-    void persist(DatabasedKeystore keystore);
+    DatabasedKeystore persist(DatabasedKeystore keystore);
+    DatabasedKeystore findByDescriptiveName(String descriptiveName);
 }

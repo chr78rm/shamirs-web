@@ -22,15 +22,13 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.Security;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.json.Json;
 import javax.json.JsonArray;
-import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.ws.rs.Consumes;
@@ -114,44 +112,74 @@ public class ShamirsRS implements Traceable {
         tracer.entry("Response", this, "createKeystore(JsonObject keystoreInstructions)");
 
         try {
-            try {
-                KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
+            Response response;
+            String descriptiveName = keystoreInstructions.getString("descriptiveName");
+            if (Objects.isNull(this.keystoreService.findByDescriptiveName(descriptiveName))) {
+                try {
+                    KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
 
-                DatabasedKeystore keystore = new DatabasedKeystore();
-                keystore.setDescriptiveName(keystoreInstructions.getString("descriptiveName"));
-                keystore.setStore(keystoreGenerator.keystoreBytes());
+                    DatabasedKeystore keystore = new DatabasedKeystore();
+                    keystore.setDescriptiveName(descriptiveName);
+                    keystore.setStore(keystoreGenerator.keystoreBytes());
 
-                Map<String, byte[]> partition = keystoreGenerator.partition();
-                Set<Slice> slices = partition.entrySet().stream()
-                        .map(entry -> {
-                            Participant participant = this.participantService.findByPreferredName(entry.getKey());
-                            tracer.out().printfIndentln("participant = %s", participant);
-                            Slice slice = new Slice();
-                            slice.setParticipant(participant);
-                            slice.setShare(entry.getValue());
-                            slice.setProcessingState("CREATED");
-                            slice.setKeystore(keystore);
+                    Map<String, byte[]> partition = keystoreGenerator.partition();
+                    Set<Slice> slices = partition.entrySet().stream()
+                            .map(entry -> {
+                                Participant participant = this.participantService.findByPreferredName(entry.getKey());
+                                tracer.out().printfIndentln("participant = %s", participant);
+                                Slice slice = new Slice();
+                                slice.setParticipant(participant);
+                                slice.setShare(entry.getValue());
+                                slice.setProcessingState("CREATED");
+                                slice.setKeystore(keystore);
 
-                            return slice;
-                        })
-                        .collect(Collectors.toSet());
+                                return slice;
+                            })
+                            .collect(Collectors.toSet());
 
-                keystore.setSlices(slices);
-                this.keystoreService.persist(keystore);
-            } catch (GeneralSecurityException | IOException ex) {
+                    keystore.setSlices(slices);
+                    this.keystoreService.persist(keystore);
+
+//                    String uuid = UUID.randomUUID().toString();
+                    JsonObject confirmation = Json.createObjectBuilder()
+                            .add("descriptiveName", "my-posted-keystore")
+                            .add("id", keystore.getId())
+                            .add("location", String.format("/shamir/v1/keystores/%s", keystore.getId()))
+                            .build();
+
+                    response = Response.status(Response.Status.CREATED)
+                            .entity(confirmation)
+                            .type(MediaType.APPLICATION_JSON)
+                            .encoding("UTF-8")
+                            .build();
+                } catch (GeneralSecurityException | IOException ex) {
+                    JsonObject confirmation = Json.createObjectBuilder()
+                            .add("status", 500)
+                            .add("reason", "Internal Server Error")
+                            .add("message", ex.getMessage())
+                            .build();
+
+                    response = Response.status(Response.Status.CREATED)
+                            .entity(confirmation)
+                            .type(MediaType.APPLICATION_JSON)
+                            .encoding("UTF-8")
+                            .build();
+                }
+            } else {
+                JsonObject confirmation = Json.createObjectBuilder()
+                        .add("status", 400)
+                        .add("reason", "Bad Request")
+                        .add("message", String.format("Duplicate descriptiveName '%s'.", descriptiveName))
+                        .build();
+
+                response = Response.status(Response.Status.BAD_REQUEST)
+                        .entity(confirmation)
+                        .type(MediaType.APPLICATION_JSON)
+                        .encoding("UTF-8")
+                        .build();
             }
 
-            String uuid = UUID.randomUUID().toString();
-            JsonObject confirmation = Json.createObjectBuilder()
-                    .add("descriptiveName", "my-posted-keystore")
-                    .add("id", uuid)
-                    .add("location", String.format("/shamir/v1/keystores/%s", uuid))
-                    .build();
-
-            return Response.status(Response.Status.CREATED)
-                    .entity(confirmation)
-                    .type(MediaType.APPLICATION_JSON)
-                    .build();
+            return response;
         } finally {
             tracer.wayout();
         }
@@ -176,6 +204,7 @@ public class ShamirsRS implements Traceable {
             return Response.status(Response.Status.OK)
                     .entity(keystoresInfo)
                     .type(MediaType.APPLICATION_JSON)
+                    .encoding("UTF-8")
                     .build();
         } finally {
             tracer.wayout();

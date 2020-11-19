@@ -36,6 +36,7 @@ import javax.validation.constraints.Size;
 @NamedQueries({
     @NamedQuery(name = "DatabasedKeystore.findAll", query = "SELECT k FROM DatabasedKeystore k"),
     @NamedQuery(name = "DatabasedKeystore.findById", query = "SELECT k FROM DatabasedKeystore k WHERE k.id = :id"),
+    @NamedQuery(name = "DatabasedKeystore.findByDescriptiveName", query = "SELECT k FROM DatabasedKeystore k WHERE k.descriptiveName = :descriptiveName"),
     @NamedQuery(name = "DatabasedKeystore.findByIdWithPostedSlices",
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED'"),
     @NamedQuery(name = "DatabasedKeystore.findByIdAndParticipantWithPostedSlices",

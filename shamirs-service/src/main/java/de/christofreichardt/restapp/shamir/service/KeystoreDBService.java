@@ -11,7 +11,9 @@ import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import java.util.List;
 import javax.persistence.EntityManager;
+import javax.persistence.NonUniqueResultException;
 import javax.persistence.PersistenceContext;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,9 @@ public class KeystoreDBService implements KeystoreService, Traceable {
     
     @PersistenceContext
     EntityManager entityManager;
+    
+    @Autowired
+    KeystoreRepository keystoreRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -77,13 +82,39 @@ public class KeystoreDBService implements KeystoreService, Traceable {
 
     @Override
     @Transactional
-    public void persist(DatabasedKeystore keystore) {
+    public DatabasedKeystore persist(DatabasedKeystore keystore) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "persist(DatabasedKeystore keystore)");
         try {
             tracer.out().printfIndentln("keystore = %s", keystore);
             
-            this.entityManager.persist(keystore);
+            return this.keystoreRepository.save(keystore);
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
+    public DatabasedKeystore findByDescriptiveName(String descriptiveName) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("DatabasedKeystore", this, "findByIdWithPostedSlices(String id)");
+        try {
+            tracer.out().printfIndentln("id = %s", descriptiveName);
+            
+            DatabasedKeystore databasedKeystore;
+            List<DatabasedKeystore> resultList = this.entityManager
+                    .createNamedQuery("DatabasedKeystore.findByDescriptiveName", DatabasedKeystore.class)
+                    .setParameter("descriptiveName", descriptiveName)
+                    .getResultList();
+            if (resultList.isEmpty()) {
+                databasedKeystore = null;
+            } else if (resultList.size() == 1) {
+                databasedKeystore = resultList.get(0);
+            } else {
+                throw new NonUniqueResultException();
+            }
+            
+            return databasedKeystore;
         } finally {
             tracer.wayout();
         }
