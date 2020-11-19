@@ -10,11 +10,13 @@ import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.rs.MyClientResponseFilter;
+import de.christofreichardt.shamirsweb.test.PropertiesExtension.Config;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import javax.json.Json;
@@ -31,15 +33,25 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  *
  * @author Developer
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(PropertiesExtension.class)
 public class ShamirsServiceUnit implements Traceable {
 
+    final Map<String, String> config;
+    final String baseUrl;
+    
     Client client;
+
+    public ShamirsServiceUnit(@Config Map<String, String> config) {
+        this.config = config;
+        this.baseUrl = config.getOrDefault("de.christofreichardt.shamirsweb.test.baseUrl", "https://localhost:8443/shamir/v1");
+    }
 
     @BeforeAll
     void init() throws InterruptedException, GeneralSecurityException, IOException {
@@ -47,6 +59,8 @@ public class ShamirsServiceUnit implements Traceable {
         tracer.entry("void", this, "init()");
 
         try {
+            this.config.entrySet().forEach(entry -> tracer.out().printfIndentln("%s = %s", entry.getKey(), entry.getValue()));
+            
             InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
             Objects.requireNonNull(inputStream, "No InputStream for truststore.");
             KeyStore trustStore = KeyStore.getInstance("pkcs12");
@@ -72,7 +86,7 @@ public class ShamirsServiceUnit implements Traceable {
             final int MAX_TRIALS = 5, PAUSE = 1;
             do {
                 try {
-                    response = this.client.target("https://localhost:8443/shamir/v1")
+                    response = this.client.target(this.baseUrl)
                             .path("ping")
                             .request()
                             .get(String.class);
@@ -159,7 +173,7 @@ public class ShamirsServiceUnit implements Traceable {
                     )
                     .build();
 
-            Response response = this.client.target("https://localhost:8443/shamir/v1")
+            Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .request(MediaType.APPLICATION_JSON)
                     .post(Entity.json(keystoreInstructions));
@@ -191,7 +205,7 @@ public class ShamirsServiceUnit implements Traceable {
                     .add("keySize", 256)
                     .build();
 
-            Response response = this.client.target("https://localhost:8443/shamir/v1")
+            Response response = this.client.target(this.baseUrl)
                     .path("keystores/123")
                     .request()
                     .put(Entity.json(jsonObject));
@@ -208,7 +222,7 @@ public class ShamirsServiceUnit implements Traceable {
         tracer.entry("void", this, "availableKeystores()");
 
         try {
-            Response response = this.client.target("https://localhost:8443/shamir/v1")
+            Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .request()
                     .get();
