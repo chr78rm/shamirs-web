@@ -214,12 +214,13 @@ public class KeystoreGeneratorUnit implements Traceable {
 
         try {
             List<Map<String, Object>> result = this.jdbcTemplate.query(
-                    "SELECT k.id, k.descriptive_name, k.effective_time FROM keystore k",
+                    "SELECT k.id, k.descriptive_name, k.creation_time, k.modification_time FROM keystore k",
                     (resultSet, rowNum) -> {
                         Map<String, Object> map = new HashMap<>();
                         map.put("id", resultSet.getString("id"));
                         map.put("descriptive_name", resultSet.getString("descriptive_name"));
-                        map.put("effective_time", resultSet.getString("effective_time"));
+                        map.put("creation_time", resultSet.getString("creation_time"));
+                        map.put("modification_time", resultSet.getString("modification_time"));
 
                         return map;
                     });

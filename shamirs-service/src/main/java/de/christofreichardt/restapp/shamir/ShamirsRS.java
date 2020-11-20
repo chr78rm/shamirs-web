@@ -114,65 +114,54 @@ public class ShamirsRS implements Traceable {
         try {
             Response response;
             String descriptiveName = keystoreInstructions.getString("descriptiveName");
-            if (Objects.isNull(this.keystoreService.findByDescriptiveName(descriptiveName))) {
-                try {
-                    KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
+            try {
+                KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
 
-                    DatabasedKeystore keystore = new DatabasedKeystore();
-                    keystore.setDescriptiveName(descriptiveName);
-                    keystore.setStore(keystoreGenerator.keystoreBytes());
+                DatabasedKeystore keystore = new DatabasedKeystore();
+                keystore.setDescriptiveName(descriptiveName);
+                keystore.setStore(keystoreGenerator.keystoreBytes());
 
-                    Map<String, byte[]> partition = keystoreGenerator.partition();
-                    Set<Slice> slices = partition.entrySet().stream()
-                            .map(entry -> {
-                                Participant participant = this.participantService.findByPreferredName(entry.getKey());
-                                tracer.out().printfIndentln("participant = %s", participant);
-                                Slice slice = new Slice();
-                                slice.setParticipant(participant);
-                                slice.setShare(entry.getValue());
-                                slice.setProcessingState("CREATED");
-                                slice.setKeystore(keystore);
+                Map<String, byte[]> partition = keystoreGenerator.partition();
+                Set<Slice> slices = partition.entrySet().stream()
+                        .map(entry -> {
+                            Participant participant = this.participantService.findByPreferredName(entry.getKey());
+                            tracer.out().printfIndentln("participant = %s", participant);
+                            Slice slice = new Slice();
+                            slice.setParticipant(participant);
+                            slice.setShare(entry.getValue());
+                            slice.setProcessingState("CREATED");
+                            slice.setKeystore(keystore);
 
-                                return slice;
-                            })
-                            .collect(Collectors.toSet());
+                            return slice;
+                        })
+                        .collect(Collectors.toSet());
 
-                    keystore.setSlices(slices);
-                    this.keystoreService.persist(keystore);
+                keystore.setSlices(slices);
+                this.keystoreService.persist(keystore);
 
-//                    String uuid = UUID.randomUUID().toString();
-                    JsonObject confirmation = Json.createObjectBuilder()
-                            .add("descriptiveName", "my-posted-keystore")
-                            .add("id", keystore.getId())
-                            .add("location", String.format("/shamir/v1/keystores/%s", keystore.getId()))
-                            .build();
-
-                    response = Response.status(Response.Status.CREATED)
-                            .entity(confirmation)
-                            .type(MediaType.APPLICATION_JSON)
-                            .encoding("UTF-8")
-                            .build();
-                } catch (GeneralSecurityException | IOException ex) {
-                    JsonObject confirmation = Json.createObjectBuilder()
-                            .add("status", 500)
-                            .add("reason", "Internal Server Error")
-                            .add("message", ex.getMessage())
-                            .build();
-
-                    response = Response.status(Response.Status.CREATED)
-                            .entity(confirmation)
-                            .type(MediaType.APPLICATION_JSON)
-                            .encoding("UTF-8")
-                            .build();
-                }
-            } else {
-                JsonObject confirmation = Json.createObjectBuilder()
-                        .add("status", 400)
-                        .add("reason", "Bad Request")
-                        .add("message", String.format("Duplicate descriptiveName '%s'.", descriptiveName))
+                JsonObject confirmation = Json.createObjectBuilder(keystore.toJson())
+                        .add("links", Json.createArrayBuilder()
+                                .add(Json.createObjectBuilder()
+                                        .add("rel", "self")
+                                        .add("href", "/shamir/v1/keystores/" + keystore.getId())
+                                        .add("type", "GET")
+                                )
+                        )
                         .build();
 
-                response = Response.status(Response.Status.BAD_REQUEST)
+                response = Response.status(Response.Status.CREATED)
+                        .entity(confirmation)
+                        .type(MediaType.APPLICATION_JSON)
+                        .encoding("UTF-8")
+                        .build();
+            } catch (GeneralSecurityException | IOException ex) {
+                JsonObject confirmation = Json.createObjectBuilder()
+                        .add("status", 500)
+                        .add("reason", "Internal Server Error")
+                        .add("message", ex.getMessage())
+                        .build();
+
+                response = Response.status(Response.Status.CREATED)
                         .entity(confirmation)
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")

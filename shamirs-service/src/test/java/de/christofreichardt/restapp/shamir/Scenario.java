@@ -71,11 +71,12 @@ public class Scenario implements Traceable {
         tracer.entry("void", this, "insertKeystore()");
 
         try {
-            String sql = "INSERT INTO keystore (id, descriptive_name, store, effective_time) \n"
+            String sql = "INSERT INTO keystore (id, descriptive_name, store, creation_time, modification_time) \n"
                     + "VALUES (\n"
                     + "    ?,\n"
                     + "    ?,\n"
                     + "    ?,\n"
+                    + "    CURRENT_TIMESTAMP,\n"
                     + "    CURRENT_TIMESTAMP\n"
                     + ")";
 

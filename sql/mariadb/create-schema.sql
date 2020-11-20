@@ -24,8 +24,8 @@ CREATE TABLE keystore (
     id CHAR(36) PRIMARY KEY,
     descriptive_name VARCHAR(100) NOT NULL,
     store BLOB,
-    effective_time DATETIME NOT NULL,
-    UNIQUE KEY (descriptive_name)
+    creation_time DATETIME NOT NULL,
+    modification_time DATETIME NOT NULL
 );
 
 --

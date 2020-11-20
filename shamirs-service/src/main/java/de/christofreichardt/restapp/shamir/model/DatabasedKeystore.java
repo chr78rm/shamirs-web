@@ -23,7 +23,6 @@ import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
@@ -32,7 +31,7 @@ import javax.validation.constraints.Size;
  * @author Developer
  */
 @Entity
-@Table(name = "keystore", uniqueConstraints = @UniqueConstraint(columnNames = {"descriptive_name"}))
+@Table(name = "keystore")
 @NamedQueries({
     @NamedQuery(name = "DatabasedKeystore.findAll", query = "SELECT k FROM DatabasedKeystore k"),
     @NamedQuery(name = "DatabasedKeystore.findById", query = "SELECT k FROM DatabasedKeystore k WHERE k.id = :id"),
@@ -41,7 +40,7 @@ import javax.validation.constraints.Size;
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED'"),
     @NamedQuery(name = "DatabasedKeystore.findByIdAndParticipantWithPostedSlices",
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED' AND s.participant.id = :participantId"),
-    @NamedQuery(name = "DatabasedKeystore.findByEffectiveTime", query = "SELECT k FROM DatabasedKeystore k WHERE k.effectiveTime = :effectiveTime")})
+    })
 public class DatabasedKeystore implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -65,8 +64,13 @@ public class DatabasedKeystore implements Serializable {
 
     @Basic(optional = false)
     @NotNull
-    @Column(name = "effective_time")
-    private LocalDateTime effectiveTime;
+    @Column(name = "creation_time")
+    private LocalDateTime creationTime;
+
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "modification_time")
+    private LocalDateTime mofificationTime;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "keystore")
     private Collection<Slice> slices;
@@ -76,16 +80,17 @@ public class DatabasedKeystore implements Serializable {
 
     public DatabasedKeystore() {
         this.id = UUID.randomUUID().toString();
-        this.effectiveTime = LocalDateTime.now();
+        this.creationTime = LocalDateTime.now();
+        this.mofificationTime = LocalDateTime.now();
     }
 
     public DatabasedKeystore(String id) {
         this.id = id;
     }
 
-    public DatabasedKeystore(String id, LocalDateTime effectiveTime) {
+    public DatabasedKeystore(String id, LocalDateTime creationTime) {
         this.id = id;
-        this.effectiveTime = effectiveTime;
+        this.creationTime = creationTime;
     }
 
     public String getId() {
@@ -112,12 +117,20 @@ public class DatabasedKeystore implements Serializable {
         this.store = store;
     }
 
-    public LocalDateTime getEffectiveTime() {
-        return effectiveTime;
+    public LocalDateTime getCreationTime() {
+        return creationTime;
     }
 
-    public void setEffectiveTime(LocalDateTime effectiveTime) {
-        this.effectiveTime = effectiveTime;
+    public void setCreationTime(LocalDateTime creationTime) {
+        this.creationTime = creationTime;
+    }
+
+    public LocalDateTime getMofificationTime() {
+        return mofificationTime;
+    }
+
+    public void setMofificationTime(LocalDateTime mofificationTime) {
+        this.mofificationTime = mofificationTime;
     }
 
     public Collection<Slice> getSlices() {
@@ -158,15 +171,18 @@ public class DatabasedKeystore implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("DatabasedKeystore[id=%s, descriptiveName=%s, effectiveTime=%s]",
-                this.id, this.descriptiveName, this.effectiveTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
+        return String.format("DatabasedKeystore[id=%s, descriptiveName=%s, creationTime=%s, mofificationTime=%s]",
+                this.id, this.descriptiveName, 
+                this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
+                this.mofificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
 
     public JsonObject toJson() {
         return Json.createObjectBuilder()
                 .add("id", this.id)
                 .add("descriptiveName", this.descriptiveName)
-                .add("effectiveTime", this.effectiveTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("mofificationTime", this.mofificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .build();
     }
 
