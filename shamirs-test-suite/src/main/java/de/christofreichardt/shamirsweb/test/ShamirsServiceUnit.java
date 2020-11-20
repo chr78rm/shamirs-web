@@ -8,12 +8,13 @@ package de.christofreichardt.shamirsweb.test;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
-import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.rs.MyClientResponseFilter;
 import de.christofreichardt.shamirsweb.test.PropertiesExtension.Config;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
+import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.Map;
@@ -21,7 +22,6 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonStructure;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -45,12 +45,15 @@ public class ShamirsServiceUnit implements Traceable {
 
     final Map<String, String> config;
     final String baseUrl;
-    
+    final boolean externalService;
+
     Client client;
+    Process process;
 
     public ShamirsServiceUnit(@Config Map<String, String> config) {
         this.config = config;
         this.baseUrl = config.getOrDefault("de.christofreichardt.shamirsweb.test.baseUrl", "https://localhost:8443/shamir/v1");
+        this.externalService = Boolean.parseBoolean(config.getOrDefault("de.christofreichardt.shamirsweb.test.externalService", "false"));
     }
 
     @BeforeAll
@@ -60,7 +63,18 @@ public class ShamirsServiceUnit implements Traceable {
 
         try {
             this.config.entrySet().forEach(entry -> tracer.out().printfIndentln("%s = %s", entry.getKey(), entry.getValue()));
-            
+
+            if (!this.externalService) {
+                Path baseDir = Path.of(System.getProperty("de.christofreichardt.shamirsweb.test.baseDir"));
+                ProcessBuilder processBuilder = new ProcessBuilder("java", "-jar", "target/shamirs-service.jar");
+                File workingDir = baseDir.resolve(Path.of("..", "shamirs-service")).toFile();
+                File logFile = baseDir.resolve(Path.of("log", "spring-boot.log")).toFile();
+                this.process = processBuilder.directory(workingDir)
+                        .redirectOutput(logFile)
+                        .start();
+                tracer.out().printfIndentln("this.process.pid() = %d", this.process.pid());
+            }
+
             InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
             Objects.requireNonNull(inputStream, "No InputStream for truststore.");
             KeyStore trustStore = KeyStore.getInstance("pkcs12");
@@ -179,7 +193,7 @@ public class ShamirsServiceUnit implements Traceable {
                     .post(Entity.json(keystoreInstructions));
 
             tracer.out().printfIndentln("response = %s", response);
-            
+
             assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
         } finally {
             tracer.wayout();
@@ -227,11 +241,25 @@ public class ShamirsServiceUnit implements Traceable {
     }
 
     @AfterAll
-    void exit() {
+    void exit() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "exit()");
 
         try {
+            if (!this.externalService) {
+                try ( Response response = this.client.target(this.baseUrl)
+                        .path("actuator")
+                        .path("shutdown")
+                        .request()
+                        .post(Entity.text(""))) {
+                    String message = response.readEntity(String.class);
+
+                    tracer.out().printfIndentln("message = %s", message);
+                }
+                boolean terminated = this.process.waitFor(2500, TimeUnit.MILLISECONDS);
+                tracer.out().printfIndentln("terminated = %b", terminated);
+            }
+
             if (Objects.nonNull(this.client)) {
                 this.client.close();
             }
