@@ -63,6 +63,10 @@ public class ShamirsServiceUnit implements Traceable {
 
         try {
             this.config.entrySet().forEach(entry -> tracer.out().printfIndentln("%s = %s", entry.getKey(), entry.getValue()));
+            
+            File batch = Path.of("..", "sql", "mariadb", "setup-scenario.sql").toFile();
+            Database database = new Database();
+            database.execute(batch);
 
             if (!this.externalService) {
                 Path baseDir = Path.of(System.getProperty("de.christofreichardt.shamirsweb.test.baseDir"));
@@ -84,6 +88,7 @@ public class ShamirsServiceUnit implements Traceable {
                     .register(MyClientResponseFilter.class)
                     .trustStore(trustStore)
                     .build();
+            
             ping();
         } finally {
             tracer.wayout();
