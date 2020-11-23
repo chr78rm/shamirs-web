@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import javax.json.Json;
+import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
@@ -200,6 +201,18 @@ public class ShamirsServiceUnit implements Traceable {
             tracer.out().printfIndentln("response = %s", response);
 
             assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
+            
+            JsonObject keystoreEntity = response.readEntity(JsonObject.class);
+            JsonArray links = keystoreEntity.getJsonArray("links");
+            String href = links.get(0).asJsonObject().getString("href");
+            
+            tracer.out().printfIndentln("href = %s", href);
+            
+            this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(keystoreEntity.getString("id"))
+                    .request(MediaType.APPLICATION_JSON)
+                    .get();
         } finally {
             tracer.wayout();
         }

@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package de.christofreichardt.restapp.shamir;
+package de.christofreichardt.restapp.shamir.resource;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.QueueTracer;
@@ -13,6 +13,7 @@ import de.christofreichardt.jca.shamir.ShamirsLoadParameter;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.json.JsonTracer;
+import de.christofreichardt.restapp.shamir.ShamirsApp;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
