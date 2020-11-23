@@ -33,12 +33,12 @@ import javax.validation.constraints.Size;
 @Entity
 @Table(name = "keystore")
 @NamedQueries({
-    @NamedQuery(name = "DatabasedKeystore.findAll", query = "SELECT k FROM DatabasedKeystore k"),
-    @NamedQuery(name = "DatabasedKeystore.findById", query = "SELECT k FROM DatabasedKeystore k WHERE k.id = :id"),
-    @NamedQuery(name = "DatabasedKeystore.findByDescriptiveName", query = "SELECT k FROM DatabasedKeystore k WHERE k.descriptiveName = :descriptiveName"),
-    @NamedQuery(name = "DatabasedKeystore.findByIdWithPostedSlices",
-            query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED'"),
-    @NamedQuery(name = "DatabasedKeystore.findByIdAndParticipantWithPostedSlices",
+            @NamedQuery(name = "DatabasedKeystore.findAll", query = "SELECT k FROM DatabasedKeystore k"),
+            @NamedQuery(name = "DatabasedKeystore.findById", query = "SELECT k FROM DatabasedKeystore k WHERE k.id = :id"),
+            @NamedQuery(name = "DatabasedKeystore.findByDescriptiveName", query = "SELECT k FROM DatabasedKeystore k WHERE k.descriptiveName = :descriptiveName"),
+            @NamedQuery(name = "DatabasedKeystore.findByIdWithPostedSlices",
+                    query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED'"),
+            @NamedQuery(name = "DatabasedKeystore.findByIdAndParticipantWithPostedSlices",
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED' AND s.participant.id = :participantId"),
     })
 public class DatabasedKeystore implements Serializable {
@@ -172,7 +172,7 @@ public class DatabasedKeystore implements Serializable {
     @Override
     public String toString() {
         return String.format("DatabasedKeystore[id=%s, descriptiveName=%s, creationTime=%s, mofificationTime=%s]",
-                this.id, this.descriptiveName, 
+                this.id, this.descriptiveName,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.mofificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
@@ -183,6 +183,13 @@ public class DatabasedKeystore implements Serializable {
                 .add("descriptiveName", this.descriptiveName)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("mofificationTime", this.mofificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("links", Json.createArrayBuilder()
+                        .add(Json.createObjectBuilder()
+                                .add("rel", "self")
+                                .add("href", String.format("/keystores/%s", this.id))
+                                .add("type", "GET")
+                        )
+                )
                 .build();
     }
 

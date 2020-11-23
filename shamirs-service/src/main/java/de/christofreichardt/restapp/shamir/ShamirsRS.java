@@ -139,30 +139,20 @@ public class ShamirsRS implements Traceable {
                 keystore.setSlices(slices);
                 this.keystoreService.persist(keystore);
 
-                JsonObject confirmation = Json.createObjectBuilder(keystore.toJson())
-                        .add("links", Json.createArrayBuilder()
-                                .add(Json.createObjectBuilder()
-                                        .add("rel", "self")
-                                        .add("href", "/shamir/v1/keystores/" + keystore.getId())
-                                        .add("type", "GET")
-                                )
-                        )
-                        .build();
-
                 response = Response.status(Response.Status.CREATED)
-                        .entity(confirmation)
+                        .entity(keystore.toJson())
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")
                         .build();
             } catch (GeneralSecurityException | IOException ex) {
-                JsonObject confirmation = Json.createObjectBuilder()
+                JsonObject hint = Json.createObjectBuilder()
                         .add("status", 500)
                         .add("reason", "Internal Server Error")
                         .add("message", ex.getMessage())
                         .build();
 
                 response = Response.status(Response.Status.CREATED)
-                        .entity(confirmation)
+                        .entity(hint)
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")
                         .build();
