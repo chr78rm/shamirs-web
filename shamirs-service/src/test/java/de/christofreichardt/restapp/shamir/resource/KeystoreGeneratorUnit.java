@@ -24,6 +24,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -33,6 +34,7 @@ import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
+import javax.json.JsonValue;
 import javax.sql.DataSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.AfterAll;
@@ -136,6 +138,22 @@ public class KeystoreGeneratorUnit implements Traceable {
             tracer.wayout();
         }
     }
+    
+    static class JsonByteReader {
+
+        final byte[] bytes;
+
+        public JsonByteReader(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
+        JsonValue readValue() {
+            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(this.bytes);
+            JsonReader jsonReader = Json.createReader(byteArrayInputStream);
+            
+            return jsonReader.readValue();
+        }
+    }
 
     @Test
     void partition() throws GeneralSecurityException, IOException {
@@ -152,9 +170,9 @@ public class KeystoreGeneratorUnit implements Traceable {
                 Map<String, byte[]> partition = keystoreGenerator.partition();
                 boolean allMatched = partition.entrySet().stream()
                         .map(entry -> {
-                            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(entry.getValue());
-                            JsonReader jsonReader = Json.createReader(byteArrayInputStream);
-                            JsonObject slice = jsonReader.readValue().asJsonObject();
+                            JsonObject slice = new JsonByteReader(entry.getValue())
+                                    .readValue()
+                                    .asJsonObject();
 
                             return new AbstractMap.SimpleEntry<String, JsonObject>(entry.getKey(), slice);
                         })
@@ -171,6 +189,17 @@ public class KeystoreGeneratorUnit implements Traceable {
                             return optionalSize.get().getInt("size") == entry.getValue().getJsonArray("SharePoints").size();
                         });
                 assertThat(allMatched).isTrue();
+                
+                Iterator<Map.Entry<String, byte[]>> iter = partition.entrySet().iterator();
+                while (iter.hasNext()) {
+                    byte[] slice = iter.next().getValue();
+                    assertThat(Objects.equals(keystoreGenerator.partitionId(), 
+                            new JsonByteReader(slice)
+                                    .readValue()
+                                    .asJsonObject()
+                                    .getString("Id")
+                    )).isTrue();
+                }
             } finally {
                 qTracer.wayout();
             }

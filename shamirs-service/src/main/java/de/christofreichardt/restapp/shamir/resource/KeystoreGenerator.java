@@ -163,6 +163,10 @@ public class KeystoreGenerator implements Traceable {
             tracer.wayout();
         }
     }
+    
+    String partitionId() {
+        return this.partition.get(0).asJsonObject().getString("Id");
+    }
 
     Map<String, byte[]> partition() {
         AbstractTracer tracer = getCurrentTracer();

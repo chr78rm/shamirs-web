@@ -58,6 +58,11 @@ public class Slice implements Serializable {
     @Column(name = "effective_time")
     private LocalDateTime effectiveTime;
     
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "partition_id")
+    private String partitionId;
+    
     @JoinColumn(name = "keystore_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
     private DatabasedKeystore keystore;
@@ -110,6 +115,14 @@ public class Slice implements Serializable {
 
     public void setEffectiveTime(LocalDateTime effectiveTime) {
         this.effectiveTime = effectiveTime;
+    }
+
+    public String getPartitionId() {
+        return partitionId;
+    }
+
+    public void setPartitionId(String partitionId) {
+        this.partitionId = partitionId;
     }
 
     public DatabasedKeystore getKeystore() {

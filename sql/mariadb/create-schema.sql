@@ -35,6 +35,7 @@ CREATE TABLE slice (
     id CHAR(36) PRIMARY KEY,
     participant_id CHAR(36) NOT NULL,
     keystore_id CHAR(36) NOT NULL,
+    partition_id CHAR(36) NOT NULL,
     share BLOB,
     processing_state VARCHAR(20),
     effective_time DATETIME NOT NULL
