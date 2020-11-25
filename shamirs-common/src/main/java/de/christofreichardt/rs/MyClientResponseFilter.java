@@ -36,6 +36,7 @@ public class MyClientResponseFilter implements ClientResponseFilter, Traceable {
         tracer.entry("void", this, "filter(ClientRequestContext clientRequestContext, ClientResponseContext clientResponseContext)");
 
         try {
+            tracer.out().printfIndentln("uri = %s, method = %s", clientRequestContext.getUri(), clientRequestContext.getMethod());
             tracer.out().printfIndentln("statusInfo = %s, status = %d", clientResponseContext.getStatusInfo(), clientResponseContext.getStatus());
             tracer.out().printfIndentln("headers = %s", clientResponseContext.getHeaders());
 
