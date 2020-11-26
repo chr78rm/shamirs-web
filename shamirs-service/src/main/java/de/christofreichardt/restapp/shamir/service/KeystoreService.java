@@ -7,6 +7,7 @@ package de.christofreichardt.restapp.shamir.service;
 
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,7 +17,10 @@ import org.springframework.stereotype.Component;
 @Component
 public interface KeystoreService {
     List<DatabasedKeystore> findAll();
+    Optional<DatabasedKeystore> findbyId(String id);
     DatabasedKeystore findByIdWithPostedSlices(String id);
+    DatabasedKeystore findByIdWithCertainSlices(String id, String state);
+    DatabasedKeystore findByIdWithActiveSlices(String id);
     DatabasedKeystore findByIdAndParticipantWithPostedSlices(String id, String participantId);
     DatabasedKeystore persist(DatabasedKeystore keystore);
     DatabasedKeystore findByDescriptiveName(String descriptiveName);

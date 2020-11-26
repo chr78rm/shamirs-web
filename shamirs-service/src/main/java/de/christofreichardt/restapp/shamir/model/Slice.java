@@ -35,6 +35,8 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Slice.findByProcessingState", query = "SELECT s FROM Slice s WHERE s.processingState = :processingState"),
     @NamedQuery(name = "Slice.findByEffectiveTime", query = "SELECT s FROM Slice s WHERE s.effectiveTime = :effectiveTime")})
 public class Slice implements Serializable {
+    
+    public enum ProcessingState {CREATED, POSTED, EXPIRED};
 
     private static final long serialVersionUID = 1L;
     

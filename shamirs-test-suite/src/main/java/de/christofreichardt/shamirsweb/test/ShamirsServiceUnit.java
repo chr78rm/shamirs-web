@@ -208,11 +208,36 @@ public class ShamirsServiceUnit implements Traceable {
             
             tracer.out().printfIndentln("href = %s", href);
             
-            this.client.target(this.baseUrl)
+            response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(keystoreEntity.getString("id"))
                     .request(MediaType.APPLICATION_JSON)
                     .get();
+
+            tracer.out().printfIndentln("response = %s", response);
+
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void getKeystore() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "getKeystore()");
+
+        try {
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get();
+
+            tracer.out().printfIndentln("response = %s", response);
+
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
         } finally {
             tracer.wayout();
         }

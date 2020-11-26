@@ -5,14 +5,33 @@
  */
 package de.christofreichardt.restapp.shamir.model;
 
+import de.christofreichardt.jca.shamir.ShamirsLoadParameter;
+import de.christofreichardt.jca.shamir.ShamirsProtection;
+import de.christofreichardt.jca.shamir.ShamirsProvider;
+import de.christofreichardt.json.JsonValueCollector;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.Serializable;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.Security;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.AbstractMap;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+import javax.json.JsonReader;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -33,14 +52,17 @@ import javax.validation.constraints.Size;
 @Entity
 @Table(name = "keystore")
 @NamedQueries({
-            @NamedQuery(name = "DatabasedKeystore.findAll", query = "SELECT k FROM DatabasedKeystore k"),
-            @NamedQuery(name = "DatabasedKeystore.findById", query = "SELECT k FROM DatabasedKeystore k WHERE k.id = :id"),
-            @NamedQuery(name = "DatabasedKeystore.findByDescriptiveName", query = "SELECT k FROM DatabasedKeystore k WHERE k.descriptiveName = :descriptiveName"),
-            @NamedQuery(name = "DatabasedKeystore.findByIdWithPostedSlices",
-                    query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED'"),
-            @NamedQuery(name = "DatabasedKeystore.findByIdAndParticipantWithPostedSlices",
-            query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED' AND s.participant.id = :participantId"),
-    })
+    @NamedQuery(name = "DatabasedKeystore.findAll", query = "SELECT k FROM DatabasedKeystore k"),
+    @NamedQuery(name = "DatabasedKeystore.findById", query = "SELECT k FROM DatabasedKeystore k WHERE k.id = :id"),
+    @NamedQuery(name = "DatabasedKeystore.findByDescriptiveName", query = "SELECT k FROM DatabasedKeystore k WHERE k.descriptiveName = :descriptiveName"),
+    @NamedQuery(name = "DatabasedKeystore.findByIdWithPostedSlices",
+            query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED'"),
+    @NamedQuery(name = "DatabasedKeystore.findByIdWithCertainSlices",
+            query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = :state"),
+    @NamedQuery(name = "DatabasedKeystore.findByIdWithActiveSlices",
+            query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED' OR s.processingState = 'CREATED'"),
+    @NamedQuery(name = "DatabasedKeystore.findByIdAndParticipantWithPostedSlices",
+            query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED' AND s.participant.id = :participantId"),})
 public class DatabasedKeystore implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -73,7 +95,7 @@ public class DatabasedKeystore implements Serializable {
     private LocalDateTime mofificationTime;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "keystore")
-    private Collection<Slice> slices;
+    private Collection<Slice> slices = new HashSet<>();
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "keystore")
     private Collection<Session> sessions;
@@ -191,6 +213,64 @@ public class DatabasedKeystore implements Serializable {
                         )
                 )
                 .build();
+    }
+
+    public JsonObject toJson(boolean inFull) throws GeneralSecurityException, IOException {
+        if (getSlices() == null || getStore() == null) {
+            throw new IllegalStateException("No slices or no store bytes.");
+        }
+
+        JsonObject jsonKeystore = toJson();
+        if (inFull) {
+            JsonArray sharePoints = getSlices().stream()
+                    .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.CREATED.name()))
+                    .map(slice -> new ByteArrayInputStream(slice.getShare()))
+                    .map(in -> {
+                        try ( JsonReader jsonReader = Json.createReader(in)) {
+                            return jsonReader.read();
+                        }
+                    })
+                    .collect(new JsonValueCollector());
+            if (sharePoints.isEmpty()) {
+                sharePoints = getSlices().stream()
+                    .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.POSTED.name()))
+                    .map(slice -> new ByteArrayInputStream(slice.getShare()))
+                    .map(in -> {
+                        try ( JsonReader jsonReader = Json.createReader(in)) {
+                            return jsonReader.read();
+                        }
+                    })
+                    .collect(new JsonValueCollector());
+            }
+            JsonObjectBuilder jsonKeystoreBuilder = Json.createObjectBuilder(jsonKeystore);
+            if (!sharePoints.isEmpty()) {
+                ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints);
+                ByteArrayInputStream in = new ByteArrayInputStream(getStore());
+                ShamirsLoadParameter shamirsLoadParameter = new ShamirsLoadParameter(in, shamirsProtection);
+                KeyStore shamirsKeystore = KeyStore.getInstance("ShamirsKeystore", Security.getProvider(ShamirsProvider.NAME));
+                shamirsKeystore.load(shamirsLoadParameter);
+                JsonArrayBuilder keyEntriesBuilder = Json.createArrayBuilder();
+                Map<String, String> oid2Identifier = Map.of("1.2.840.113549.1.9.21", "localKeyID", "1.2.840.113549.1.9.20", "friendlyName");
+                Iterator<String> iter = shamirsKeystore.aliases().asIterator();
+                while (iter.hasNext()) {
+                    JsonObjectBuilder keyEntryBuilder = Json.createObjectBuilder();
+                    String alias = iter.next();
+                    keyEntryBuilder.add("alias", alias);
+                    KeyStore.Entry entry = shamirsKeystore.getEntry(alias, shamirsProtection);
+                    Map<String, String> attributes = entry.getAttributes().stream()
+                            .map(attr -> new AbstractMap.SimpleImmutableEntry<>(oid2Identifier.get(attr.getName()), attr.getValue()))
+                            .collect(Collectors.toMap(attr -> attr.getKey(), attr -> attr.getValue()));
+                    attributes.entrySet().forEach(attr -> keyEntryBuilder.add(attr.getKey(), attr.getValue()));
+                    keyEntriesBuilder.add(keyEntryBuilder);
+                }
+                jsonKeystoreBuilder.add("keyEntries", keyEntriesBuilder);
+            } else {
+                jsonKeystoreBuilder.add("keyEntries", "forbidden");
+            }
+            jsonKeystore = jsonKeystoreBuilder.build();
+        }
+
+        return jsonKeystore;
     }
 
 }
