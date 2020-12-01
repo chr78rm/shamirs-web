@@ -197,7 +197,7 @@ public class KeystoreGeneratorUnit implements Traceable {
                             new JsonByteReader(slice)
                                     .readValue()
                                     .asJsonObject()
-                                    .getString("Id")
+                                    .getString("PartitionId")
                     )).isTrue();
                 }
             } finally {

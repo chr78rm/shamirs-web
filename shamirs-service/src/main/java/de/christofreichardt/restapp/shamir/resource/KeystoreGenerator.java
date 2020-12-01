@@ -165,7 +165,7 @@ public class KeystoreGenerator implements Traceable {
     }
     
     String partitionId() {
-        return this.partition.get(0).asJsonObject().getString("Id");
+        return this.partition.get(0).asJsonObject().getString("PartitionId");
     }
 
     Map<String, byte[]> partition() {
