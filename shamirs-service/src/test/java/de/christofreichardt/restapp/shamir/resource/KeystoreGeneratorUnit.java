@@ -22,9 +22,9 @@ import java.security.Security;
 import java.sql.SQLException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -244,11 +244,12 @@ public class KeystoreGeneratorUnit implements Traceable {
 
         try {
             List<Map<String, Object>> result = this.jdbcTemplate.query(
-                    "SELECT k.id, k.descriptive_name, k.creation_time, k.modification_time FROM keystore k",
+                    "SELECT k.id, k.descriptive_name, k.current_partition_id, k.creation_time, k.modification_time FROM keystore k",
                     (resultSet, rowNum) -> {
-                        Map<String, Object> map = new HashMap<>();
+                        Map<String, Object> map = new LinkedHashMap<>();
                         map.put("id", resultSet.getString("id"));
                         map.put("descriptive_name", resultSet.getString("descriptive_name"));
+                        map.put("current_partition_id", resultSet.getString("current_partition_id"));
                         map.put("creation_time", resultSet.getString("creation_time"));
                         map.put("modification_time", resultSet.getString("modification_time"));
 

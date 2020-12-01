@@ -83,6 +83,11 @@ public class DatabasedKeystore implements Serializable {
     @Lob
     @Column(name = "store")
     private byte[] store;
+    
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "current_partition_id")
+    private String currentPartitionId;
 
     @Basic(optional = false)
     @NotNull
@@ -139,6 +144,14 @@ public class DatabasedKeystore implements Serializable {
         this.store = store;
     }
 
+    public String getCurrentPartitionId() {
+        return currentPartitionId;
+    }
+
+    public void setCurrentPartitionId(String currentPartitionId) {
+        this.currentPartitionId = currentPartitionId;
+    }
+
     public LocalDateTime getCreationTime() {
         return creationTime;
     }
@@ -193,8 +206,8 @@ public class DatabasedKeystore implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("DatabasedKeystore[id=%s, descriptiveName=%s, creationTime=%s, mofificationTime=%s]",
-                this.id, this.descriptiveName,
+        return String.format("DatabasedKeystore[id=%s, descriptiveName=%s, currentPartitionId=%s, creationTime=%s, mofificationTime=%s]",
+                this.id, this.descriptiveName, this.currentPartitionId,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.mofificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
@@ -203,6 +216,7 @@ public class DatabasedKeystore implements Serializable {
         return Json.createObjectBuilder()
                 .add("id", this.id)
                 .add("descriptiveName", this.descriptiveName)
+                .add("currentPartitionId", this.currentPartitionId)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("mofificationTime", this.mofificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("links", Json.createArrayBuilder()

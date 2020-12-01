@@ -104,7 +104,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
         try {
             tracer.out().printfIndentln("id = %s", id);
 
-            return this.entityManager.createQuery(
+            return this.entityManager.createQuery( // TODO: think about the current_partition_id
                     "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND "
                     + "s.processingState = '" + Slice.ProcessingState.POSTED.name()
                     + "' OR s.processingState = '" + Slice.ProcessingState.CREATED.name() + "'",

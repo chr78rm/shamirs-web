@@ -85,6 +85,7 @@ public class KeystoreRS implements Traceable {
                         .collect(Collectors.toSet());
 
                 keystore.setSlices(slices);
+                keystore.setCurrentPartitionId(keystoreGenerator.partitionId());
                 this.keystoreService.persist(keystore);
 
                 response = Response.status(Response.Status.CREATED)

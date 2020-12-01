@@ -24,6 +24,7 @@ CREATE TABLE keystore (
     id CHAR(36) PRIMARY KEY,
     descriptive_name VARCHAR(100) NOT NULL,
     store BLOB,
+    current_partition_id CHAR(36) NOT NULL,
     creation_time DATETIME NOT NULL,
     modification_time DATETIME NOT NULL
 );
