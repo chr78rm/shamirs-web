@@ -5,10 +5,10 @@
  */
 package de.christofreichardt.restapp.shamir.resource;
 
-import de.christofreichardt.restapp.shamir.*;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.jca.shamir.PasswordGenerator;
 import de.christofreichardt.jca.shamir.ShamirsLoadParameter;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
