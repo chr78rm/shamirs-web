@@ -5,6 +5,7 @@
             <classes>
                 <class simpleName="DummyUnit" enabled="true"/>
                 <class simpleName="ShamirsServiceUnit" enabled="true"/>
+                <class simpleName="SessionResourceUnit" enabled="true"/>
                 <!--
                     <class simpleName="SecondDummy" enabled="false"/>
                 -->

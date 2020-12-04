@@ -143,7 +143,7 @@ public class KeystoreRS implements Traceable {
     @Path("{id}")
     public Response updateKeystore(@PathParam("id") String id, JsonObject jsonObject) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("JsonObject", this, "updateKeystore(String id, JsonObject jsonObject)");
+        tracer.entry("Response", this, "updateKeystore(String id, JsonObject jsonObject)");
 
         try {
             tracer.out().printfIndentln("id = %s", id);

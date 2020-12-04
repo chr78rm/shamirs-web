@@ -9,7 +9,6 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.rs.MyClientResponseFilter;
-import de.christofreichardt.shamirsweb.test.PropertiesExtension.Config;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,7 +20,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import javax.json.Json;
-import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
@@ -29,11 +27,11 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
@@ -42,7 +40,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(PropertiesExtension.class)
-public class ShamirsServiceUnit implements Traceable {
+public class SessionResourceUnit implements Traceable {
 
     final Map<String, String> config;
     final String baseUrl;
@@ -51,7 +49,7 @@ public class ShamirsServiceUnit implements Traceable {
     Client client;
     Process process;
 
-    public ShamirsServiceUnit(@Config Map<String, String> config) {
+    public SessionResourceUnit(@PropertiesExtension.Config Map<String, String> config) {
         this.config = config;
         this.baseUrl = config.getOrDefault("de.christofreichardt.shamirsweb.test.baseUrl", "https://localhost:8443/shamir/v1");
         this.externalService = Boolean.parseBoolean(config.getOrDefault("de.christofreichardt.shamirsweb.test.externalService", "false"));
@@ -64,7 +62,7 @@ public class ShamirsServiceUnit implements Traceable {
 
         try {
             this.config.entrySet().forEach(entry -> tracer.out().printfIndentln("%s = %s", entry.getKey(), entry.getValue()));
-            
+
             File batch = Path.of("..", "sql", "mariadb", "setup-scenario.sql").toFile();
             Database database = new Database();
             database.execute(batch);
@@ -89,7 +87,7 @@ public class ShamirsServiceUnit implements Traceable {
                     .register(MyClientResponseFilter.class)
                     .trustStore(trustStore)
                     .build();
-            
+
             ping();
         } finally {
             tracer.wayout();
@@ -139,143 +137,25 @@ public class ShamirsServiceUnit implements Traceable {
     }
 
     @Test
-    void postKeystoreTemplate() throws IOException {
+    void postSessionInstructions() {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "postKeystoreTemplate()");
+        tracer.entry("void", this, "postSessionInstructions()");
 
         try {
-            JsonObject keystoreInstructions = Json.createObjectBuilder()
-                    .add("shares", 12)
-                    .add("threshold", 4)
-                    .add("descriptiveName", "my-posted-keystore")
-                    .add("keyinfos", Json.createArrayBuilder()
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", "my-secret-key")
-                                    .add("algorithm", "AES")
-                                    .add("keySize", 256)
-                                    .add("type", "secret-key")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", "my-private-key")
-                                    .add("algorithm", "EC")
-                                    .add("type", "private-key")
-                            )
-                    )
-                    .add("sizes", Json.createArrayBuilder()
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 4)
-                                    .add("participant", "christof")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 2)
-                                    .add("participant", "test-user-1")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 2)
-                                    .add("participant", "test-user-2")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-3")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-4")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-5")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-6")
-                            )
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("automaticClose", Json.createObjectBuilder()
+                            .add("idleTime", 30)
                     )
                     .build();
-
-            Response response = this.client.target(this.baseUrl)
-                    .path("keystores")
-                    .request(MediaType.APPLICATION_JSON)
-                    .post(Entity.json(keystoreInstructions));
-
-            tracer.out().printfIndentln("response = %s", response);
-
-            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
             
-            JsonObject keystoreEntity = response.readEntity(JsonObject.class);
-            JsonArray links = keystoreEntity.getJsonArray("links");
-            String href = links.get(0).asJsonObject().getString("href");
-            
-            tracer.out().printfIndentln("href = %s", href);
-            
-            response = this.client.target(this.baseUrl)
-                    .path("keystores")
-                    .path(keystoreEntity.getString("id"))
-                    .request(MediaType.APPLICATION_JSON)
-                    .get();
-
-            tracer.out().printfIndentln("response = %s", response);
-
-            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
-        } finally {
-            tracer.wayout();
-        }
-    }
-    
-    @Test
-    void getKeystore() {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "getKeystore()");
-
-        try {
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            
             Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(KEYSTORE_ID)
+                    .path("sessions")
                     .request(MediaType.APPLICATION_JSON)
-                    .get();
-
-            tracer.out().printfIndentln("response = %s", response);
-
-            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Test
-    void putKeystore() {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "putKeystore()");
-
-        try {
-            JsonObject jsonObject = Json.createObjectBuilder()
-                    .add("alias", "my-secret-key")
-                    .add("algorithm", "AES")
-                    .add("keySize", 256)
-                    .build();
-
-            Response response = this.client.target(this.baseUrl)
-                    .path("keystores/123")
-                    .request()
-                    .put(Entity.json(jsonObject));
-
-            tracer.out().printfIndentln("response = %s", response);
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Test
-    void availableKeystores() {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "availableKeystores()");
-
-        try {
-            Response response = this.client.target(this.baseUrl)
-                    .path("keystores")
-                    .request()
-                    .get();
+                    .post(Entity.json(sessionInstructions));
 
             tracer.out().printfIndentln("response = %s", response);
         } finally {

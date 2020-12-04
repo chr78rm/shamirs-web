@@ -83,7 +83,7 @@ public class DatabasedKeystore implements Serializable {
     @Lob
     @Column(name = "store")
     private byte[] store;
-    
+
     @Basic(optional = false)
     @NotNull
     @Column(name = "current_partition_id")
@@ -225,6 +225,14 @@ public class DatabasedKeystore implements Serializable {
                                 .add("href", String.format("/keystores/%s", this.id))
                                 .add("type", "GET")
                         )
+                        .add(Json.createObjectBuilder()
+                                .add("rel", "session")
+                                .add("href", String.format("/keystores/%s/sessions", this.id))
+                                .add("type", Json.createArrayBuilder()
+                                        .add("GET")
+                                        .add("POST")
+                                )
+                        )
                 )
                 .build();
     }
@@ -247,14 +255,14 @@ public class DatabasedKeystore implements Serializable {
                     .collect(new JsonValueCollector());
             if (sharePoints.isEmpty()) {
                 sharePoints = getSlices().stream()
-                    .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.POSTED.name()))
-                    .map(slice -> new ByteArrayInputStream(slice.getShare()))
-                    .map(in -> {
-                        try ( JsonReader jsonReader = Json.createReader(in)) {
-                            return jsonReader.read();
-                        }
-                    })
-                    .collect(new JsonValueCollector());
+                        .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.POSTED.name()))
+                        .map(slice -> new ByteArrayInputStream(slice.getShare()))
+                        .map(in -> {
+                            try ( JsonReader jsonReader = Json.createReader(in)) {
+                                return jsonReader.read();
+                            }
+                        })
+                        .collect(new JsonValueCollector());
             }
             JsonObjectBuilder jsonKeystoreBuilder = Json.createObjectBuilder(jsonKeystore);
             if (!sharePoints.isEmpty()) {
@@ -279,7 +287,7 @@ public class DatabasedKeystore implements Serializable {
                 }
                 jsonKeystoreBuilder.add("keyEntries", keyEntriesBuilder);
             } else {
-                jsonKeystoreBuilder.add("keyEntries", "forbidden");
+                jsonKeystoreBuilder.add("keyEntries", "not loaded yet");
             }
             jsonKeystore = jsonKeystoreBuilder.build();
         }

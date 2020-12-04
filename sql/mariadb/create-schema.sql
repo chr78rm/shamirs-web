@@ -50,7 +50,7 @@ ALTER TABLE slice ADD CONSTRAINT fk_slice_keystore FOREIGN KEY (keystore_id) REF
 CREATE TABLE csession (
     id CHAR(36) PRIMARY KEY,
     keystore_id CHAR(36) NOT NULL,
-    phase VARCHAR(20),
+    phase VARCHAR(20) NOT NULL,
     effective_time DATETIME NOT NULL
 );
 ALTER TABLE csession ADD CONSTRAINT fk_session_keystore FOREIGN KEY (keystore_id) REFERENCES keystore(id);
