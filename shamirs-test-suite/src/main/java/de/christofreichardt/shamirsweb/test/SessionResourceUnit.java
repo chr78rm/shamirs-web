@@ -6,6 +6,7 @@
 package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -33,12 +34,22 @@ public class SessionResourceUnit extends ShamirsBaseUnit {
             JsonObject sessionInstructions = Json.createObjectBuilder()
                     .add("automaticClose", Json.createObjectBuilder()
                             .add("idleTime", 30)
+                            .add("temporalUnit", ChronoUnit.SECONDS.name())
                     )
                     .build();
             
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
             
             Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.json(sessionInstructions));
+
+            tracer.out().printfIndentln("response = %s", response);
+            
+            response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(KEYSTORE_ID)
                     .path("sessions")

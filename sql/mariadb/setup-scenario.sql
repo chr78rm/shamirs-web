@@ -1,6 +1,7 @@
 --
 -- cleanup
 --
+DELETE FROM csession;
 DELETE FROM slice;
 DELETE FROM keystore;
 DELETE FROM participant;

@@ -266,7 +266,7 @@ public class DatabasedKeystore implements Serializable {
             }
             JsonObjectBuilder jsonKeystoreBuilder = Json.createObjectBuilder(jsonKeystore);
             if (!sharePoints.isEmpty()) {
-                ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints);
+                ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints); // TODO: think about failed requirements which cause an exception
                 ByteArrayInputStream in = new ByteArrayInputStream(getStore());
                 ShamirsLoadParameter shamirsLoadParameter = new ShamirsLoadParameter(in, shamirsProtection);
                 KeyStore shamirsKeystore = KeyStore.getInstance("ShamirsKeystore", Security.getProvider(ShamirsProvider.NAME));

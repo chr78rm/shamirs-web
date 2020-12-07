@@ -7,7 +7,10 @@ package de.christofreichardt.restapp.shamir.model;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.Locale;
+import java.util.UUID;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -33,8 +36,10 @@ import javax.xml.bind.annotation.XmlTransient;
     @NamedQuery(name = "Session.findAll", query = "SELECT s FROM Session s"),
     @NamedQuery(name = "Session.findById", query = "SELECT s FROM Session s WHERE s.id = :id"),
     @NamedQuery(name = "Session.findByPhase", query = "SELECT s FROM Session s WHERE s.phase = :phase"),
-    @NamedQuery(name = "Session.findByEffectiveTime", query = "SELECT s FROM Session s WHERE s.effectiveTime = :effectiveTime")})
+    @NamedQuery(name = "Session.findByCreationTime", query = "SELECT s FROM Session s WHERE s.creationTime = :creationTime")})
 public class Session implements Serializable {
+    
+    public enum Phase {PENDING, ACTIVE, CLOSED};
 
     private static final long serialVersionUID = 1L;
     
@@ -50,10 +55,19 @@ public class Session implements Serializable {
     @Column(name = "phase")
     private String phase;
     
+    @Basic
+    @Column(name = "idle_time")
+    private int idleTime;
+    
     @Basic(optional = false)
     @NotNull
-    @Column(name = "effective_time")
-    private LocalDateTime effectiveTime;
+    @Column(name = "creation_time")
+    private LocalDateTime creationTime;
+    
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "modification_time")
+    private LocalDateTime modificationTime;
     
     @JoinColumn(name = "keystore_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
@@ -63,6 +77,9 @@ public class Session implements Serializable {
     private Collection<Document> documents;
 
     public Session() {
+        this.id = UUID.randomUUID().toString();
+        this.creationTime = LocalDateTime.now();
+        this.modificationTime = LocalDateTime.now();
     }
 
     public Session(String id) {
@@ -71,7 +88,7 @@ public class Session implements Serializable {
 
     public Session(String id, LocalDateTime effectiveTime) {
         this.id = id;
-        this.effectiveTime = effectiveTime;
+        this.creationTime = effectiveTime;
     }
 
     public String getId() {
@@ -90,12 +107,28 @@ public class Session implements Serializable {
         this.phase = phase;
     }
 
-    public LocalDateTime getEffectiveTime() {
-        return effectiveTime;
+    public int getIdleTime() {
+        return idleTime;
     }
 
-    public void setEffectiveTime(LocalDateTime effectiveTime) {
-        this.effectiveTime = effectiveTime;
+    public void setIdleTime(int idleTime) {
+        this.idleTime = idleTime;
+    }
+
+    public LocalDateTime getCreationTime() {
+        return creationTime;
+    }
+
+    public void setCreationTime(LocalDateTime creationTime) {
+        this.creationTime = creationTime;
+    }
+
+    public LocalDateTime getModificationTime() {
+        return modificationTime;
+    }
+
+    public void setModificationTime(LocalDateTime modificationTime) {
+        this.modificationTime = modificationTime;
     }
 
     public DatabasedKeystore getKeystore() {
@@ -137,7 +170,9 @@ public class Session implements Serializable {
 
     @Override
     public String toString() {
-        return "de.christofreichardt.restapp.shamir.model.Session[ id=" + id + " ]";
+        return String.format("Session[id=%s, phase=%s, idleTime=%d, creationTime=%s, modificationTime=%s]", this.id, this.phase, this.idleTime,
+                this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
+                this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
     
 }

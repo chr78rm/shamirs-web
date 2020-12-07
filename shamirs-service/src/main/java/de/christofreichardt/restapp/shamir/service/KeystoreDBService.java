@@ -150,6 +150,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DatabasedKeystore findByDescriptiveName(String descriptiveName) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("DatabasedKeystore", this, "findByIdWithPostedSlices(String id)");

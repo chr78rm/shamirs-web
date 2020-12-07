@@ -40,6 +40,7 @@ public class Scenario implements Traceable {
 
         try {
             int[] affectedRows = this.jdbcTemplate.batchUpdate(
+                    "DELETE FROM csession",
                     "DELETE FROM slice",
                     "DELETE FROM keystore",
                     "DELETE FROM participant"
