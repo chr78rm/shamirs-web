@@ -8,18 +8,24 @@ package de.christofreichardt.shamirsweb.test;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.assertj.core.api.WithAssertions;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 /**
  *
  * @author Developer
  */
-public class SessionResourceUnit extends ShamirsBaseUnit {
+@TestMethodOrder(OrderAnnotation.class)
+public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertions{
 
     public SessionResourceUnit(@PropertiesExtension.Config Map<String, String> config) {
         super(config);
@@ -32,14 +38,16 @@ public class SessionResourceUnit extends ShamirsBaseUnit {
 
         try {
             JsonObject sessionInstructions = Json.createObjectBuilder()
-                    .add("automaticClose", Json.createObjectBuilder()
-                            .add("idleTime", 30)
-                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                    .add("session", Json.createObjectBuilder()
+                            .add("automaticClose", Json.createObjectBuilder()
+                                    .add("idleTime", 30)
+                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            )
                     )
                     .build();
-            
+
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
-            
+
             Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(KEYSTORE_ID)
@@ -48,6 +56,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit {
                     .post(Entity.json(sessionInstructions));
 
             tracer.out().printfIndentln("response = %s", response);
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
             
             response = this.client.target(this.baseUrl)
                     .path("keystores")
@@ -57,9 +66,98 @@ public class SessionResourceUnit extends ShamirsBaseUnit {
                     .post(Entity.json(sessionInstructions));
 
             tracer.out().printfIndentln("response = %s", response);
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
         } finally {
             tracer.wayout();
         }
     }
 
+    @Test
+    void postInstructionsForUnknownKeystore() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "postInstructionsForUnknownKeystore()");
+
+        try {
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("automaticClose", Json.createObjectBuilder()
+                                    .add("idleTime", 30)
+                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            )
+                    )
+                    .build();
+
+            final String KEYSTORE_ID = UUID.randomUUID().toString(); // with virtual certainty an unkown keystore 
+
+            Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.json(sessionInstructions));
+
+            tracer.out().printfIndentln("response = %s", response);
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    @Order(1)
+    void emptyInstructions() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "emptyInstructions()");
+
+        try {
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .addNull("session")
+                    .build();
+
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+
+            Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.json(sessionInstructions));
+
+            tracer.out().printfIndentln("response = %s", response);
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    @Order(2)
+    void incompleteInstructions() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "incompleteInstructions()");
+
+        try {
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("automaticClose", Json.createObjectBuilder()
+                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            )
+                    )
+                    .build();
+
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+
+            Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.json(sessionInstructions));
+
+            tracer.out().printfIndentln("response = %s", response);
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+        } finally {
+            tracer.wayout();
+        }
+    }
 }

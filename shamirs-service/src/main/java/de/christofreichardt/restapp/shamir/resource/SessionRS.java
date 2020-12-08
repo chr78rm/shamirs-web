@@ -14,8 +14,12 @@ import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.Objects;
 import java.util.Optional;
+import javax.json.Json;
 import javax.json.JsonObject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
@@ -59,30 +63,82 @@ public class SessionRS implements Traceable {
         try {
             tracer.out().printfIndentln("keystoreId = %s", keystoreId);
 
-            Optional<DatabasedKeystore> keystore = this.keystoreService.findbyId(keystoreId); // TODO: load with active slices to determine the phase of the to be created session
-            keystore.ifPresentOrElse(k -> {
+            final int DEFAULT_IDLE_TIME = 1800; // seconds
+
+            Response response;
+
+            try {
+                Optional<DatabasedKeystore> optionalKeystore = this.keystoreService.findbyId(keystoreId); // TODO: load with active slices to determine the phase of the to be created session
+                DatabasedKeystore keystore = optionalKeystore.orElseThrow(() -> new IllegalArgumentException(String.format("No keystore found for id=%s.", keystoreId)));
+                
                 Optional<Session> latestSession = this.sessionService.findLatestByKeystore(keystoreId)
                         .filter(s -> Objects.equals(s.getPhase(), Session.Phase.PENDING.name()) || Objects.equals(s.getPhase(), Session.Phase.ACTIVE.name()));
                 if (latestSession.isEmpty()) {
+                    if (sessionInstructions.isNull("session")) {
+                        throw new IllegalArgumentException("No session instructions found.");
+                    }
                     Session session = new Session();
                     session.setPhase(Session.Phase.PENDING.name());
-                    session.setKeystore(k);
+                    session.setKeystore(keystore);
+                    int idleTime;
+                    TemporalUnit temporalUnit;
+                    if (Objects.nonNull(sessionInstructions.getJsonObject("session")
+                            .getJsonObject("automaticClose"))) {
+                        JsonObject automaticClose = sessionInstructions.getJsonObject("session")
+                                .getJsonObject("automaticClose");
+                        if (!automaticClose.containsKey("idleTime")) {
+                            throw new IllegalArgumentException("Incomplete instructions.");
+                        }
+                        idleTime = automaticClose.getInt("idleTime");
+                        temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
+                    } else {
+                        idleTime = DEFAULT_IDLE_TIME;
+                        temporalUnit = ChronoUnit.SECONDS;
+                    }
+                    Duration duration = Duration.of(idleTime, temporalUnit);
+                    session.setIdleTime(duration.getSeconds());
                     this.sessionService.save(session);
+                    
+                    response = Response.status(Response.Status.CREATED)
+                            .entity(session.toJson())
+                            .type(MediaType.APPLICATION_JSON)
+                            .encoding("UTF-8")
+                            .build();
                 } else {
-                    tracer.logMessage(LogLevel.WARNING, 
-                            String.format("Active or pending session found for keystore with id=%s.", keystoreId), 
-                            SessionRS.class, 
+                    tracer.logMessage(LogLevel.WARNING,
+                            String.format("Active or pending session found for keystore with id=%s.", keystoreId),
+                            SessionRS.class,
                             "createSesssion(String keystoreId, JsonObject sessionInstructions)");
+                    
+                    JsonObject hint = Json.createObjectBuilder()
+                            .add("status", Response.Status.BAD_REQUEST.getStatusCode())
+                            .add("reason", Response.Status.BAD_REQUEST.getReasonPhrase())
+                            .add("message", String.format("Active or pending session found for keystore with id=%s.", keystoreId))
+                            .build();
+                    
+                    response = Response.status(Response.Status.BAD_REQUEST)
+                            .entity(hint)
+                            .type(MediaType.APPLICATION_JSON)
+                            .encoding("UTF-8")
+                            .build();
                 }
-            }, () -> tracer.logMessage(LogLevel.WARNING, 
-                    String.format("No keystore found for id=%s.", keystoreId), 
-                    SessionRS.class, 
-                    "createSesssion(String keystoreId, JsonObject sessionInstructions)")
-            );
+            } catch (IllegalArgumentException ex) {
+                tracer.logException(LogLevel.ERROR, ex, SessionRS.class, "createSesssion(String keystoreId, JsonObject sessionInstructions)");
+                
+                JsonObject hint = Json.createObjectBuilder()
+                        .add("status", Response.Status.BAD_REQUEST.getStatusCode())
+                        .add("reason", Response.Status.BAD_REQUEST.getReasonPhrase())
+                        .add("message", ex.getMessage())
+                        .build();
 
-            return Response.noContent()
-                    .status(Response.Status.NO_CONTENT)
-                    .build();
+                response = Response.status(Response.Status.BAD_REQUEST)
+                        .entity(hint)
+                        .type(MediaType.APPLICATION_JSON)
+                        .encoding("UTF-8")
+                        .build();
+            }
+            
+            return response;
         } finally {
             tracer.wayout();
         }

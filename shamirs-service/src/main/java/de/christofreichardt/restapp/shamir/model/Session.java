@@ -11,6 +11,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.UUID;
+import javax.json.Json;
+import javax.json.JsonObject;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -57,7 +59,7 @@ public class Session implements Serializable {
     
     @Basic
     @Column(name = "idle_time")
-    private int idleTime;
+    private long idleTime;
     
     @Basic(optional = false)
     @NotNull
@@ -107,11 +109,11 @@ public class Session implements Serializable {
         this.phase = phase;
     }
 
-    public int getIdleTime() {
+    public long getIdleTime() {
         return idleTime;
     }
 
-    public void setIdleTime(int idleTime) {
+    public void setIdleTime(long idleTime) {
         this.idleTime = idleTime;
     }
 
@@ -175,4 +177,13 @@ public class Session implements Serializable {
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
     
+    public JsonObject toJson() {
+        return Json.createObjectBuilder()
+                .add("id", this.id)
+                .add("phase", this.phase)
+                .add("idleTime", this.idleTime)
+                .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .build();
+    }
 }
