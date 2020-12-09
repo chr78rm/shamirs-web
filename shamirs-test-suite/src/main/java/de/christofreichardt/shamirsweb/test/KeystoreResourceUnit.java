@@ -117,10 +117,21 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
         tracer.entry("void", this, "getKeystore()");
 
         try {
-            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            final String MY_FIRST_KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
             Response response = this.client.target(this.baseUrl)
                     .path("keystores")
-                    .path(KEYSTORE_ID)
+                    .path(MY_FIRST_KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get();
+
+            tracer.out().printfIndentln("response = %s", response);
+
+            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+            
+            final String THE_TOO_FEW_SLICES_KEYSTORE_ID = "3e6b2af3-63e2-4dcb-bb71-c69f1293b072"; // the-too-few-slices-keystore
+            response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(THE_TOO_FEW_SLICES_KEYSTORE_ID)
                     .request(MediaType.APPLICATION_JSON)
                     .get();
 

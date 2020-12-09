@@ -9,6 +9,7 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
@@ -21,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import javax.json.Json;
 import javax.json.JsonObject;
+import javax.persistence.NoResultException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -68,8 +70,7 @@ public class SessionRS implements Traceable {
             Response response;
 
             try {
-                Optional<DatabasedKeystore> optionalKeystore = this.keystoreService.findbyId(keystoreId); // TODO: load with active slices to determine the phase of the to be created session
-                DatabasedKeystore keystore = optionalKeystore.orElseThrow(() -> new IllegalArgumentException(String.format("No keystore found for id=%s.", keystoreId)));
+                DatabasedKeystore keystore = this.keystoreService.findByIdWithActiveSlices(keystoreId);
                 
                 Optional<Session> latestSession = this.sessionService.findLatestByKeystore(keystoreId)
                         .filter(s -> Objects.equals(s.getPhase(), Session.Phase.PENDING.name()) || Objects.equals(s.getPhase(), Session.Phase.ACTIVE.name()));
@@ -78,7 +79,12 @@ public class SessionRS implements Traceable {
                         throw new IllegalArgumentException("No session instructions found.");
                     }
                     Session session = new Session();
-                    session.setPhase(Session.Phase.PENDING.name());
+                    try {
+                        ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.sharePoints());
+                        session.setPhase(Session.Phase.ACTIVE.name());
+                    } catch (IllegalArgumentException ex) {
+                        session.setPhase(Session.Phase.PENDING.name());
+                    }
                     session.setKeystore(keystore);
                     int idleTime;
                     TemporalUnit temporalUnit;
@@ -122,7 +128,7 @@ public class SessionRS implements Traceable {
                             .encoding("UTF-8")
                             .build();
                 }
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException | NoResultException ex) {
                 tracer.logException(LogLevel.ERROR, ex, SessionRS.class, "createSesssion(String keystoreId, JsonObject sessionInstructions)");
                 
                 JsonObject hint = Json.createObjectBuilder()

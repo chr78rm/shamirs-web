@@ -96,6 +96,18 @@ public class Scenario implements Traceable {
             });
             
             tracer.out().printfIndentln("result = %d", result);
+            
+            result = this.jdbcTemplate.execute(sql, new AbstractLobCreatingPreparedStatementCallback(defaultLobHandler) {
+                @Override
+                protected void setValues(PreparedStatement preparedStatement, LobCreator lobCreator) throws SQLException, DataAccessException {
+                    preparedStatement.setString(1, "3e6b2af3-63e2-4dcb-bb71-c69f1293b072");
+                    preparedStatement.setString(2, "the-too-few-slices-keystore");
+                    lobCreator.setBlobAsBytes(preparedStatement, 3, keystoreBytes);
+                    preparedStatement.setString(4, "467b268d-1a7f-4f00-993c-672b82494822");
+                }
+            });
+            
+            tracer.out().printfIndentln("result = %d", result);
         } finally {
             tracer.wayout();
         }
@@ -191,6 +203,30 @@ public class Scenario implements Traceable {
                         "7b5ab104-a05c-4103-9582-303be0dcb173",
                         "54ce43ce-c335-47a2-98b8-1bd1fc4f93a4",
                         "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        "467b268d-1a7f-4f00-993c-672b82494822",
+                        Files.readAllBytes(Path.of("..", "sql", "test-6.json")),
+                        "POSTED"
+                    },
+                    new Object[]{
+                        "f23b7254-3cf5-4e21-b7cb-d709edf01d9f",
+                        "222185fb-6cbc-45e6-90d1-e5390fb2f9f9",
+                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        "467b268d-1a7f-4f00-993c-672b82494822",
+                        Files.readAllBytes(Path.of("..", "sql", "test-4.json")),
+                        "POSTED"
+                    },
+                    new Object[]{
+                        "d126d03b-8802-45e5-8d0b-90644fed3775",
+                        "b78d63a0-e365-4934-93e4-ec1ea713cba8",
+                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        "467b268d-1a7f-4f00-993c-672b82494822",
+                        Files.readAllBytes(Path.of("..", "sql", "test-5.json")),
+                        "POSTED"
+                    },
+                    new Object[]{
+                        "282782ec-98a2-41f0-a5b9-427f6860de0d",
+                        "54ce43ce-c335-47a2-98b8-1bd1fc4f93a4",
+                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         Files.readAllBytes(Path.of("..", "sql", "test-6.json")),
                         "POSTED"

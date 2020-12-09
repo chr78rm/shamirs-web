@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.Security;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -211,6 +212,53 @@ public class DatabasedKeystore implements Serializable {
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.mofificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
+    
+    public JsonArray sharePoints() {
+        if (getSlices() == null) {
+            throw new IllegalStateException("No slices.");
+        }
+        
+        JsonArray sharePoints = getSlices().stream()
+                .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.CREATED.name()))
+                .map(slice -> new ByteArrayInputStream(slice.getShare()))
+                .map(in -> {
+                    try (JsonReader jsonReader = Json.createReader(in)) {
+                        return jsonReader.read();
+                    }
+                })
+                .collect(new JsonValueCollector());
+        if (sharePoints.isEmpty()) {
+            sharePoints = getSlices().stream()
+                    .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.POSTED.name()))
+                    .map(slice -> new ByteArrayInputStream(slice.getShare()))
+                    .map(in -> {
+                        try (JsonReader jsonReader = Json.createReader(in)) {
+                            return jsonReader.read();
+                        }
+                    })
+                    .collect(new JsonValueCollector());
+        }
+        
+        return sharePoints;
+    }
+    
+    public KeyStore keystoreInstance() throws GeneralSecurityException, IOException {
+        if (getStore() == null) {
+            throw new IllegalStateException("No store bytes.");
+        }
+        
+        try {
+            ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints());
+            ByteArrayInputStream in = new ByteArrayInputStream(getStore());
+            ShamirsLoadParameter shamirsLoadParameter = new ShamirsLoadParameter(in, shamirsProtection);
+            KeyStore shamirsKeystore = KeyStore.getInstance("ShamirsKeystore", Security.getProvider(ShamirsProvider.NAME));
+            shamirsKeystore.load(shamirsLoadParameter);
+            
+            return shamirsKeystore;
+        } catch (IllegalArgumentException ex) {
+            throw new KeyStoreException(ex);
+        } 
+    }
 
     public JsonObject toJson() {
         return Json.createObjectBuilder()
@@ -238,39 +286,12 @@ public class DatabasedKeystore implements Serializable {
     }
 
     public JsonObject toJson(boolean inFull) throws GeneralSecurityException, IOException {
-        if (getSlices() == null || getStore() == null) {
-            throw new IllegalStateException("No slices or no store bytes.");
-        }
-
         JsonObject jsonKeystore = toJson();
         if (inFull) {
-            JsonArray sharePoints = getSlices().stream()
-                    .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.CREATED.name()))
-                    .map(slice -> new ByteArrayInputStream(slice.getShare()))
-                    .map(in -> {
-                        try ( JsonReader jsonReader = Json.createReader(in)) {
-                            return jsonReader.read();
-                        }
-                    })
-                    .collect(new JsonValueCollector());
-            if (sharePoints.isEmpty()) {
-                sharePoints = getSlices().stream()
-                        .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.POSTED.name()))
-                        .map(slice -> new ByteArrayInputStream(slice.getShare()))
-                        .map(in -> {
-                            try ( JsonReader jsonReader = Json.createReader(in)) {
-                                return jsonReader.read();
-                            }
-                        })
-                        .collect(new JsonValueCollector());
-            }
             JsonObjectBuilder jsonKeystoreBuilder = Json.createObjectBuilder(jsonKeystore);
-            if (!sharePoints.isEmpty()) {
-                ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints); // TODO: think about failed requirements which cause an exception
-                ByteArrayInputStream in = new ByteArrayInputStream(getStore());
-                ShamirsLoadParameter shamirsLoadParameter = new ShamirsLoadParameter(in, shamirsProtection);
-                KeyStore shamirsKeystore = KeyStore.getInstance("ShamirsKeystore", Security.getProvider(ShamirsProvider.NAME));
-                shamirsKeystore.load(shamirsLoadParameter);
+            try {
+                ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints());
+                KeyStore shamirsKeystore = keystoreInstance();
                 JsonArrayBuilder keyEntriesBuilder = Json.createArrayBuilder();
                 Map<String, String> oid2Identifier = Map.of("1.2.840.113549.1.9.21", "localKeyID", "1.2.840.113549.1.9.20", "friendlyName");
                 Iterator<String> iter = shamirsKeystore.aliases().asIterator();
@@ -286,8 +307,8 @@ public class DatabasedKeystore implements Serializable {
                     keyEntriesBuilder.add(keyEntryBuilder);
                 }
                 jsonKeystoreBuilder.add("keyEntries", keyEntriesBuilder);
-            } else {
-                jsonKeystoreBuilder.add("keyEntries", "not loaded yet");
+            } catch (GeneralSecurityException | IOException | IllegalArgumentException ex) {
+                jsonKeystoreBuilder.add("keyEntries", "unloadable");
             }
             jsonKeystore = jsonKeystoreBuilder.build();
         }
