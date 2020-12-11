@@ -184,6 +184,13 @@ public class Session implements Serializable {
                 .add("idleTime", this.idleTime)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("links", Json.createArrayBuilder()
+                        .add(Json.createObjectBuilder()
+                                .add("rel", "self")
+                                .add("href", String.format("/keystores/%s/sessions/%s", this.keystore.getId(), this.id))
+                                .add("type", "GET")
+                        )
+                )
                 .build();
     }
 }
