@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.json.Json;
@@ -62,6 +63,8 @@ import javax.validation.constraints.Size;
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = :state"),
     @NamedQuery(name = "DatabasedKeystore.findByIdWithActiveSlices",
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED' OR s.processingState = 'CREATED'"),
+    @NamedQuery(name = "DatabasedKeystore.findByIdWithActiveSlicesAndValidSessions",
+            query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices sl LEFT JOIN FETCH k.sessions se WHERE k.id = :id AND (sl.processingState = 'POSTED' OR sl.processingState = 'CREATED') AND (se.phase = 'PENDING' OR se.phase = 'ACTIVE')"),
     @NamedQuery(name = "DatabasedKeystore.findByIdAndParticipantWithPostedSlices",
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED' AND s.participant.id = :participantId"),})
 public class DatabasedKeystore implements Serializable {
@@ -101,10 +104,10 @@ public class DatabasedKeystore implements Serializable {
     private LocalDateTime mofificationTime;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "keystore")
-    private Collection<Slice> slices = new HashSet<>();
+    private Set<Slice> slices = new HashSet<>();
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "keystore")
-    private Collection<Session> sessions;
+    private Set<Session> sessions = new HashSet<>();
 
     public DatabasedKeystore() {
         this.id = UUID.randomUUID().toString();
@@ -169,19 +172,19 @@ public class DatabasedKeystore implements Serializable {
         this.mofificationTime = mofificationTime;
     }
 
-    public Collection<Slice> getSlices() {
+    public Set<Slice> getSlices() {
         return slices;
     }
 
-    public void setSlices(Collection<Slice> slices) {
+    public void setSlices(Set<Slice> slices) {
         this.slices = slices;
     }
 
-    public Collection<Session> getSessions() {
+    public Set<Session> getSessions() {
         return sessions;
     }
 
-    public void setSessions(Collection<Session> sessions) {
+    public void setSessions(Set<Session> sessions) {
         this.sessions = sessions;
     }
 
