@@ -19,7 +19,6 @@ import java.security.Security;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.AbstractMap;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
@@ -215,12 +214,12 @@ public class DatabasedKeystore implements Serializable {
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.mofificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
-    
+
     public JsonArray sharePoints() {
         if (getSlices() == null) {
             throw new IllegalStateException("No slices.");
         }
-        
+
         JsonArray sharePoints = getSlices().stream()
                 .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.CREATED.name()))
                 .map(slice -> new ByteArrayInputStream(slice.getShare()))
@@ -241,57 +240,56 @@ public class DatabasedKeystore implements Serializable {
                     })
                     .collect(new JsonValueCollector());
         }
-        
+
         return sharePoints;
     }
-    
+
     public KeyStore keystoreInstance() throws GeneralSecurityException, IOException {
         if (getStore() == null) {
             throw new IllegalStateException("No store bytes.");
         }
-        
+
         try {
             ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints());
             ByteArrayInputStream in = new ByteArrayInputStream(getStore());
             ShamirsLoadParameter shamirsLoadParameter = new ShamirsLoadParameter(in, shamirsProtection);
             KeyStore shamirsKeystore = KeyStore.getInstance("ShamirsKeystore", Security.getProvider(ShamirsProvider.NAME));
             shamirsKeystore.load(shamirsLoadParameter);
-            
+
             return shamirsKeystore;
         } catch (IllegalArgumentException ex) {
             throw new KeyStoreException(ex);
-        } 
+        }
     }
 
     public JsonObject toJson() {
-        return Json.createObjectBuilder()
+        return toJson(false);
+    }
+
+    public JsonObject toJson(boolean inFull) {
+        JsonObject jsonKeystore;
+        JsonArrayBuilder linkEntriesBuilder = Json.createArrayBuilder();
+        JsonObjectBuilder jsonKeystoreBuilder = Json.createObjectBuilder()
                 .add("id", this.id)
                 .add("descriptiveName", this.descriptiveName)
                 .add("currentPartitionId", this.currentPartitionId)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-                .add("mofificationTime", this.mofificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-                .add("links", Json.createArrayBuilder()
-                        .add(Json.createObjectBuilder()
-                                .add("rel", "self")
-                                .add("href", String.format("/keystores/%s", this.id))
-                                .add("type", "GET")
-                        )
-                        .add(Json.createObjectBuilder()
-                                .add("rel", "session")
-                                .add("href", String.format("/keystores/%s/sessions", this.id))
-                                .add("type", Json.createArrayBuilder()
-                                        .add("GET")
-                                        .add("POST")
-                                )
-                        )
-                )
-                .build();
-    }
-
-    public JsonObject toJson(boolean inFull) throws GeneralSecurityException, IOException {
-        JsonObject jsonKeystore = toJson();
+                .add("mofificationTime", this.mofificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        linkEntriesBuilder
+                .add(Json.createObjectBuilder()
+                        .add("rel", "self")
+                        .add("href", String.format("/keystores/%s", this.id))
+                        .add("type", "GET")
+                );
         if (inFull) {
-            JsonObjectBuilder jsonKeystoreBuilder = Json.createObjectBuilder(jsonKeystore);
+            linkEntriesBuilder
+                    .add(Json.createObjectBuilder()
+                            .add("rel", "session")
+                            .add("href", String.format("/keystores/%s/sessions", this.id))
+                            .add("type", Json.createArrayBuilder()
+                                    .add("GET")
+                            )
+                    );
             try {
                 ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints());
                 KeyStore shamirsKeystore = keystoreInstance();
@@ -313,8 +311,9 @@ public class DatabasedKeystore implements Serializable {
             } catch (GeneralSecurityException | IOException | IllegalArgumentException ex) {
                 jsonKeystoreBuilder.add("keyEntries", "unloadable");
             }
-            jsonKeystore = jsonKeystoreBuilder.build();
         }
+        jsonKeystoreBuilder.add("links", linkEntriesBuilder);
+        jsonKeystore = jsonKeystoreBuilder.build();
 
         return jsonKeystore;
     }

@@ -9,6 +9,7 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
+import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.Slice;
 import java.util.List;
 import java.util.Optional;
@@ -111,6 +112,40 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                     DatabasedKeystore.class)
                     .setParameter("id", id)
                     .getSingleResult();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DatabasedKeystore findByIdWithActiveSlicesAndValidSessions(String id) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("DatabasedKeystore", this, "findByIdWithActiveSlicesAndValidSessions(String id)");
+        try {
+            tracer.out().printfIndentln("id = %s", id);
+            
+//            DatabasedKeystore keystore = this.entityManager.createNamedQuery("DatabasedKeystore.findByIdWithActiveSlicesAndValidSessions", DatabasedKeystore.class)
+//                    .setParameter("id", id)
+//                    .getSingleResult();
+            
+            DatabasedKeystore keystore = this.entityManager.createQuery(
+                    "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s "
+                            + "WHERE k.id = :id "
+                            + "AND (s.processingState = '" + Slice.ProcessingState.POSTED.name() + "' OR s.processingState = '" + Slice.ProcessingState.CREATED.name() + "') ",
+                    DatabasedKeystore.class)
+                    .setParameter("id", id)
+                    .getSingleResult();
+            
+            keystore = this.entityManager.createQuery(
+                    "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s "
+                            + "WHERE k = :keystore ",
+//                            + "AND (s.phase = '" + Session.Phase.PENDING.name() +  "' OR s.phase = '" + Session.Phase.ACTIVE.name() + "')",
+                    DatabasedKeystore.class)
+                    .setParameter("keystore", keystore)
+                    .getSingleResult();            
+
+            return keystore;
         } finally {
             tracer.wayout();
         }

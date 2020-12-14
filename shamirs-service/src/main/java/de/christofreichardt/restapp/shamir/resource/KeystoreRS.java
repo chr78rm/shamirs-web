@@ -41,7 +41,7 @@ import org.springframework.stereotype.Component;
  * @author Developer
  */
 @Component
-@Path("keystores")
+@Path("")
 public class KeystoreRS implements Traceable {
 
     @Autowired
@@ -53,7 +53,7 @@ public class KeystoreRS implements Traceable {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @Path("")
+    @Path("keystores")
     public Response createKeystore(JsonObject keystoreInstructions) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "createKeystore(JsonObject keystoreInstructions)");
@@ -115,7 +115,7 @@ public class KeystoreRS implements Traceable {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Path("")
+    @Path("keystores")
     public Response availableKeystores() {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "availableKeystores()");
@@ -140,7 +140,7 @@ public class KeystoreRS implements Traceable {
     }
 
     @PUT
-    @Path("{id}")
+    @Path("keystores/{id}")
     public Response updateKeystore(@PathParam("id") String id, JsonObject jsonObject) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "updateKeystore(String id, JsonObject jsonObject)");
@@ -159,7 +159,7 @@ public class KeystoreRS implements Traceable {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Path("{id}")
+    @Path("keystores/{id}")
     public Response keystore(@PathParam("id") String id) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "keystore()");
@@ -169,14 +169,17 @@ public class KeystoreRS implements Traceable {
 
             Response response;
             try {
-                DatabasedKeystore databasedKeystore = this.keystoreService.findByIdWithActiveSlices(id);
-                JsonObject jsonKeystore = databasedKeystore.toJson(true);
+                DatabasedKeystore keystore = this.keystoreService.findByIdWithActiveSlicesAndValidSessions(id);
+                
+                tracer.out().printfIndentln("keystore = %s, keystore.getSlices() = %s, keystore.getSessions() = %s", keystore, keystore.getSlices(), keystore.getSessions());
+                
+                JsonObject jsonKeystore = keystore.toJson(true);
                 response = Response.status(Response.Status.OK)
                         .entity(jsonKeystore)
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")
                         .build();
-            } catch (PersistenceException | GeneralSecurityException | IOException ex) {
+            } catch (PersistenceException ex) {
                 tracer.logException(LogLevel.ERROR, ex, getClass(), "keystore(@PathParam(\"id\") String id)");
 
                 JsonObject hint = Json.createObjectBuilder()
