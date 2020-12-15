@@ -38,10 +38,12 @@ import javax.xml.bind.annotation.XmlTransient;
     @NamedQuery(name = "Session.findAll", query = "SELECT s FROM Session s"),
     @NamedQuery(name = "Session.findById", query = "SELECT s FROM Session s WHERE s.id = :id"),
     @NamedQuery(name = "Session.findByPhase", query = "SELECT s FROM Session s WHERE s.phase = :phase"),
-    @NamedQuery(name = "Session.findByCreationTime", query = "SELECT s FROM Session s WHERE s.creationTime = :creationTime")})
+    @NamedQuery(name = "Session.findByCreationTime", query = "SELECT s FROM Session s WHERE s.creationTime = :creationTime"),
+    @NamedQuery(name = "Session.findAllByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId"),
+})
 public class Session implements Serializable {
     
-    public enum Phase {PENDING, ACTIVE, CLOSED};
+    public enum Phase {PROVISIONED, PENDING, ACTIVE, CLOSED};
 
     private static final long serialVersionUID = 1L;
     

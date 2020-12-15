@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -265,6 +266,12 @@ public class DatabasedKeystore implements Serializable {
     public JsonObject toJson() {
         return toJson(false);
     }
+    
+    Optional<Session> currentSession() {
+        return this.sessions.stream()
+                .filter(session -> !Objects.equals(session.getPhase(), Session.Phase.CLOSED.name()))
+                .findFirst();
+    }
 
     public JsonObject toJson(boolean inFull) {
         JsonObject jsonKeystore;
@@ -284,12 +291,23 @@ public class DatabasedKeystore implements Serializable {
         if (inFull) {
             linkEntriesBuilder
                     .add(Json.createObjectBuilder()
-                            .add("rel", "session")
+                            .add("rel", "sessions")
                             .add("href", String.format("/keystores/%s/sessions", this.id))
                             .add("type", Json.createArrayBuilder()
                                     .add("GET")
                             )
                     );
+            currentSession().ifPresent(session -> {
+                linkEntriesBuilder
+                        .add(Json.createObjectBuilder()
+                                .add("rel", "currentSession")
+                                .add("href", String.format("/keystores/%s/sessions/%s", this.id, session.getId()))
+                                .add("type", Json.createArrayBuilder()
+                                        .add("GET")
+                                        .add("PUT")
+                                )
+                        );
+            });
             try {
                 ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints());
                 KeyStore shamirsKeystore = keystoreInstance();

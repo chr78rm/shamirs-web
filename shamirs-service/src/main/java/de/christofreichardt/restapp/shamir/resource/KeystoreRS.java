@@ -12,6 +12,7 @@ import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Participant;
+import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
 import de.christofreichardt.restapp.shamir.service.ParticipantService;
@@ -86,6 +87,10 @@ public class KeystoreRS implements Traceable {
 
                 keystore.setSlices(slices);
                 keystore.setCurrentPartitionId(keystoreGenerator.partitionId());
+                Session session = new Session();
+                session.setPhase(Session.Phase.PROVISIONED.name());
+                session.setKeystore(keystore);
+                keystore.getSessions().add(session);
                 this.keystoreService.persist(keystore);
 
                 response = Response.status(Response.Status.CREATED)

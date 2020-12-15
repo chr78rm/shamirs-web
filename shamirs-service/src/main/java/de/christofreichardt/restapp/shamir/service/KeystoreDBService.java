@@ -139,8 +139,8 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             
             keystore = this.entityManager.createQuery(
                     "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s "
-                            + "WHERE k = :keystore ",
-//                            + "AND (s.phase = '" + Session.Phase.PENDING.name() +  "' OR s.phase = '" + Session.Phase.ACTIVE.name() + "')",
+                            + "WHERE k = :keystore "
+                            + "AND s.phase != '" + Session.Phase.CLOSED.name() +  "'",
                     DatabasedKeystore.class)
                     .setParameter("keystore", keystore)
                     .getSingleResult();            

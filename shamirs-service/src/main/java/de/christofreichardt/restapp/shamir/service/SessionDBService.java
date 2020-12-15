@@ -51,6 +51,7 @@ public class SessionDBService implements SessionService, Traceable {
     }
 
     @Override
+    @Transactional
     public Session save(Session session) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Session", this, "save(Session session)");
@@ -61,6 +62,27 @@ public class SessionDBService implements SessionService, Traceable {
         } finally {
             tracer.wayout();
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Session> findAllByKeystore(String keystoreId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("List<Session>", this, "findAllByKeystore(String keystoreId)");
+        try {
+            tracer.out().printfIndentln("keystoreId = %s", keystoreId);
+            
+            return this.entityManager.createNamedQuery("Session.findAllByKeystore", Session.class)
+                    .setParameter("keystoreId", keystoreId)
+                    .getResultList();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
+    public Optional<Session> findCurrentSessionByKeystore(String keystoreId) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override

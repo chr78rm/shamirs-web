@@ -62,6 +62,7 @@ public class Scenario implements Traceable {
             insertKeystore();
             insertParticipants();
             insertSlices();
+            insertSessions();
         } finally {
             tracer.wayout();
         }
@@ -252,6 +253,36 @@ public class Scenario implements Traceable {
                     return batchArgs.size();
                 }
             });
+            
+            for (int rows : affectedRows) {
+                tracer.out().printfIndentln("Affected rows = %s", rows);
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    void insertSessions() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "insertSessions()");
+
+        try {
+            List<Object[]> batchArgs = List.of(
+                    new Object[]{"1232d4be-fa07-45d8-b741-65f60ce9ebf0", "3e6b2af3-63e2-4dcb-bb71-c69f1293b072", "PROVISIONED"},
+                    new Object[]{"8bff8ac6-fc31-40de-bd6a-eca4348171c5", "5adab38c-702c-4559-8a5f-b792c14b9a43", "PROVISIONED"}
+            );
+
+            String sql = "INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time)\n"
+                    + "VALUES (\n"
+                    + "    ?,\n"
+                    + "    ?,\n"
+                    + "    ?,\n"
+                    + "    0,\n"
+                    + "    CURRENT_TIMESTAMP,\n"
+                    + "    CURRENT_TIMESTAMP\n"
+                    + ")";
+
+            int[] affectedRows = this.jdbcTemplate.batchUpdate(sql, batchArgs);
             
             for (int rows : affectedRows) {
                 tracer.out().printfIndentln("Affected rows = %s", rows);

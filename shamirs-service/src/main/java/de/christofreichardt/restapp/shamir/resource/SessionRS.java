@@ -11,6 +11,7 @@ import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
+import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
@@ -21,10 +22,13 @@ import java.time.temporal.TemporalUnit;
 import java.util.Objects;
 import java.util.Optional;
 import javax.json.Json;
+import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.persistence.NoResultException;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -38,7 +42,7 @@ import org.springframework.stereotype.Component;
  * @author Developer
  */
 @Component
-@Path("keystores/{keystoreId}/sessions")
+@Path("")
 public class SessionRS implements Traceable {
 
     @Autowired
@@ -145,6 +149,52 @@ public class SessionRS implements Traceable {
             }
             
             return response;
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("keystores/{keystoreId}/sessions")
+    public Response sessionsByKeystore(@PathParam("keystoreId") String keystoreId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "sessionsByKeystore()");
+
+        try {
+            tracer.out().printfIndentln("keystoreId = %s", keystoreId);
+            
+            JsonArray sessions = this.sessionService.findAllByKeystore(keystoreId)
+                    .stream()
+                    .peek(session -> tracer.out().printfIndentln("session = %s", session))
+                    .map(session -> session.toJson())
+                    .collect(new JsonValueCollector());
+            JsonObject sessionsInfo = Json.createObjectBuilder()
+                    .add("sessions", sessions)
+                    .build();
+
+            return Response.status(Response.Status.OK)
+                    .entity(sessionsInfo)
+                    .type(MediaType.APPLICATION_JSON)
+                    .encoding("UTF-8")
+                    .build();
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @PUT
+    @Path("keystores/{keystoreId}/sessions/{sessionId}")
+    public Response updateSession(@PathParam("keystoreId") String keystoreId, @PathParam("sessionId") String sessionId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "updateSession(String keystoreId, String sessionId)");
+
+        try {
+            tracer.out().printfIndentln("keystoreId = %s", keystoreId);
+            tracer.out().printfIndentln("sessionId = %s", sessionId);
+            
+            return Response.status(Response.Status.NO_CONTENT)
+                    .build();
         } finally {
             tracer.wayout();
         }

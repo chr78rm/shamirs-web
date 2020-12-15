@@ -182,3 +182,29 @@ VALUES (
     'POSTED',
     CURRENT_TIMESTAMP
 );
+
+--
+-- setup session for keystore[id='3e6b2af3-63e2-4dcb-bb71-c69f1293b072', descriptive_name='the-too-few-slices-keystore']
+--
+INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time)
+VALUES (
+    '1232d4be-fa07-45d8-b741-65f60ce9ebf0', 
+    '3e6b2af3-63e2-4dcb-bb71-c69f1293b072', -- the-too-few-slices-keystore
+    'PROVISIONED',
+    0,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+);
+
+--
+-- setup session for keystore[id='5adab38c-702c-4559-8a5f-b792c14b9a43', descriptive_name='my-first-keystore']
+--
+INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time)
+VALUES (
+    '8bff8ac6-fc31-40de-bd6a-eca4348171c5', 
+    '5adab38c-702c-4559-8a5f-b792c14b9a43', -- my-first-keystore
+    'PROVISIONED',
+    0,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+);

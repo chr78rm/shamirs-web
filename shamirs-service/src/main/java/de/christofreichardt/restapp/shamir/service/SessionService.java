@@ -6,6 +6,7 @@
 package de.christofreichardt.restapp.shamir.service;
 
 import de.christofreichardt.restapp.shamir.model.Session;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -17,4 +18,6 @@ import org.springframework.stereotype.Component;
 public interface SessionService {
     Optional<Session> findLatestByKeystore(String keystoreId);
     Session save(Session session);
+    List<Session> findAllByKeystore(String keystoreId);
+    Optional<Session> findCurrentSessionByKeystore(String keystoreId);
 }
