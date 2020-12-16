@@ -19,5 +19,5 @@ public interface SessionService {
     Optional<Session> findLatestByKeystore(String keystoreId);
     Session save(Session session);
     List<Session> findAllByKeystore(String keystoreId);
-    Optional<Session> findCurrentSessionByKeystore(String keystoreId);
+    Session findCurrentSessionByKeystore(String keystoreId);
 }

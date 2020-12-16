@@ -81,8 +81,20 @@ public class SessionDBService implements SessionService, Traceable {
     }
 
     @Override
-    public Optional<Session> findCurrentSessionByKeystore(String keystoreId) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public Session findCurrentSessionByKeystore(String keystoreId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Session", this, "findCurrentSessionByKeystore(String keystoreId)");
+        try {
+            tracer.out().printfIndentln("keystoreId = %s", keystoreId);
+            
+            return this.entityManager.createQuery("SELECT s "
+                    + "FROM Session s "
+                    + "WHERE s.keystore.id = :keystoreId AND s.phase != '" + Session.Phase.CLOSED.name() + "'", Session.class)
+                    .setParameter("keystoreId", keystoreId)
+                    .getSingleResult();
+        } finally {
+            tracer.wayout();
+        }
     }
 
     @Override

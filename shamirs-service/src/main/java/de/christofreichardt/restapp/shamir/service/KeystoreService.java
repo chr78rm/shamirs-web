@@ -25,4 +25,5 @@ public interface KeystoreService {
     DatabasedKeystore findByIdAndParticipantWithPostedSlices(String id, String participantId);
     DatabasedKeystore persist(DatabasedKeystore keystore);
     DatabasedKeystore findByDescriptiveName(String descriptiveName);
+    Optional<DatabasedKeystore> findByIdWithActiveSlicesAndCurrentSession(String keystoreId);
 }

@@ -14,6 +14,7 @@ import de.christofreichardt.restapp.shamir.model.Slice;
 import java.util.List;
 import java.util.Optional;
 import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
 import javax.persistence.NonUniqueResultException;
 import javax.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -124,26 +125,22 @@ public class KeystoreDBService implements KeystoreService, Traceable {
         tracer.entry("DatabasedKeystore", this, "findByIdWithActiveSlicesAndValidSessions(String id)");
         try {
             tracer.out().printfIndentln("id = %s", id);
-            
-//            DatabasedKeystore keystore = this.entityManager.createNamedQuery("DatabasedKeystore.findByIdWithActiveSlicesAndValidSessions", DatabasedKeystore.class)
-//                    .setParameter("id", id)
-//                    .getSingleResult();
-            
+
             DatabasedKeystore keystore = this.entityManager.createQuery(
                     "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s "
-                            + "WHERE k.id = :id "
-                            + "AND (s.processingState = '" + Slice.ProcessingState.POSTED.name() + "' OR s.processingState = '" + Slice.ProcessingState.CREATED.name() + "') ",
+                    + "WHERE k.id = :id "
+                    + "AND (s.processingState = '" + Slice.ProcessingState.POSTED.name() + "' OR s.processingState = '" + Slice.ProcessingState.CREATED.name() + "') ",
                     DatabasedKeystore.class)
                     .setParameter("id", id)
                     .getSingleResult();
-            
+
             keystore = this.entityManager.createQuery(
                     "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s "
-                            + "WHERE k = :keystore "
-                            + "AND s.phase != '" + Session.Phase.CLOSED.name() +  "'",
+                    + "WHERE k = :keystore "
+                    + "AND s.phase != '" + Session.Phase.CLOSED.name() + "'",
                     DatabasedKeystore.class)
                     .setParameter("keystore", keystore)
-                    .getSingleResult();            
+                    .getSingleResult();
 
             return keystore;
         } finally {
@@ -206,6 +203,43 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             }
 
             return databasedKeystore;
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<DatabasedKeystore> findByIdWithActiveSlicesAndCurrentSession(String keystoreId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Optional<DatabasedKeystore>", this, "findByIdWithActiveSlicesAndCurrentSession(String keystoreId)");
+        try {
+            tracer.out().printfIndentln("keystoreId = %s", keystoreId);
+
+            Optional<DatabasedKeystore> optional;
+            try {
+                DatabasedKeystore keystore = this.entityManager.createQuery(
+                        "SELECT k FROM DatabasedKeystore k "
+                        + "LEFT JOIN FETCH k.slices s "
+                        + "WHERE k.id = :id AND s.processingState != '" + Slice.ProcessingState.EXPIRED.name() + "'",
+                        DatabasedKeystore.class)
+                        .setParameter("id", keystoreId)
+                        .getSingleResult();
+                
+                keystore = this.entityManager.createQuery(
+                        "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s "
+                        + "WHERE k = :keystore "
+                        + "AND s.phase != '" + Session.Phase.CLOSED.name() + "'",
+                        DatabasedKeystore.class)
+                        .setParameter("keystore", keystore)
+                        .getSingleResult();
+                
+                optional = Optional.of(keystore);
+            } catch (NoResultException ex) {
+                optional = Optional.empty();
+            }
+            
+            return optional;
         } finally {
             tracer.wayout();
         }

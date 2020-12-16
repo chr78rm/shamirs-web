@@ -40,6 +40,7 @@ import javax.xml.bind.annotation.XmlTransient;
     @NamedQuery(name = "Session.findByPhase", query = "SELECT s FROM Session s WHERE s.phase = :phase"),
     @NamedQuery(name = "Session.findByCreationTime", query = "SELECT s FROM Session s WHERE s.creationTime = :creationTime"),
     @NamedQuery(name = "Session.findAllByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId"),
+    @NamedQuery(name = "Session.findCurrentByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId AND s.phase != 'CLOSED'"),
 })
 public class Session implements Serializable {
     
