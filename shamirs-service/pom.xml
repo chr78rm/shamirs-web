@@ -13,7 +13,7 @@
     
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring.version>2.4.0</spring.version>
+        <spring.version>2.4.1</spring.version>
         <app.main.class>de.christofreichardt.restapp.shamir.ShamirsApp</app.main.class>
     </properties>
     
@@ -66,12 +66,13 @@
         <dependency>
             <groupId>de.christofreichardt</groupId>
             <artifactId>shamirs-keystore</artifactId>
-            <version>1.0.0-rc1</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>de.christofreichardt</groupId>
             <artifactId>junit5-ext</artifactId>
-            <version>1.0.0-rc1</version>
+            <version>1.0.0</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.platform</groupId>
