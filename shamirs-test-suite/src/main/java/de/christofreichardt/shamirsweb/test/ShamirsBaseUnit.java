@@ -8,6 +8,7 @@ package de.christofreichardt.shamirsweb.test;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.rs.MyClientRequestFilter;
 import de.christofreichardt.rs.MyClientResponseFilter;
 import java.io.File;
 import java.io.IOException;
@@ -82,6 +83,7 @@ public class ShamirsBaseUnit implements Traceable {
             trustStore.load(inputStream, "changeit".toCharArray());
             this.client = ClientBuilder
                     .newBuilder()
+                    .register(MyClientRequestFilter.class)
                     .register(MyClientResponseFilter.class)
                     .trustStore(trustStore)
                     .build();
