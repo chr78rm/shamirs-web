@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
@@ -147,6 +148,25 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             tracer.out().printfIndentln("response = %s", response);
 
             assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void unknownKeystore() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "unknownKeystore()");
+
+        try {
+            final String UNKOWN_KEYSTORE_ID = UUID.randomUUID().toString(); // with virtual certainty an unkown keystore 
+            Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(UNKOWN_KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get();
+
+            tracer.out().printfIndentln("response = %s", response);
         } finally {
             tracer.wayout();
         }

@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.persistence.NoResultException;
 import javax.persistence.PersistenceException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -184,19 +185,15 @@ public class KeystoreRS implements Traceable {
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")
                         .build();
+            } catch (NoResultException ex) {
+                tracer.logException(LogLevel.ERROR, ex, getClass(), "keystore(@PathParam(\"id\") String id)");
+                String message = String.format("No such Keystore[id=%s] found.", id);
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                response = errorResponse.build();
             } catch (PersistenceException ex) {
                 tracer.logException(LogLevel.ERROR, ex, getClass(), "keystore(@PathParam(\"id\") String id)");
-
-                JsonObject hint = Json.createObjectBuilder()
-                        .add("status", 500)
-                        .add("reason", "Internal Server Error")
-                        .add("message", ex.getMessage())
-                        .build();
-                response = Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                        .entity(hint)
-                        .type(MediaType.APPLICATION_JSON)
-                        .encoding("UTF-8")
-                        .build();
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.INTERNAL_SERVER_ERROR, ex.getMessage());
+                response = errorResponse.build();
             }
 
             return response;

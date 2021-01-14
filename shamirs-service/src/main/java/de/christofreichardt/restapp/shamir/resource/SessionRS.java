@@ -142,43 +142,19 @@ public class SessionRS implements Traceable {
                     } else {
                         String message = String.format("No current Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
                         tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
-                        JsonObject hint = Json.createObjectBuilder()
-                                .add("status", Response.Status.BAD_REQUEST.getStatusCode())
-                                .add("reason", Response.Status.BAD_REQUEST.getReasonPhrase())
-                                .add("message", message)
-                                .build();
-                        response = Response.status(Response.Status.BAD_REQUEST)
-                                .entity(hint)
-                                .type(MediaType.APPLICATION_JSON)
-                                .encoding("UTF-8")
-                                .build();
+                        ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                        response = errorResponse.build();
                     }
                 } else {
                     String message = String.format("No such Keystore[id=%s].", keystoreId);
                     tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
-                    JsonObject hint = Json.createObjectBuilder()
-                            .add("status", Response.Status.BAD_REQUEST.getStatusCode())
-                            .add("reason", Response.Status.BAD_REQUEST.getReasonPhrase())
-                            .add("message", message)
-                            .build();
-                    response = Response.status(Response.Status.BAD_REQUEST)
-                            .entity(hint)
-                            .type(MediaType.APPLICATION_JSON)
-                            .encoding("UTF-8")
-                            .build();
+                    ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                    response = errorResponse.build();
                 }
             } catch (IllegalArgumentException ex) {
                 tracer.logException(LogLevel.ERROR, ex, getClass(), "updateSession(String keystoreId, String sessionId)");
-                JsonObject hint = Json.createObjectBuilder()
-                        .add("status", Response.Status.BAD_REQUEST.getStatusCode())
-                        .add("reason", Response.Status.BAD_REQUEST.getReasonPhrase())
-                        .add("message", ex.getMessage())
-                        .build();
-                response = Response.status(Response.Status.BAD_REQUEST)
-                        .entity(hint)
-                        .type(MediaType.APPLICATION_JSON)
-                        .encoding("UTF-8")
-                        .build();
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, ex.getMessage());
+                response = errorResponse.build();
             }
             
             return response;
