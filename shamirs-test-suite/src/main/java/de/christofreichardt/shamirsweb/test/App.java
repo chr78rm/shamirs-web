@@ -65,6 +65,7 @@ public class App implements Traceable {
             tracer.wayout();
         }
     }
+    
     List<DiscoverySelector> configuredTests(Document configDocument) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("List<DiscoverySelector>", this, "configuredTests(Document configDocument)");

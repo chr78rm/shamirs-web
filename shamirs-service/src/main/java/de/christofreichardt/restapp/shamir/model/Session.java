@@ -191,7 +191,9 @@ public class Session implements Serializable {
                         .add(Json.createObjectBuilder()
                                 .add("rel", "self")
                                 .add("href", String.format("/keystores/%s/sessions/%s", this.keystore.getId(), this.id))
-                                .add("type", "GET")
+                                .add("type", Json.createArrayBuilder()
+                                    .add("GET")
+                                )
                         )
                 )
                 .build();

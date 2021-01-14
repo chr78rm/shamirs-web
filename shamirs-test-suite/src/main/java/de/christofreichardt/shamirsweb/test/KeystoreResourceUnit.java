@@ -8,6 +8,8 @@ package de.christofreichardt.shamirsweb.test;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
@@ -93,13 +95,20 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             
             JsonObject keystoreEntity = response.readEntity(JsonObject.class);
             JsonArray links = keystoreEntity.getJsonArray("links");
-            String href = links.get(0).asJsonObject().getString("href");
+            Optional<JsonObject> selfLink = links.stream()
+                    .map(jsonValue -> jsonValue.asJsonObject())
+                    .filter(link -> Objects.equals(link.getString("rel"), "self"))
+                    .findFirst();
+            
+            assertThat(selfLink).isNotEmpty();
+            assertThat(selfLink.get().getString("href")).isEqualTo(String.format("/keystores/%s", keystoreEntity.getString("id")));
+            
+            String href = selfLink.get().getString("href");
             
             tracer.out().printfIndentln("href = %s", href);
             
             response = this.client.target(this.baseUrl)
-                    .path("keystores")
-                    .path(keystoreEntity.getString("id"))
+                    .path(href)
                     .request(MediaType.APPLICATION_JSON)
                     .get();
 

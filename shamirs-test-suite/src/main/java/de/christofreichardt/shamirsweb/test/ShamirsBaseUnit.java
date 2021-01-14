@@ -60,12 +60,13 @@ public class ShamirsBaseUnit implements Traceable {
         try {
             this.config.entrySet().forEach(entry -> tracer.out().printfIndentln("%s = %s", entry.getKey(), entry.getValue()));
 
-            File batch = Path.of("..", "sql", "mariadb", "setup-scenario.sql").toFile();
+            Path baseDir = Path.of(System.getProperty("de.christofreichardt.shamirsweb.test.baseDir"));
+            
+            File batch = baseDir.resolve(Path.of("..", "sql", "mariadb", "setup-scenario.sql")).toFile();
             Database database = new Database();
             database.execute(batch);
 
             if (!this.externalService) {
-                Path baseDir = Path.of(System.getProperty("de.christofreichardt.shamirsweb.test.baseDir"));
                 ProcessBuilder processBuilder = new ProcessBuilder("java", "-jar", "target/shamirs-service.jar");
                 File workingDir = baseDir.resolve(Path.of("..", "shamirs-service")).toFile();
                 File logFile = baseDir.resolve(this.config.getOrDefault("de.christofreichardt.shamirsweb.test.spring.log", "log/spring-boot.log")).toFile();

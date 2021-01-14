@@ -286,7 +286,9 @@ public class DatabasedKeystore implements Serializable {
                 .add(Json.createObjectBuilder()
                         .add("rel", "self")
                         .add("href", String.format("/keystores/%s", this.id))
-                        .add("type", "GET")
+                        .add("type", Json.createArrayBuilder()
+                                    .add("GET")
+                        )
                 );
         if (inFull) {
             linkEntriesBuilder
