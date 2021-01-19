@@ -25,6 +25,8 @@ import java.util.Optional;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.json.JsonPointer;
+import javax.json.JsonValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -96,64 +98,58 @@ public class SessionRS implements Traceable {
             tracer.out().printfIndentln("keystoreId = %s", keystoreId);
             tracer.out().printfIndentln("sessionId = %s", sessionId);
 
-            final int DEFAULT_IDLE_TIME = 1800; // seconds
             Response response;
+            
+            JsonPointer jsonPointer = Json.createPointer("/session");
+            String message = "Invalid session instructions.";
+            if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.OBJECT) {
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                response = errorResponse.build();
+                return response;
+            }
+            jsonPointer = Json.createPointer("/session/automaticClose/idleTime");
+            if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.NUMBER) {
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                response = errorResponse.build();
+                return response;
+            }
 
-            try {
-                if (sessionInstructions.isNull("session")) {
-                    throw new IllegalArgumentException("Empty instructions.");
-                }
-                Optional<DatabasedKeystore> optionalKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
-                if (optionalKeystore.isPresent()) {
-                    DatabasedKeystore keystore = optionalKeystore.get();
-                    Session currentSession = keystore.getSessions().iterator().next();
-                    if (Objects.equals(currentSession.getId(), sessionId)) {
-                        int idleTime;
-                        TemporalUnit temporalUnit;
-                        if (Objects.nonNull(sessionInstructions.getJsonObject("session")
-                                .getJsonObject("automaticClose"))) {
-                            JsonObject automaticClose = sessionInstructions.getJsonObject("session")
-                                    .getJsonObject("automaticClose");
-                            if (!automaticClose.containsKey("idleTime")) {
-                                throw new IllegalArgumentException("Incomplete instructions.");
-                            }
-                            idleTime = automaticClose.getInt("idleTime");
-                            temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
-                        } else {
-                            idleTime = DEFAULT_IDLE_TIME;
-                            temporalUnit = ChronoUnit.SECONDS;
-                        }
-                        Duration duration = Duration.of(idleTime, temporalUnit);
-                        currentSession.setIdleTime(duration.getSeconds());
-                        currentSession.setModificationTime(LocalDateTime.now());
-                        try {
-                            ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.sharePoints());
-                            currentSession.setPhase(Session.Phase.ACTIVE.name());
-                        } catch (IllegalArgumentException ex) {
-                            currentSession.setPhase(Session.Phase.PENDING.name());
-                        }
-                        this.sessionService.save(currentSession);
-                        
-                        response = Response.status(Response.Status.CREATED)
-                                .entity(currentSession.toJson())
-                                .type(MediaType.APPLICATION_JSON)
-                                .encoding("UTF-8")
-                                .build();
-                    } else {
-                        String message = String.format("No current Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
-                        tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
-                        ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                        response = errorResponse.build();
+            Optional<DatabasedKeystore> optionalKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
+            if (optionalKeystore.isPresent()) {
+                DatabasedKeystore keystore = optionalKeystore.get();
+                Session currentSession = keystore.getSessions().iterator().next();
+                if (Objects.equals(currentSession.getId(), sessionId)) {
+                    JsonObject automaticClose = sessionInstructions.getJsonObject("session").getJsonObject("automaticClose");
+                    int idleTime = automaticClose.getInt("idleTime");
+                    TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
+                    Duration duration = Duration.of(idleTime, temporalUnit);
+                    currentSession.setIdleTime(duration.getSeconds());
+                    currentSession.setModificationTime(LocalDateTime.now());
+                    try {
+                        ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.sharePoints());
+                        currentSession.setPhase(Session.Phase.ACTIVE.name());
+                    } catch (IllegalArgumentException ex) {
+                        currentSession.setPhase(Session.Phase.PENDING.name());
                     }
+                    this.sessionService.save(currentSession);
+
+                    response = Response.status(Response.Status.CREATED)
+                            .entity(currentSession.toJson())
+                            .type(MediaType.APPLICATION_JSON)
+                            .encoding("UTF-8")
+                            .build();
                 } else {
-                    String message = String.format("No such Keystore[id=%s].", keystoreId);
+                    message = String.format("No current Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
                     tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
                     ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                     response = errorResponse.build();
                 }
-            } catch (IllegalArgumentException ex) {
-                tracer.logException(LogLevel.ERROR, ex, getClass(), "updateSession(String keystoreId, String sessionId)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, ex.getMessage());
+            } else {
+                message = String.format("No such Keystore[id=%s].", keystoreId);
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 response = errorResponse.build();
             }
             
