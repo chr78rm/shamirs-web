@@ -32,6 +32,7 @@ public class MyContextListener implements ServletContextListener {
                     TracerFactory.getInstance().reset();
                     TracerFactory.getInstance().readConfiguration(resourceAsStream);
                     TracerFactory.getInstance().openQueueTracer();
+                    TracerFactory.getInstance().openPoolTracer();
                 } catch (TracerFactory.Exception ex) {
                     LOGGER.warn(String.format("Problems when evaluating the configuration resource: %s", ex.getMessage()));
                 }
@@ -51,6 +52,7 @@ public class MyContextListener implements ServletContextListener {
         LOGGER.info(String.format("%d: contextDestroyed(ServletContextEvent servletContextEvent) ...", System.identityHashCode(this)));
         
         TracerFactory.getInstance().closeQueueTracer();
+        TracerFactory.getInstance().closePoolTracer();
     }
     
 }

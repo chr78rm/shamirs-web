@@ -13,11 +13,26 @@
                 </Thread>
             </Context>
         </TraceLogger>
+        <TraceLogger name="SessionSanitizer" class="de.christofreichardt.diagnosis.file.FileTracer">
+            <LogDir>./log/</LogDir>
+            <AutoFlush>true</AutoFlush>
+            <BufSize>1024</BufSize>
+            <Limit>4194304</Limit>
+            <Context>
+                <Thread name="scheduling-1">
+                    <Online>true</Online>
+                    <DebugLevel>10</DebugLevel>
+                </Thread>
+            </Context>
+        </TraceLogger>
     </Pool>
     <Map>
         <Threads>
             <Thread name="main">
                 <TraceLogger ref="TestTracer" />
+            </Thread>
+            <Thread name="scheduling-1">
+                <TraceLogger ref="SessionSanitizer" />
             </Thread>
         </Threads>
     </Map>

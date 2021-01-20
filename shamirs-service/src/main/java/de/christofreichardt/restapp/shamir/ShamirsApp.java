@@ -56,6 +56,11 @@ public class ShamirsApp {
 //                .username("shamir")
                 .build();
     }
+    
+    @Bean
+    SessionSanitizer sessionSanitizer() {
+        return new SessionSanitizer();
+    }
 
     /**
      * @param args the command line arguments

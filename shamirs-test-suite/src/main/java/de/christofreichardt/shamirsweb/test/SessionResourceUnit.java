@@ -67,6 +67,40 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     }
 
     @Test
+    void putInstructionsForUnknownSession() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "putInstructionsForUnknownSession()");
+
+        try {
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("automaticClose", Json.createObjectBuilder()
+                                    .add("idleTime", 30)
+                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            )
+                    )
+                    .build();
+
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            final String SESSION_ID = UUID.randomUUID().toString(); // with virtual certainty an unknown session
+
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .put(Entity.json(sessionInstructions))) {
+
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Test
     @Order(1)
     void emptyInstructions() {
         AbstractTracer tracer = getCurrentTracer();
@@ -160,14 +194,14 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     
     @Test
     @Order(4)
-    void updateSession() {
+    void updateSession() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "sessionsByKeystore()");
+        tracer.entry("void", this, "updateSession()");
 
         try {
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
             final String SESSION_ID = "8bff8ac6-fc31-40de-bd6a-eca4348171c5";
-            final int IDLE_TIME = 30;
+            final int IDLE_TIME = 10;
 
             JsonObject sessionInstructions = Json.createObjectBuilder()
                     .add("session", Json.createObjectBuilder()
@@ -193,6 +227,8 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(session.getString("phase")).isEqualTo("ACTIVE");
                 assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
             }
+            
+            Thread.sleep(IDLE_TIME*1000 + 5000);
         } finally {
             tracer.wayout();
         }

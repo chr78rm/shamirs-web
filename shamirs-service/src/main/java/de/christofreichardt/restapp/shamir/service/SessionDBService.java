@@ -9,8 +9,10 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.restapp.shamir.model.Session;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +83,7 @@ public class SessionDBService implements SessionService, Traceable {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Session findCurrentSessionByKeystore(String keystoreId) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Session", this, "findCurrentSessionByKeystore(String keystoreId)");
@@ -92,6 +95,24 @@ public class SessionDBService implements SessionService, Traceable {
                     + "WHERE s.keystore.id = :keystoreId AND s.phase != '" + Session.Phase.CLOSED.name() + "'", Session.class)
                     .setParameter("keystoreId", keystoreId)
                     .getSingleResult();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
+    @Transactional
+    public List<Session> closeIdleSessions() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("List<Session>", this, "closeIdleSessions()");
+        try {
+            List<Session> activeSessions = this.entityManager.createQuery("SELECT s FROM Session s WHERE s.phase = 'ACTIVE'", Session.class)
+                    .getResultList();
+            LocalDateTime currentTime = LocalDateTime.now();
+            
+            return activeSessions.stream()
+                    .filter(session -> session.getModificationTime().plusSeconds(session.getIdleTime()).isBefore(currentTime))
+                    .collect(Collectors.toList());
         } finally {
             tracer.wayout();
         }
