@@ -228,7 +228,24 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
             }
             
-            Thread.sleep(IDLE_TIME*1000 + 5000);
+            final long FIXED_RATE = 5000L;
+            Thread.sleep(IDLE_TIME*1000 + FIXED_RATE);
+            
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonArray sessions = response.readEntity(JsonObject.class).getJsonArray("sessions");
+                assertThat(sessions.size() == 1).isTrue();
+                assertThat(sessions.getJsonObject(0).getString("phase")).isEqualTo("CLOSED");
+            }
+            
         } finally {
             tracer.wayout();
         }

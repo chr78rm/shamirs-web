@@ -10,9 +10,10 @@ import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.restapp.shamir.model.Session;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -102,17 +103,19 @@ public class SessionDBService implements SessionService, Traceable {
 
     @Override
     @Transactional
-    public List<Session> closeIdleSessions() {
-        AbstractTracer tracer = getCurrentTracer();
+    public int closeIdleSessions() {
+        AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
         tracer.entry("List<Session>", this, "closeIdleSessions()");
         try {
-            List<Session> activeSessions = this.entityManager.createQuery("SELECT s FROM Session s WHERE s.phase = 'ACTIVE'", Session.class)
-                    .getResultList();
             LocalDateTime currentTime = LocalDateTime.now();
             
-            return activeSessions.stream()
-                    .filter(session -> session.getModificationTime().plusSeconds(session.getIdleTime()).isBefore(currentTime))
-                    .collect(Collectors.toList());
+            tracer.out().printfIndentln("currentTime = %s", currentTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
+            
+            return this.entityManager.createQuery("UPDATE Session s "
+                    + "SET s.phase ='" + Session.Phase.CLOSED.name() + "' "
+                    + "WHERE s.phase = '" + Session.Phase.ACTIVE.name() + "' AND s.expirationTime < :currentTime")
+                    .setParameter("currentTime", currentTime)
+                    .executeUpdate();
         } finally {
             tracer.wayout();
         }

@@ -74,6 +74,10 @@ public class Session implements Serializable {
     @Column(name = "modification_time")
     private LocalDateTime modificationTime;
     
+    @Basic
+    @Column(name = "expiration_time")
+    private LocalDateTime expirationTime;
+    
     @JoinColumn(name = "keystore_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
     private DatabasedKeystore keystore;
@@ -136,6 +140,14 @@ public class Session implements Serializable {
         this.modificationTime = modificationTime;
     }
 
+    public LocalDateTime getExpirationTime() {
+        return expirationTime;
+    }
+
+    public void setExpirationTime(LocalDateTime expirationTime) {
+        this.expirationTime = expirationTime;
+    }
+
     public DatabasedKeystore getKeystore() {
         return keystore;
     }
@@ -175,9 +187,11 @@ public class Session implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Session[id=%s, phase=%s, idleTime=%d, creationTime=%s, modificationTime=%s]", this.id, this.phase, this.idleTime,
+        return String.format("Session[id=%s, phase=%s, idleTime=%d, creationTime=%s, modificationTime=%s, expirationTime=%s]", this.id, this.phase, this.idleTime,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
-                this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
+                this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
+                this.expirationTime != null ? this.expirationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)) : "null"
+        );
     }
     
     public JsonObject toJson() {
@@ -187,6 +201,7 @@ public class Session implements Serializable {
                 .add("idleTime", this.idleTime)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("expirationTime", this.expirationTime != null ? this.expirationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : "null")
                 .add("links", Json.createArrayBuilder()
                         .add(Json.createObjectBuilder()
                                 .add("rel", "self")

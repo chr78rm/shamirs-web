@@ -127,6 +127,7 @@ public class SessionRS implements Traceable {
                     Duration duration = Duration.of(idleTime, temporalUnit);
                     currentSession.setIdleTime(duration.getSeconds());
                     currentSession.setModificationTime(LocalDateTime.now());
+                    currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
                     try {
                         ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.sharePoints());
                         currentSession.setPhase(Session.Phase.ACTIVE.name());

@@ -20,5 +20,5 @@ public interface SessionService {
     Session save(Session session);
     List<Session> findAllByKeystore(String keystoreId);
     Session findCurrentSessionByKeystore(String keystoreId);
-    List<Session> closeIdleSessions();
+    int closeIdleSessions();
 }

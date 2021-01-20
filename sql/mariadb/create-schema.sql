@@ -53,7 +53,8 @@ CREATE TABLE csession (
     phase VARCHAR(20) NOT NULL,
     idle_time INTEGER UNSIGNED,
     creation_time DATETIME NOT NULL,
-    modification_time DATETIME NOT NULL
+    modification_time DATETIME NOT NULL,
+    expiration_time DATETIME
 );
 ALTER TABLE csession ADD CONSTRAINT fk_session_keystore FOREIGN KEY (keystore_id) REFERENCES keystore(id);
 

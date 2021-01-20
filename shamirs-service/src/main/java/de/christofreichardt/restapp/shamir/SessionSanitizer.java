@@ -8,9 +8,7 @@ package de.christofreichardt.restapp.shamir;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
-import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.service.SessionService;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -28,8 +26,9 @@ public class SessionSanitizer implements Traceable {
         tracer.entry("void", this, "cleanup()");
 
         try {
-            List<Session> idleSessions = this.sessionService.closeIdleSessions();
-            idleSessions.forEach(idleSession -> tracer.out().printfIndentln("idleSession = %s", idleSession));
+            int updated = this.sessionService.closeIdleSessions();
+            
+            tracer.out().printfIndentln("Closing %d idle sessions.", updated);
         } finally {
             tracer.wayout();
         }
