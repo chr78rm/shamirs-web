@@ -26,4 +26,5 @@ public interface KeystoreService {
     DatabasedKeystore persist(DatabasedKeystore keystore);
     DatabasedKeystore findByDescriptiveName(String descriptiveName);
     Optional<DatabasedKeystore> findByIdWithActiveSlicesAndCurrentSession(String keystoreId);
+    List<DatabasedKeystore> findKeystoresWithActiveSlicesAndIdleSessions();
 }

@@ -11,6 +11,7 @@ import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.Slice;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import javax.persistence.EntityManager;
@@ -245,6 +246,35 @@ public class KeystoreDBService implements KeystoreService, Traceable {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatabasedKeystore> findKeystoresWithActiveSlicesAndIdleSessions() {
+        AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
+        tracer.entry("List<DatabasedKeystore>", this, "findKeystoresWithActiveSlicesAndIdleSessions()");
+
+        try {
+            List<DatabasedKeystore> keystores = this.entityManager
+                    .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
+                    .getResultList();
+            LocalDateTime currentTime = LocalDateTime.now();
+            keystores =  this.entityManager
+                    .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s WHERE k IN :keystores AND s.phase = 'ACTIVE' AND s.expirationTime < :currentTime", DatabasedKeystore.class)
+                    .setParameter("keystores", keystores)
+                    .setParameter("currentTime", currentTime)
+                    .getResultList();
+            
+            keystores.forEach(keystore -> {
+                tracer.out().printfIndentln("keystore = %s", keystore);
+                keystore.getSessions().forEach(session -> tracer.out().printfIndentln("session = %s", session));
+                keystore.getSlices().forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
+            });
+            
+            return keystores;
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
     @Override
     public AbstractTracer getCurrentTracer() {
         return TracerFactory.getInstance().getCurrentQueueTracer();
