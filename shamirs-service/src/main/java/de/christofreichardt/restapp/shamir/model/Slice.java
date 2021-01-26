@@ -165,8 +165,8 @@ public class Slice implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Slice[id=%s, state=%s, keystore=%s, participant=%s, effectiveTime=%s]", 
-                this.id, this.processingState, this.keystore.getDescriptiveName(), this.participant.getPreferredName(), 
+        return String.format("Slice[id=%s, state=%s, keystore=%s, participant=%s, partitionId=%s, effectiveTime=%s]", 
+                this.id, this.processingState, this.keystore.getDescriptiveName(), this.participant.getPreferredName(), this.partitionId,
                 this.effectiveTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
     
