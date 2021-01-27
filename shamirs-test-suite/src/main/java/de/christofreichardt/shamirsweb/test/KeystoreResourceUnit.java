@@ -14,6 +14,7 @@ import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.json.JsonValue;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -137,6 +138,9 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             tracer.out().printfIndentln("response = %s", response);
 
             assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+            assertThat(response.hasEntity()).isTrue();
+            JsonObject keystoreView = response.readEntity(JsonObject.class);
+            assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.ARRAY).isTrue();
             
             final String THE_TOO_FEW_SLICES_KEYSTORE_ID = "3e6b2af3-63e2-4dcb-bb71-c69f1293b072"; // the-too-few-slices-keystore
             response = this.client.target(this.baseUrl)
@@ -148,6 +152,9 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             tracer.out().printfIndentln("response = %s", response);
 
             assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+            assertThat(response.hasEntity()).isTrue();
+            keystoreView = response.readEntity(JsonObject.class);
+            assertThat(keystoreView.getString("keyEntries")).isEqualTo("unloadable");
         } finally {
             tracer.wayout();
         }
