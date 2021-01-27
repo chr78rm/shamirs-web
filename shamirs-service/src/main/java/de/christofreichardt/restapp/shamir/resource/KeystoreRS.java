@@ -175,7 +175,7 @@ public class KeystoreRS implements Traceable {
 
             Response response;
             try {
-                DatabasedKeystore keystore = this.keystoreService.findByIdWithActiveSlicesAndValidSessions(id);
+                DatabasedKeystore keystore = this.keystoreService.findByIdWithCurrentSlicesAndValidSession(id); // TODO; Think about using 'findByIdWithActiveSlicesAndCurrentSession'
                 
                 tracer.out().printfIndentln("keystore = %s, keystore.getSlices() = %s, keystore.getSessions() = %s", keystore, keystore.getSlices(), keystore.getSessions());
                 

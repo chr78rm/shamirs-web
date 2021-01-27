@@ -121,18 +121,15 @@ public class KeystoreDBService implements KeystoreService, Traceable {
 
     @Override
     @Transactional(readOnly = true)
-    public DatabasedKeystore findByIdWithActiveSlicesAndValidSessions(String id) {
+    public DatabasedKeystore findByIdWithCurrentSlicesAndValidSession(String keystoreId) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("DatabasedKeystore", this, "findByIdWithActiveSlicesAndValidSessions(String id)");
+        tracer.entry("DatabasedKeystore", this, "findByIdWithCurrentSlicesAndValidSession(String keystoreId)");
         try {
-            tracer.out().printfIndentln("id = %s", id);
+            tracer.out().printfIndentln("id = %s", keystoreId);
 
-            DatabasedKeystore keystore = this.entityManager.createQuery(
-                    "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s "
-                    + "WHERE k.id = :id "
-                    + "AND (s.processingState = '" + Slice.ProcessingState.POSTED.name() + "' OR s.processingState = '" + Slice.ProcessingState.CREATED.name() + "') ",
-                    DatabasedKeystore.class)
-                    .setParameter("id", id)
+            DatabasedKeystore keystore = this.entityManager
+                    .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :keystoreId AND k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
+                    .setParameter("keystoreId", keystoreId)
                     .getSingleResult();
 
             keystore = this.entityManager.createQuery(
@@ -219,12 +216,9 @@ public class KeystoreDBService implements KeystoreService, Traceable {
 
             Optional<DatabasedKeystore> optional;
             try {
-                DatabasedKeystore keystore = this.entityManager.createQuery(
-                        "SELECT k FROM DatabasedKeystore k "
-                        + "LEFT JOIN FETCH k.slices s "
-                        + "WHERE k.id = :id AND s.processingState != '" + Slice.ProcessingState.EXPIRED.name() + "'",
-                        DatabasedKeystore.class)
-                        .setParameter("id", keystoreId)
+                DatabasedKeystore keystore = this.entityManager
+                        .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :keystoreId AND k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
+                        .setParameter("keystoreId", keystoreId)
                         .getSingleResult();
                 
                 keystore = this.entityManager.createQuery(
@@ -248,9 +242,9 @@ public class KeystoreDBService implements KeystoreService, Traceable {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DatabasedKeystore> findKeystoresWithActiveSlicesAndIdleSessions() {
+    public List<DatabasedKeystore> findKeystoresWithCurrentSlicesAndIdleSessions() {
         AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
-        tracer.entry("List<DatabasedKeystore>", this, "findKeystoresWithActiveSlicesAndIdleSessions()");
+        tracer.entry("List<DatabasedKeystore>", this, "findKeystoresWithCurrentSlicesAndIdleSessions()");
 
         try {
             List<DatabasedKeystore> keystores = this.entityManager
