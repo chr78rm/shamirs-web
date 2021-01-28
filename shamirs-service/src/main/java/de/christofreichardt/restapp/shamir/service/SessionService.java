@@ -21,4 +21,5 @@ public interface SessionService {
     List<Session> findAllByKeystore(String keystoreId);
     Session findCurrentSessionByKeystore(String keystoreId);
     int closeIdleSessions();
+    Optional<Session> findByID(String sessionId);
 }

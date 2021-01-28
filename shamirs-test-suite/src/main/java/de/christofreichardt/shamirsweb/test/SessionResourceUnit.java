@@ -67,6 +67,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     }
 
     @Test
+    @Order(4)
     void putInstructionsForUnknownSession() {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "putInstructionsForUnknownSession()");
@@ -193,7 +194,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     }
     
     @Test
-    @Order(4)
+    @Order(5)
     void updateSession() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "updateSession()");
@@ -235,15 +236,15 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path("keystores")
                     .path(KEYSTORE_ID)
                     .path("sessions")
+                    .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
                     .get()) {
 
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
-                JsonArray sessions = response.readEntity(JsonObject.class).getJsonArray("sessions");
-                assertThat(sessions.size() == 1).isTrue();
-                assertThat(sessions.getJsonObject(0).getString("phase")).isEqualTo("CLOSED");
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("CLOSED");
             }
             
         } finally {

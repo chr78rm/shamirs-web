@@ -27,6 +27,7 @@ import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonPointer;
 import javax.json.JsonValue;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -88,18 +89,19 @@ public class SessionRS implements Traceable {
     }
 
     @PUT
+    @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Path("keystores/{keystoreId}/sessions/{sessionId}")
     public Response updateSession(@PathParam("keystoreId") String keystoreId, @PathParam("sessionId") String sessionId, JsonObject sessionInstructions) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "updateSession(String keystoreId, String sessionId)");
+        tracer.entry("Response", this, "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
 
         try {
             tracer.out().printfIndentln("keystoreId = %s", keystoreId);
             tracer.out().printfIndentln("sessionId = %s", sessionId);
 
             Response response;
-            
+
             JsonPointer jsonPointer = Json.createPointer("/session");
             String message = "Invalid session instructions.";
             if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.OBJECT) {
@@ -150,6 +152,46 @@ public class SessionRS implements Traceable {
             } else {
                 message = String.format("No such Keystore[id=%s].", keystoreId);
                 tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                response = errorResponse.build();
+            }
+
+            return response;
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("keystores/{keystoreId}/sessions/{sessionId}")
+    public Response session(@PathParam("keystoreId") String keystoreId, @PathParam("sessionId") String sessionId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "session(String keystoreId, String sessionId)");
+
+        try {
+            tracer.out().printfIndentln("keystoreId = %s", keystoreId);
+            tracer.out().printfIndentln("sessionId = %s", sessionId);
+
+            Response response;
+
+            Optional<Session> session = this.sessionService.findByID(sessionId);
+            if (session.isPresent()) {
+                if (session.get().getKeystore().getId().equals(keystoreId)) {
+                    response = Response.status(Response.Status.OK)
+                        .entity(session.get().toJson())
+                        .type(MediaType.APPLICATION_JSON)
+                        .encoding("UTF-8")
+                        .build();
+                } else {
+                    String message = String.format("No Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
+                    tracer.logMessage(LogLevel.ERROR, message, getClass(), "session(String keystoreId, String sessionId)");
+                    ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                    response = errorResponse.build();
+                }
+            } else {
+                String message = String.format("No such Session[id=%s].", sessionId);
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "session(String keystoreId, String sessionId)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 response = errorResponse.build();
             }

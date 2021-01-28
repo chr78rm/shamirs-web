@@ -222,7 +222,8 @@ public class DatabasedKeystore implements Serializable {
         }
 
         JsonArray sharePoints = getSlices().stream()
-                .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.CREATED.name()))
+                .filter(slice -> slice.getPartitionId().equals(this.currentPartitionId))
+                .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.CREATED.name()) || Objects.equals(slice.getProcessingState(), Slice.ProcessingState.POSTED.name()))
                 .map(slice -> new ByteArrayInputStream(slice.getShare()))
                 .map(in -> {
                     try (JsonReader jsonReader = Json.createReader(in)) {
@@ -230,17 +231,6 @@ public class DatabasedKeystore implements Serializable {
                     }
                 })
                 .collect(new JsonValueCollector());
-        if (sharePoints.isEmpty()) {
-            sharePoints = getSlices().stream()
-                    .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.POSTED.name()))
-                    .map(slice -> new ByteArrayInputStream(slice.getShare()))
-                    .map(in -> {
-                        try (JsonReader jsonReader = Json.createReader(in)) {
-                            return jsonReader.read();
-                        }
-                    })
-                    .collect(new JsonValueCollector());
-        }
 
         return sharePoints;
     }
