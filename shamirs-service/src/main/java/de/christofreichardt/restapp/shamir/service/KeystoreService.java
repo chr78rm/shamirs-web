@@ -27,4 +27,5 @@ public interface KeystoreService {
     DatabasedKeystore findByDescriptiveName(String descriptiveName);
     Optional<DatabasedKeystore> findByIdWithActiveSlicesAndCurrentSession(String keystoreId);
     List<DatabasedKeystore> findKeystoresWithCurrentSlicesAndIdleSessions();
+    void rollOver();
 }

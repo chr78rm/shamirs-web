@@ -8,6 +8,7 @@ package de.christofreichardt.restapp.shamir;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.restapp.shamir.service.KeystoreService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -20,15 +21,16 @@ public class SessionSanitizer implements Traceable {
     @Autowired
     SessionService sessionService;
 
+    @Autowired
+    KeystoreService keystoreService;
+
     void cleanup() {
         AbstractTracer tracer = getCurrentTracer();
         tracer.initCurrentTracingContext();
         tracer.entry("void", this, "cleanup()");
 
         try {
-            int updated = this.sessionService.closeIdleSessions();
-            
-            tracer.out().printfIndentln("Closing %d idle sessions.", updated);
+            this.keystoreService.rollOver();
         } finally {
             tracer.wayout();
         }

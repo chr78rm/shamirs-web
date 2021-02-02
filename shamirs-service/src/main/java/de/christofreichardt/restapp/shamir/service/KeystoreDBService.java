@@ -13,7 +13,11 @@ import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.Slice;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.NonUniqueResultException;
@@ -257,13 +261,54 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                     .setParameter("currentTime", currentTime)
                     .getResultList();
             
+            return keystores;
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
+    @Transactional
+    public void rollOver() {
+        AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
+        tracer.entry("void", this, "rollOver()");
+
+        try {
+            List<DatabasedKeystore> keystores = findKeystoresWithCurrentSlicesAndIdleSessions();
             keystores.forEach(keystore -> {
                 tracer.out().printfIndentln("keystore = %s", keystore);
                 keystore.getSessions().forEach(session -> tracer.out().printfIndentln("session = %s", session));
                 keystore.getSlices().forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
+                tracer.out().printfIndentln("(*---*)");
             });
             
-            return keystores;
+            String nextPartitionId = UUID.randomUUID().toString();
+            keystores.forEach(keystore -> {
+                Set<Slice> nextSlices = keystore.getSlices().stream()
+                        .filter(slice -> Objects.equals(slice.getPartitionId(), keystore.getCurrentPartitionId()))
+                        .map(slice -> {
+                            slice.setProcessingState(Slice.ProcessingState.EXPIRED.name());
+                            Slice nextSlice = new Slice();
+                            nextSlice.setKeystore(keystore);
+                            nextSlice.setParticipant(slice.getParticipant());
+                            nextSlice.setPartitionId(nextPartitionId);
+                            nextSlice.setProcessingState(Slice.ProcessingState.CREATED.name());
+                            nextSlice.setShare(null);
+                            return nextSlice;
+                        })
+                        .collect(Collectors.toSet());
+                keystore.setSlices(nextSlices);
+                keystore.setCurrentPartitionId(nextPartitionId);
+                keystore.getSessions().stream()
+                        .filter(session -> Objects.equals(Session.Phase.ACTIVE.name(), session.getPhase()))
+                        .forEach(session -> session.setPhase(Session.Phase.CLOSED.name()));
+                Session session = new Session();
+                session.setPhase(Session.Phase.PROVISIONED.name());
+                session.setKeystore(keystore);
+                keystore.getSessions().add(session);
+                this.entityManager.merge(keystore);
+            });
+            
         } finally {
             tracer.wayout();
         }

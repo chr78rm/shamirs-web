@@ -7,5 +7,5 @@ SELECT k.id AS keystore_id, k.descriptive_name, k.current_partition_id, k.creati
 FROM keystore k
 LEFT JOIN slice s ON s.keystore_id = k.id
 LEFT JOIN participant p ON p.id = s.participant_id
-WHERE k.descriptive_name = 'my-posted-keystore';
+ORDER BY k.id, s.effective_time;
 
