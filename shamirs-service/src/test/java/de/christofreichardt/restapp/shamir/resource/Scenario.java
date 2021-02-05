@@ -277,8 +277,8 @@ public class Scenario implements Traceable {
                     }
             );
 
-            String sql = "INSERT INTO slice (id, participant_id, keystore_id, partition_id, share, processing_state, effective_time)\n"
-                    + "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
+            String sql = "INSERT INTO slice (id, participant_id, keystore_id, partition_id, share, processing_state, creation_time, modification_time)\n"
+                    + "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
             
             int[] affectedRows = this.jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
                 @Override

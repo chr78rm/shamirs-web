@@ -39,7 +39,8 @@ CREATE TABLE slice (
     partition_id CHAR(36) NOT NULL,
     share BLOB,
     processing_state VARCHAR(20),
-    effective_time DATETIME NOT NULL
+    modification_time DATETIME NOT NULL,
+    creation_time DATETIME NOT NULL
 );
 ALTER TABLE slice ADD CONSTRAINT fk_participant FOREIGN KEY (participant_id) REFERENCES participant(id);
 ALTER TABLE slice ADD CONSTRAINT fk_slice_keystore FOREIGN KEY (keystore_id) REFERENCES keystore(id);

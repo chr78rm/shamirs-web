@@ -33,7 +33,7 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Slice.findAll", query = "SELECT s FROM Slice s"),
     @NamedQuery(name = "Slice.findById", query = "SELECT s FROM Slice s WHERE s.id = :id"),
     @NamedQuery(name = "Slice.findByProcessingState", query = "SELECT s FROM Slice s WHERE s.processingState = :processingState"),
-    @NamedQuery(name = "Slice.findByEffectiveTime", query = "SELECT s FROM Slice s WHERE s.effectiveTime = :effectiveTime")})
+    @NamedQuery(name = "Slice.findByEffectiveTime", query = "SELECT s FROM Slice s WHERE s.creationTime = :creationTime")})
 public class Slice implements Serializable {
     
     public enum ProcessingState {CREATED, FETCHED, POSTED, EXPIRED};
@@ -57,8 +57,13 @@ public class Slice implements Serializable {
     
     @Basic(optional = false)
     @NotNull
-    @Column(name = "effective_time")
-    private LocalDateTime effectiveTime;
+    @Column(name = "creation_time")
+    private LocalDateTime creationTime;
+    
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "modification_time")
+    private LocalDateTime modificationTime;
     
     @Basic(optional = false)
     @NotNull
@@ -75,7 +80,8 @@ public class Slice implements Serializable {
 
     public Slice() {
         this.id = UUID.randomUUID().toString();
-        this.effectiveTime = LocalDateTime.now();
+        this.creationTime = LocalDateTime.now();
+        this.modificationTime = LocalDateTime.now();
     }
 
     public Slice(String id) {
@@ -84,7 +90,8 @@ public class Slice implements Serializable {
 
     public Slice(String id, LocalDateTime effectiveTime) {
         this.id = id;
-        this.effectiveTime = effectiveTime;
+        this.creationTime = effectiveTime;
+        this.modificationTime = LocalDateTime.now();
     }
 
     public String getId() {
@@ -111,12 +118,20 @@ public class Slice implements Serializable {
         this.processingState = processingState;
     }
 
-    public LocalDateTime getEffectiveTime() {
-        return effectiveTime;
+    public LocalDateTime getCreationTime() {
+        return creationTime;
     }
 
-    public void setEffectiveTime(LocalDateTime effectiveTime) {
-        this.effectiveTime = effectiveTime;
+    public void setCreationTime(LocalDateTime creationTime) {
+        this.creationTime = creationTime;
+    }
+
+    public LocalDateTime getModificationTime() {
+        return modificationTime;
+    }
+
+    public void setModificationTime(LocalDateTime modificationTime) {
+        this.modificationTime = modificationTime;
     }
 
     public String getPartitionId() {
@@ -165,9 +180,11 @@ public class Slice implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Slice[id=%s, state=%s, keystore=%s, participant=%s, partitionId=%s, effectiveTime=%s]", 
+        return String.format("Slice[id=%s, state=%s, keystore=%s, participant=%s, partitionId=%s, creationTime=%s, modificationTime=%s]", 
                 this.id, this.processingState, this.keystore.getDescriptiveName(), this.participant.getPreferredName(), this.partitionId,
-                this.effectiveTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
+                this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
+                this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
+        );
     }
     
 }
