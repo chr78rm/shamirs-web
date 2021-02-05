@@ -25,6 +25,8 @@ CREATE TABLE keystore (
     descriptive_name VARCHAR(100) NOT NULL,
     store BLOB,
     current_partition_id CHAR(36) NOT NULL,
+    shares INT NOT NULL,
+    threshold INT NOT NULL,
     creation_time DATETIME NOT NULL,
     modification_time DATETIME NOT NULL
 );

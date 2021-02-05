@@ -74,8 +74,10 @@ public class Scenario implements Traceable {
         tracer.entry("void", this, "insertKeystore()");
 
         try {
-            String sql = "INSERT INTO keystore (id, descriptive_name, store, current_partition_id, creation_time, modification_time) \n"
+            String sql = "INSERT INTO keystore (id, descriptive_name, store, current_partition_id, shares, threshold, creation_time, modification_time) \n"
                     + "VALUES (\n"
+                    + "    ?,\n"
+                    + "    ?,\n"
                     + "    ?,\n"
                     + "    ?,\n"
                     + "    ?,\n"
@@ -94,6 +96,8 @@ public class Scenario implements Traceable {
                     preparedStatement.setString(2, "my-first-keystore");
                     lobCreator.setBlobAsBytes(preparedStatement, 3, keystoreBytes);
                     preparedStatement.setString(4, "467b268d-1a7f-4f00-993c-672b82494822");
+                    preparedStatement.setInt(5, 12);
+                    preparedStatement.setInt(6, 4);
                 }
             });
             
@@ -106,6 +110,8 @@ public class Scenario implements Traceable {
                     preparedStatement.setString(2, "the-too-few-slices-keystore");
                     lobCreator.setBlobAsBytes(preparedStatement, 3, keystoreBytes);
                     preparedStatement.setString(4, "467b268d-1a7f-4f00-993c-672b82494822");
+                    preparedStatement.setInt(5, 12);
+                    preparedStatement.setInt(6, 4);
                 }
             });
             

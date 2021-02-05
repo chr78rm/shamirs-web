@@ -95,6 +95,16 @@ public class DatabasedKeystore implements Serializable {
 
     @Basic(optional = false)
     @NotNull
+    @Column(name = "shares")
+    private int shares;
+
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "threshold")
+    private int threshold;
+
+    @Basic(optional = false)
+    @NotNull
     @Column(name = "creation_time")
     private LocalDateTime creationTime;
 
@@ -156,6 +166,22 @@ public class DatabasedKeystore implements Serializable {
         this.currentPartitionId = currentPartitionId;
     }
 
+    public int getShares() {
+        return shares;
+    }
+
+    public void setShares(int shares) {
+        this.shares = shares;
+    }
+
+    public int getThreshold() {
+        return threshold;
+    }
+
+    public void setThreshold(int threshold) {
+        this.threshold = threshold;
+    }
+
     public LocalDateTime getCreationTime() {
         return creationTime;
     }
@@ -210,8 +236,8 @@ public class DatabasedKeystore implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("DatabasedKeystore[id=%s, descriptiveName=%s, currentPartitionId=%s, creationTime=%s, mofificationTime=%s]",
-                this.id, this.descriptiveName, this.currentPartitionId,
+        return String.format("DatabasedKeystore[id=%s, descriptiveName=%s, currentPartitionId=%s, shares=%d, threshold=%d, creationTime=%s, mofificationTime=%s]",
+                this.id, this.descriptiveName, this.currentPartitionId, this.shares, this.threshold,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.mofificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
@@ -270,6 +296,8 @@ public class DatabasedKeystore implements Serializable {
                 .add("id", this.id)
                 .add("descriptiveName", this.descriptiveName)
                 .add("currentPartitionId", this.currentPartitionId)
+                .add("shares", this.shares)
+                .add("threshold", this.threshold)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("mofificationTime", this.mofificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         linkEntriesBuilder

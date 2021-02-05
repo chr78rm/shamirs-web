@@ -88,6 +88,8 @@ public class KeystoreRS implements Traceable {
 
                 keystore.setSlices(slices);
                 keystore.setCurrentPartitionId(keystoreGenerator.partitionId());
+                keystore.setShares(keystoreGenerator.shares());
+                keystore.setThreshold(keystoreGenerator.threshold());
                 Session session = new Session();
                 session.setPhase(Session.Phase.PROVISIONED.name());
                 session.setKeystore(keystore);

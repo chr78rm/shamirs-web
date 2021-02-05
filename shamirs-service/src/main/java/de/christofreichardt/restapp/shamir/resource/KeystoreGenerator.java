@@ -51,6 +51,8 @@ public class KeystoreGenerator implements Traceable {
     final char[] password;
     final JsonArray partition;
     final JsonArray requestedSizes;
+    final int shares;
+    final int threshold;
 
     final JsonTracer jsonTracer = new JsonTracer() {
         @Override
@@ -67,7 +69,9 @@ public class KeystoreGenerator implements Traceable {
                 .map(slice -> slice.asJsonObject())
                 .mapToInt(slice -> slice.getInt("size"))
                 .toArray();
-        this.partition = computeSharePoints(keystoreInstructions.getInt("shares", 12), keystoreInstructions.getInt("threshold", 4), sizes);
+        this.shares = keystoreInstructions.getInt("shares");
+        this.threshold = keystoreInstructions.getInt("threshold");
+        this.partition = computeSharePoints(this.shares, this.threshold, sizes);
         generateSecretKeys(keystoreInstructions.getJsonArray("keyinfos"), "AES");
     }
 
@@ -166,6 +170,14 @@ public class KeystoreGenerator implements Traceable {
     
     String partitionId() {
         return this.partition.get(0).asJsonObject().getString("PartitionId");
+    }
+    
+    int shares() {
+        return this.shares;
+    }
+    
+    int threshold() {
+        return this.threshold;
     }
 
     Map<String, byte[]> partition() {
