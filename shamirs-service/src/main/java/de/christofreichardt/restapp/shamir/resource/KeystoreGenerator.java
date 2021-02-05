@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.json.Json;
@@ -178,6 +179,16 @@ public class KeystoreGenerator implements Traceable {
     
     int threshold() {
         return this.threshold;
+    }
+    
+    int size(String participant) {
+        Optional<JsonObject> sizeForParticipant = this.requestedSizes.stream()
+                .map(size -> size.asJsonObject())
+                .filter(size -> Objects.equals(participant, size.getString("participant")))
+                .findFirst();
+        JsonObject size = sizeForParticipant.orElseThrow(() -> new IllegalArgumentException(String.format("No such participant '%s' found.", participant)));
+        
+        return size.getInt("size");
     }
 
     Map<String, byte[]> partition() {

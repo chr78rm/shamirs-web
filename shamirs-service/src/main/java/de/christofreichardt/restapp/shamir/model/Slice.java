@@ -70,6 +70,11 @@ public class Slice implements Serializable {
     @Column(name = "partition_id")
     private String partitionId;
     
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "amount")
+    private int size;
+    
     @JoinColumn(name = "keystore_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
     private DatabasedKeystore keystore;
@@ -142,6 +147,14 @@ public class Slice implements Serializable {
         this.partitionId = partitionId;
     }
 
+    public int getSize() {
+        return size;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
+    }
+
     public DatabasedKeystore getKeystore() {
         return keystore;
     }
@@ -180,8 +193,8 @@ public class Slice implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Slice[id=%s, state=%s, keystore=%s, participant=%s, partitionId=%s, creationTime=%s, modificationTime=%s]", 
-                this.id, this.processingState, this.keystore.getDescriptiveName(), this.participant.getPreferredName(), this.partitionId,
+        return String.format("Slice[id=%s, state=%s, keystore=%s, participant=%s, partitionId=%s, size=%d, creationTime=%s, modificationTime=%s]", 
+                this.id, this.processingState, this.keystore.getDescriptiveName(), this.participant.getPreferredName(), this.partitionId, this.size,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
         );

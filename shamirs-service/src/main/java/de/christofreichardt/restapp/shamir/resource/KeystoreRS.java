@@ -78,6 +78,7 @@ public class KeystoreRS implements Traceable {
                             Slice slice = new Slice();
                             slice.setParticipant(participant);
                             slice.setPartitionId(keystoreGenerator.partitionId());
+                            slice.setSize(keystoreGenerator.size(participant.getPreferredName()));
                             slice.setShare(entry.getValue());
                             slice.setProcessingState("CREATED");
                             slice.setKeystore(keystore);
