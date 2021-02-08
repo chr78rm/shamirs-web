@@ -5,11 +5,15 @@
  */
 package de.christofreichardt.restapp.shamir.model;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.UUID;
+import javax.json.Json;
+import javax.json.JsonValue;
+import javax.json.JsonWriter;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -113,6 +117,14 @@ public class Slice implements Serializable {
 
     public void setShare(byte[] share) {
         this.share = share;
+    }
+    
+    public void setShare(JsonValue share) {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        try (JsonWriter jsonWriter = Json.createWriter(byteArrayOutputStream)) {
+            jsonWriter.write(share);
+        }
+        setShare(byteArrayOutputStream.toByteArray());
     }
 
     public String getProcessingState() {

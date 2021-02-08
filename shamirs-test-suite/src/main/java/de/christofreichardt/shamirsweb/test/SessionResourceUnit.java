@@ -247,6 +247,11 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(session.getString("phase")).isEqualTo("CLOSED");
             }
             
+            Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get();
         } finally {
             tracer.wayout();
         }

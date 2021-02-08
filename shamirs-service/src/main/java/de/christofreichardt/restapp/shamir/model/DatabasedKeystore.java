@@ -10,6 +10,7 @@ import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.json.JsonValueCollector;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.security.GeneralSecurityException;
@@ -259,6 +260,30 @@ public class DatabasedKeystore implements Serializable {
                 .collect(new JsonValueCollector());
 
         return sharePoints;
+    }
+    
+    public int[] sizes() {
+        return getSlices().stream()
+                .mapToInt(slice -> slice.getSize())
+                .toArray();
+    }
+    
+    public byte[] nextKeystoreInstance(ShamirsProtection nextProtection) throws GeneralSecurityException, IOException {
+        KeyStore nextKeyStore = KeyStore.getInstance("ShamirsKeystore", Security.getProvider(ShamirsProvider.NAME));
+        nextKeyStore.load(null, null);
+        KeyStore currentKeyStore = keystoreInstance();
+        ShamirsProtection currentProtection = new ShamirsProtection(sharePoints());
+        Iterator<String> aliasIter = currentKeyStore.aliases().asIterator();
+        while (aliasIter.hasNext()) {
+            String alias = aliasIter.next();
+            KeyStore.Entry entry = currentKeyStore.getEntry(alias, currentProtection);
+            nextKeyStore.setEntry(alias, entry, nextProtection);
+        }
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ShamirsLoadParameter shamirsLoadParameter = new ShamirsLoadParameter(byteArrayOutputStream, nextProtection);
+        nextKeyStore.store(shamirsLoadParameter);
+        
+        return byteArrayOutputStream.toByteArray();
     }
 
     public KeyStore keystoreInstance() throws GeneralSecurityException, IOException {

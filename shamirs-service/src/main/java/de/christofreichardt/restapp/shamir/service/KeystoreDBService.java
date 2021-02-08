@@ -8,16 +8,26 @@ package de.christofreichardt.restapp.shamir.service;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.jca.shamir.PasswordGenerator;
+import de.christofreichardt.jca.shamir.ShamirsProtection;
+import de.christofreichardt.json.JsonTracer;
+import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.Slice;
+import de.christofreichardt.scala.shamir.SecretSharing;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+import javax.json.JsonValue;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.NonUniqueResultException;
@@ -273,40 +283,89 @@ public class KeystoreDBService implements KeystoreService, Traceable {
         AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
         tracer.entry("void", this, "rollOver()");
 
+        final JsonTracer jsonTracer = new JsonTracer() {
+            @Override
+            public AbstractTracer getCurrentTracer() {
+                return tracer;
+            }
+        };
+        
+        List<DatabasedKeystore> databasedKeystores = findKeystoresWithCurrentSlicesAndIdleSessions();
+        databasedKeystores.forEach(keystore -> {
+            tracer.out().printfIndentln("keystore = %s", keystore);
+            keystore.getSessions().forEach(session -> tracer.out().printfIndentln("session = %s", session));
+            keystore.getSlices().forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
+            tracer.out().printfIndentln("(*---*)");
+        });
+    
         try {
-            List<DatabasedKeystore> keystores = findKeystoresWithCurrentSlicesAndIdleSessions();
-            keystores.forEach(keystore -> {
-                tracer.out().printfIndentln("keystore = %s", keystore);
-                keystore.getSessions().forEach(session -> tracer.out().printfIndentln("session = %s", session));
-                keystore.getSlices().forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
-                tracer.out().printfIndentln("(*---*)");
-            });
-            
-            String nextPartitionId = UUID.randomUUID().toString();
-            keystores.forEach(keystore -> {
-                Set<Slice> nextSlices = keystore.getSlices().stream()
-                        .filter(slice -> Objects.equals(slice.getPartitionId(), keystore.getCurrentPartitionId()))
-                        .map(slice -> {
-                            slice.setProcessingState(Slice.ProcessingState.EXPIRED.name());
-                            Slice nextSlice = new Slice();
-                            nextSlice.setKeystore(keystore);
-                            nextSlice.setParticipant(slice.getParticipant());
-                            nextSlice.setPartitionId(nextPartitionId);
-                            nextSlice.setProcessingState(Slice.ProcessingState.CREATED.name());
-                            nextSlice.setShare(null);
-                            return nextSlice;
-                        })
-                        .collect(Collectors.toSet());
-                keystore.setSlices(nextSlices);
-                keystore.setCurrentPartitionId(nextPartitionId);
-                keystore.getSessions().stream()
-                        .filter(session -> Objects.equals(Session.Phase.ACTIVE.name(), session.getPhase()))
-                        .forEach(session -> session.setPhase(Session.Phase.CLOSED.name()));
-                Session session = new Session();
-                session.setPhase(Session.Phase.PROVISIONED.name());
-                session.setKeystore(keystore);
-                keystore.getSessions().add(session);
-                this.entityManager.merge(keystore);
+            databasedKeystores.forEach(databasedKeystore -> {
+                final int DEFAULT_PASSWORD_LENGTH = 32;
+                try {
+                    PasswordGenerator passwordGenerator = new PasswordGenerator(DEFAULT_PASSWORD_LENGTH);
+                    CharSequence passwordSequence = passwordGenerator.generate().findFirst().get();
+                    SecretSharing secretSharing = new SecretSharing(databasedKeystore.getShares(), databasedKeystore.getThreshold(), passwordSequence);
+                    JsonArray nextPartition = secretSharing.partitionAsJson(databasedKeystore.sizes()).stream()
+                            .map(slice -> slice.asJsonObject())
+                            .sorted((JsonObject slice1, JsonObject slice2) -> {
+                                int size1 = slice1.getJsonArray("SharePoints").size();
+                                int size2 = slice2.getJsonArray("SharePoints").size();
+                                if (size1 < size2) {
+                                    return -1;
+                                } else if (size1 > size2) {
+                                    return 1;
+                                } else {
+                                    return 0;
+                                }
+                            })
+                            .collect(new JsonValueCollector());
+
+                    jsonTracer.trace(nextPartition);
+                    
+                    ShamirsProtection nextProtection = new ShamirsProtection(nextPartition);
+                    byte[] nextKeystoreBytes = databasedKeystore.nextKeystoreInstance(nextProtection);
+                    String nextPartitionId = nextPartition.getJsonObject(0).getString("PartitionId");
+                    Iterator<JsonValue> iter = nextPartition.iterator();
+                    Set<Slice> nextSlices = databasedKeystore.getSlices().stream()
+                            .filter(slice -> Objects.equals(slice.getPartitionId(), databasedKeystore.getCurrentPartitionId()))
+                            .sorted((Slice slice1, Slice slice2) -> {
+                                if (slice1.getSize() < slice2.getSize()) {
+                                    return -1;
+                                } else if (slice1.getSize() > slice2.getSize()) {
+                                    return 1;
+                                } else {
+                                    return 0;
+                                }
+                            })
+                            .peek(slice -> tracer.out().printfIndentln("slice = %s", slice))
+                            .map(slice -> {
+                                slice.setProcessingState(Slice.ProcessingState.EXPIRED.name());
+                                Slice nextSlice = new Slice();
+                                nextSlice.setKeystore(databasedKeystore);
+                                nextSlice.setParticipant(slice.getParticipant());
+                                nextSlice.setPartitionId(nextPartitionId);
+                                nextSlice.setProcessingState(Slice.ProcessingState.CREATED.name());
+                                nextSlice.setSize(slice.getSize());
+                                JsonValue share = iter.next();
+                                jsonTracer.trace(share.asJsonObject());
+                                nextSlice.setShare(share);
+                                return nextSlice;
+                            })
+                            .collect(Collectors.toSet());
+                    databasedKeystore.setSlices(nextSlices);
+                    databasedKeystore.setCurrentPartitionId(nextPartitionId);
+                    databasedKeystore.getSessions().stream()
+                            .filter(session -> Objects.equals(Session.Phase.ACTIVE.name(), session.getPhase()))
+                            .forEach(session -> session.setPhase(Session.Phase.CLOSED.name()));
+                    Session session = new Session();
+                    session.setPhase(Session.Phase.PROVISIONED.name());
+                    session.setKeystore(databasedKeystore);
+                    databasedKeystore.getSessions().add(session);
+                    databasedKeystore.setStore(nextKeystoreBytes);
+                    this.entityManager.merge(databasedKeystore);
+                } catch (GeneralSecurityException | IOException ex) {
+                    throw new RuntimeException(ex);
+                }
             });
             
         } finally {
