@@ -8,10 +8,13 @@ package de.christofreichardt.shamirsweb.test;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.json.JsonValue;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -204,6 +207,21 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
             final String SESSION_ID = "8bff8ac6-fc31-40de-bd6a-eca4348171c5";
             final int IDLE_TIME = 10;
 
+            // session should be in phase 'PROVISIONED'
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+            }
+            
             JsonObject sessionInstructions = Json.createObjectBuilder()
                     .add("session", Json.createObjectBuilder()
                             .add("automaticClose", Json.createObjectBuilder()
@@ -213,6 +231,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     )
                     .build();
 
+            // activate the provisioned session
             try (Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(KEYSTORE_ID)
@@ -220,7 +239,6 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
                     .put(Entity.json(sessionInstructions))) {
-
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
                 assertThat(response.hasEntity()).isTrue();
@@ -229,9 +247,11 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
             }
             
+            // waiting for autoclosing the session
             final long FIXED_RATE = 5000L;
             Thread.sleep(IDLE_TIME*1000 + FIXED_RATE);
             
+            // session should be in phase 'CLOSED' now
             try (Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(KEYSTORE_ID)
@@ -239,7 +259,6 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
                     .get()) {
-
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
@@ -247,11 +266,59 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(session.getString("phase")).isEqualTo("CLOSED");
             }
             
-            Response response = this.client.target(this.baseUrl)
+            // check that the rolled over keystore is loadable
+            JsonObject keystoreView;
+            try (Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(KEYSTORE_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .get();
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                keystoreView = response.readEntity(JsonObject.class);
+                assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.ARRAY).isTrue();
+            }
+            
+            // retrieve all sessions for given keystore
+            Optional<JsonObject> sessionsRelation = keystoreView.getJsonArray("links").stream()
+                    .map(link -> link.asJsonObject())
+                    .filter(link -> Objects.equals(link.getString("rel"), "sessions"))
+                    .findFirst();
+            assertThat(sessionsRelation).isPresent();
+            String href = sessionsRelation.get().getString("href");
+            try (Response response = this.client.target(this.baseUrl)
+                    .path(href)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject sessionsView = response.readEntity(JsonObject.class);
+                assertThat(sessionsView.getValue("/sessions").getValueType() == JsonValue.ValueType.ARRAY).isTrue();
+                Optional<JsonObject> sessionView = sessionsView.getJsonArray("sessions").stream()
+                        .map(session -> session.asJsonObject())
+                        .filter(session -> Objects.equals(session.getString("id"), SESSION_ID))
+                        .findFirst();
+                assertThat(sessionView).isPresent();
+                assertThat(sessionView.get().getString("phase")).isEqualTo("CLOSED");
+            }
+            
+            // retrieve the current session for given keystore
+            Optional<JsonObject> currentSessionRelation = keystoreView.getJsonArray("links").stream()
+                    .map(link -> link.asJsonObject())
+                    .filter(link -> Objects.equals(link.getString("rel"), "currentSession"))
+                    .findFirst();
+            assertThat(currentSessionRelation).isPresent();
+            href = currentSessionRelation.get().getString("href");
+            try (Response response = this.client.target(this.baseUrl)
+                    .path(href)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+            }
         } finally {
             tracer.wayout();
         }
