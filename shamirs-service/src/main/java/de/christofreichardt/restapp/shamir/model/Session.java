@@ -44,7 +44,7 @@ import javax.xml.bind.annotation.XmlTransient;
 })
 public class Session implements Serializable {
     
-    public enum Phase {PROVISIONED, PENDING, ACTIVE, CLOSED};
+    public enum Phase {PROVISIONED, ACTIVE, CLOSED};
 
     private static final long serialVersionUID = 1L;
     

@@ -123,26 +123,29 @@ public class SessionRS implements Traceable {
                 DatabasedKeystore keystore = optionalKeystore.get();
                 Session currentSession = keystore.getSessions().iterator().next();
                 if (Objects.equals(currentSession.getId(), sessionId)) {
-                    JsonObject automaticClose = sessionInstructions.getJsonObject("session").getJsonObject("automaticClose");
-                    int idleTime = automaticClose.getInt("idleTime");
-                    TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
-                    Duration duration = Duration.of(idleTime, temporalUnit);
-                    currentSession.setIdleTime(duration.getSeconds());
-                    currentSession.setModificationTime(LocalDateTime.now());
-                    currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
                     try {
                         ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.sharePoints());
                         currentSession.setPhase(Session.Phase.ACTIVE.name());
-                    } catch (IllegalArgumentException ex) {
-                        currentSession.setPhase(Session.Phase.PENDING.name());
-                    }
-                    this.sessionService.save(currentSession);
+                        JsonObject automaticClose = sessionInstructions.getJsonObject("session").getJsonObject("automaticClose");
+                        int idleTime = automaticClose.getInt("idleTime");
+                        TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
+                        Duration duration = Duration.of(idleTime, temporalUnit);
+                        currentSession.setIdleTime(duration.getSeconds());
+                        currentSession.setModificationTime(LocalDateTime.now());
+                        currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
+                        this.sessionService.save(currentSession);
 
-                    response = Response.status(Response.Status.CREATED)
-                            .entity(currentSession.toJson())
-                            .type(MediaType.APPLICATION_JSON)
-                            .encoding("UTF-8")
-                            .build();
+                        response = Response.status(Response.Status.CREATED)
+                                .entity(currentSession.toJson())
+                                .type(MediaType.APPLICATION_JSON)
+                                .encoding("UTF-8")
+                                .build();
+                    } catch (IllegalArgumentException ex) {
+                        message = String.format("Cannot activate session for Keystore[id=%s].", keystoreId);
+                        tracer.logException(LogLevel.ERROR, ex, getClass(), "updateSession(String keystoreId, String sessionId)");
+                        ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message, ex.getMessage());
+                        response = errorResponse.build();
+                    }
                 } else {
                     message = String.format("No current Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
                     tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");

@@ -198,9 +198,9 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     
     @Test
     @Order(5)
-    void updateSession() throws InterruptedException {
+    void activateSessionWithAutomaticClose() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "updateSession()");
+        tracer.entry("void", this, "activateSessionWithAutomaticClose()");
 
         try {
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
@@ -317,6 +317,57 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .get()) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void activateSessionForKeystoreWithIncompleteSlices() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "activateSessionForKeystoreWithIncompleteSlices()");
+
+        try {
+            final String KEYSTORE_ID = "3e6b2af3-63e2-4dcb-bb71-c69f1293b072"; // the-too-few-slices-keystore
+            final String SESSION_ID = "1232d4be-fa07-45d8-b741-65f60ce9ebf0";
+            final int IDLE_TIME = 10;
+            
+            // session should be in phase 'PROVISIONED'
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+            }
+            
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("automaticClose", Json.createObjectBuilder()
+                                    .add("idleTime", IDLE_TIME)
+                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            )
+                    )
+                    .build();
+
+            // try to activate the provisioned session
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .put(Entity.json(sessionInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
                 assertThat(response.hasEntity()).isTrue();
             }
         } finally {
