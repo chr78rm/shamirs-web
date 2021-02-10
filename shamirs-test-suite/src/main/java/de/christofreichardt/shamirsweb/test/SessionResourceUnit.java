@@ -247,6 +247,19 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
             }
             
+            // session should provide a link where to put documents
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+            }
+            
             // waiting for autoclosing the session
             final long FIXED_RATE = 5000L;
             Thread.sleep(IDLE_TIME*1000 + FIXED_RATE);

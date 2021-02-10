@@ -10,8 +10,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
@@ -195,6 +198,37 @@ public class Session implements Serializable {
     }
     
     public JsonObject toJson() {
+        return toJson(false);
+    }
+    
+    public JsonObject toJson(boolean inFull) {
+        JsonArrayBuilder selfTypeBuilder = Json.createArrayBuilder()
+                .add("GET");
+        if (!Objects.equals(this.phase, Phase.CLOSED.name())) {
+            selfTypeBuilder.add("PUT");
+        }
+        JsonArray selfTypes = selfTypeBuilder.build();
+        JsonArrayBuilder linksBuilder = Json.createArrayBuilder()
+                .add(Json.createObjectBuilder()
+                        .add("rel", "self")
+                        .add("href", String.format("/keystores/%s/sessions/%s", this.keystore.getId(), this.id))
+                        .add("type", selfTypes)
+                );
+        if (inFull && !Objects.equals(this.phase, Phase.PROVISIONED.name())) {
+            JsonArrayBuilder documentsTypeBuilder = Json.createArrayBuilder()
+                    .add("GET");
+            if (Objects.equals(this.phase, Phase.ACTIVE.name())) {
+                documentsTypeBuilder.add("PUT");
+            }
+            JsonArray documentsTypes = documentsTypeBuilder.build();
+            linksBuilder
+                    .add(Json.createObjectBuilder()
+                            .add("rel", "documents")
+                            .add("href", String.format("/keystores/%s/sessions/%s/documents", this.keystore.getId(), this.id))
+                            .add("type", documentsTypes)
+                    );
+        }
+        JsonArray links = linksBuilder.build();
         return Json.createObjectBuilder()
                 .add("id", this.id)
                 .add("phase", this.phase)
@@ -202,14 +236,7 @@ public class Session implements Serializable {
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("expirationTime", this.expirationTime != null ? this.expirationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : "null")
-                .add("links", Json.createArrayBuilder()
-                        .add(Json.createObjectBuilder()
-                                .add("rel", "self")
-                                .add("href", String.format("/keystores/%s/sessions/%s", this.keystore.getId(), this.id))
-                                .add("type", Json.createArrayBuilder()
-                                    .add("GET")
-                                )
-                        )
+                .add("links", links
                 )
                 .build();
     }
