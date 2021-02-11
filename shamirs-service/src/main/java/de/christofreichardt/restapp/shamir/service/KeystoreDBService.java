@@ -19,6 +19,7 @@ import de.christofreichardt.scala.shamir.SecretSharing;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -271,9 +272,32 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                     .setParameter("currentTime", currentTime)
                     .getResultList();
             
+            keystores.forEach(keystore -> {
+                tracer.out().printfIndentln("keystore = %s", keystore);
+                keystore.getSessions().forEach(session -> tracer.out().printfIndentln("session = %s", session));
+                keystore.getSlices().forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
+                tracer.out().printfIndentln("(*---*)");
+            });
+            
             return keystores;
         } finally {
             tracer.wayout();
+        }
+    }
+    
+    class JsonSliceComparator implements Comparator<JsonObject> {
+
+        @Override
+        public int compare(JsonObject slice1, JsonObject slice2) {
+            int size1 = slice1.getJsonArray("SharePoints").size();
+            int size2 = slice2.getJsonArray("SharePoints").size();
+            if (size1 < size2) {
+                return -1;
+            } else if (size1 > size2) {
+                return 1;
+            } else {
+                return 0;
+            }
         }
     }
 
@@ -291,13 +315,6 @@ public class KeystoreDBService implements KeystoreService, Traceable {
         };
         
         List<DatabasedKeystore> databasedKeystores = findKeystoresWithCurrentSlicesAndIdleSessions();
-        databasedKeystores.forEach(keystore -> {
-            tracer.out().printfIndentln("keystore = %s", keystore);
-            keystore.getSessions().forEach(session -> tracer.out().printfIndentln("session = %s", session));
-            keystore.getSlices().forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
-            tracer.out().printfIndentln("(*---*)");
-        });
-    
         try {
             databasedKeystores.forEach(databasedKeystore -> {
                 final int DEFAULT_PASSWORD_LENGTH = 32;
@@ -307,17 +324,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                     SecretSharing secretSharing = new SecretSharing(databasedKeystore.getShares(), databasedKeystore.getThreshold(), passwordSequence);
                     JsonArray nextPartition = secretSharing.partitionAsJson(databasedKeystore.sizes()).stream()
                             .map(slice -> slice.asJsonObject())
-                            .sorted((JsonObject slice1, JsonObject slice2) -> {
-                                int size1 = slice1.getJsonArray("SharePoints").size();
-                                int size2 = slice2.getJsonArray("SharePoints").size();
-                                if (size1 < size2) {
-                                    return -1;
-                                } else if (size1 > size2) {
-                                    return 1;
-                                } else {
-                                    return 0;
-                                }
-                            })
+                            .sorted(new JsonSliceComparator())
                             .collect(new JsonValueCollector());
 
                     jsonTracer.trace(nextPartition);
@@ -367,7 +374,6 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                     throw new RuntimeException(ex);
                 }
             });
-            
         } finally {
             tracer.wayout();
         }
