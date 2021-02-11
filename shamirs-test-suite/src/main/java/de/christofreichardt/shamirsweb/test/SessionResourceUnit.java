@@ -43,9 +43,11 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
         try {
             JsonObject sessionInstructions = Json.createObjectBuilder()
                     .add("session", Json.createObjectBuilder()
-                            .add("automaticClose", Json.createObjectBuilder()
-                                    .add("idleTime", 30)
-                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("idleTime", 30)
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
                             )
                     )
                     .build();
@@ -78,9 +80,11 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
         try {
             JsonObject sessionInstructions = Json.createObjectBuilder()
                     .add("session", Json.createObjectBuilder()
-                            .add("automaticClose", Json.createObjectBuilder()
-                                    .add("idleTime", 30)
-                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("idleTime", 30)
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
                             )
                     )
                     .build();
@@ -143,8 +147,10 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
         try {
             JsonObject sessionInstructions = Json.createObjectBuilder()
                     .add("session", Json.createObjectBuilder()
-                            .add("automaticClose", Json.createObjectBuilder()
-                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
                             )
                     )
                     .build();
@@ -221,12 +227,14 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 JsonObject session = response.readEntity(JsonObject.class);
                 assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
             }
-            
+ 
             JsonObject sessionInstructions = Json.createObjectBuilder()
                     .add("session", Json.createObjectBuilder()
-                            .add("automaticClose", Json.createObjectBuilder()
-                                    .add("idleTime", IDLE_TIME)
-                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("idleTime", IDLE_TIME)
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
                             )
                     )
                     .build();
@@ -338,6 +346,60 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     }
     
     @Test
+    @Order(6)
+    void activateClosedSession() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "activateClosedSession()");
+
+        try {
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            final String SESSION_ID = "8bff8ac6-fc31-40de-bd6a-eca4348171c5"; // should be closed now
+            final int IDLE_TIME = 10;
+
+            // session should be in phase 'CLOSED'
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("CLOSED");
+            }
+ 
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("idleTime", IDLE_TIME)
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
+                            )
+                    )
+                    .build();
+
+            // try to activate the expired session
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .put(Entity.json(sessionInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                assertThat(response.hasEntity()).isTrue();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
     void activateSessionForKeystoreWithIncompleteSlices() {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "activateSessionForKeystoreWithIncompleteSlices()");
@@ -364,9 +426,11 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
             
             JsonObject sessionInstructions = Json.createObjectBuilder()
                     .add("session", Json.createObjectBuilder()
-                            .add("automaticClose", Json.createObjectBuilder()
-                                    .add("idleTime", IDLE_TIME)
-                                    .add("temporalUnit", ChronoUnit.SECONDS.name())
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("idleTime", IDLE_TIME)
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
                             )
                     )
                     .build();

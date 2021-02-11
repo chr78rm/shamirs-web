@@ -103,22 +103,51 @@ public class SessionRS implements Traceable {
 
             Response response;
 
-            JsonPointer jsonPointer = Json.createPointer("/session");
+            JsonPointer sessionPointer = Json.createPointer("/session");
+            JsonPointer activationPointer = Json.createPointer("/session/activation");
+            JsonPointer closurePointer = Json.createPointer("/session/activation");
+            
             String message = "Invalid session instructions.";
-            if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.OBJECT) {
+            if (!sessionPointer.containsValue(sessionInstructions) || sessionPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.OBJECT) {
                 tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 response = errorResponse.build();
                 return response;
             }
-            jsonPointer = Json.createPointer("/session/automaticClose/idleTime");
-            if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.NUMBER) {
+            if (activationPointer.containsValue(sessionInstructions) && activationPointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
+                JsonPointer jsonPointer = Json.createPointer("/session/activation/automaticClose/idleTime");
+                if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.NUMBER) {
+                    tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
+                    ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                    response = errorResponse.build();
+                    return response;
+                }
+                
+                response = activateSession(keystoreId, sessionId, sessionInstructions.getJsonObject("session"));
+            } else if (closurePointer.containsValue(sessionInstructions) && closurePointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message, "Not supported yet.");
+                response = errorResponse.build();
+                return response;
+            } else {
                 tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 response = errorResponse.build();
                 return response;
             }
+            
+            return response;
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    Response activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
 
+        try {
+            Response response;
             Optional<DatabasedKeystore> optionalKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
             if (optionalKeystore.isPresent()) {
                 DatabasedKeystore keystore = optionalKeystore.get();
@@ -127,7 +156,7 @@ public class SessionRS implements Traceable {
                     try {
                         ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.sharePoints());
                         currentSession.setPhase(Session.Phase.ACTIVE.name());
-                        JsonObject automaticClose = sessionInstructions.getJsonObject("session").getJsonObject("automaticClose");
+                        JsonObject automaticClose = sessionInstructions.getJsonObject("activation").getJsonObject("automaticClose");
                         int idleTime = automaticClose.getInt("idleTime");
                         TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
                         Duration duration = Duration.of(idleTime, temporalUnit);
@@ -142,19 +171,19 @@ public class SessionRS implements Traceable {
                                 .encoding("UTF-8")
                                 .build();
                     } catch (IllegalArgumentException ex) {
-                        message = String.format("Cannot activate session for Keystore[id=%s].", keystoreId);
+                        String message = String.format("Cannot activate session for Keystore[id=%s].", keystoreId);
                         tracer.logException(LogLevel.ERROR, ex, getClass(), "updateSession(String keystoreId, String sessionId)");
                         ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message, ex.getMessage());
                         response = errorResponse.build();
                     }
                 } else {
-                    message = String.format("No current Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
+                    String message = String.format("No current Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
                     tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
                     ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                     response = errorResponse.build();
                 }
             } else {
-                message = String.format("No such Keystore[id=%s].", keystoreId);
+                String message = String.format("No such Keystore[id=%s].", keystoreId);
                 tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 response = errorResponse.build();
