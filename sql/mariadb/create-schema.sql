@@ -28,7 +28,8 @@ CREATE TABLE keystore (
     shares INT NOT NULL,
     threshold INT NOT NULL,
     creation_time DATETIME NOT NULL,
-    modification_time DATETIME NOT NULL
+    modification_time DATETIME NOT NULL,
+    version INT NOT NULL
 );
 
 --

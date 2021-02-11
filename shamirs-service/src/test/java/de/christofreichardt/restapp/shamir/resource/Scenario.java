@@ -74,7 +74,7 @@ public class Scenario implements Traceable {
         tracer.entry("void", this, "insertKeystore()");
 
         try {
-            String sql = "INSERT INTO keystore (id, descriptive_name, store, current_partition_id, shares, threshold, creation_time, modification_time) \n"
+            String sql = "INSERT INTO keystore (id, descriptive_name, store, current_partition_id, shares, threshold, creation_time, modification_time, version) \n"
                     + "VALUES (\n"
                     + "    ?,\n"
                     + "    ?,\n"
@@ -83,7 +83,8 @@ public class Scenario implements Traceable {
                     + "    ?,\n"
                     + "    ?,\n"
                     + "    CURRENT_TIMESTAMP,\n"
-                    + "    CURRENT_TIMESTAMP\n"
+                    + "    CURRENT_TIMESTAMP,\n"
+                    + "    1\n"
                     + ")";
 
             final byte[] keystoreBytes = Files.readAllBytes(Path.of("..", "sql", "my-keys.p12"));

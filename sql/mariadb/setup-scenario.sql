@@ -9,7 +9,7 @@ DELETE FROM participant;
 --
 -- setup keystore
 --
-INSERT INTO keystore (id, descriptive_name, store, current_partition_id, shares, threshold, creation_time, modification_time) 
+INSERT INTO keystore (id, descriptive_name, store, current_partition_id, shares, threshold, creation_time, modification_time, version) 
 VALUES (
     '5adab38c-702c-4559-8a5f-b792c14b9a43',
     'my-first-keystore',
@@ -18,10 +18,11 @@ VALUES (
     12,
     4,
     CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
+    CURRENT_TIMESTAMP,
+    1
 );
 
-INSERT INTO keystore (id, descriptive_name, store, current_partition_id, shares, threshold, creation_time, modification_time) 
+INSERT INTO keystore (id, descriptive_name, store, current_partition_id, shares, threshold, creation_time, modification_time, version) 
 VALUES (
     '3e6b2af3-63e2-4dcb-bb71-c69f1293b072',
     'the-too-few-slices-keystore',
@@ -30,7 +31,8 @@ VALUES (
     12,
     4,
     CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
+    CURRENT_TIMESTAMP,
+    1
 );
 
 --
