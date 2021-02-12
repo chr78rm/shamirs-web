@@ -9,6 +9,10 @@ import de.christofreichardt.jca.shamir.ShamirsProvider;
 import java.security.Security;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -60,6 +64,21 @@ public class ShamirsApp {
     @Bean
     SessionSanitizer sessionSanitizer() {
         return new SessionSanitizer();
+    }
+    
+    @Bean
+    ScheduledExecutorService singleThreadScheduledExecutor() {
+        
+        ThreadFactory myThreadFactory = new ThreadFactory() {
+            
+            AtomicInteger counter = new AtomicInteger();
+            @Override
+            public Thread newThread(Runnable runnable) {
+                return new Thread(runnable, "ScheduledExecutor-" + counter.getAndIncrement());
+            }
+        };
+        
+        return Executors.newSingleThreadScheduledExecutor(myThreadFactory);
     }
 
     /**

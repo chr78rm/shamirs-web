@@ -22,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ScheduledExecutorService;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
@@ -51,6 +52,9 @@ public class SessionRS implements Traceable {
 
     @Autowired
     KeystoreService keystoreService;
+    
+    @Autowired
+    ScheduledExecutorService scheduledExecutorService;
 
     final JsonTracer jsonTracer = new JsonTracer() {
         @Override
@@ -101,39 +105,33 @@ public class SessionRS implements Traceable {
             tracer.out().printfIndentln("keystoreId = %s", keystoreId);
             tracer.out().printfIndentln("sessionId = %s", sessionId);
 
-            Response response;
-
             JsonPointer sessionPointer = Json.createPointer("/session");
             JsonPointer activationPointer = Json.createPointer("/session/activation");
-            JsonPointer closurePointer = Json.createPointer("/session/activation");
+            JsonPointer closurePointer = Json.createPointer("/session/closure");
+            String errorMessage = "Invalid session instructions.";
             
-            String message = "Invalid session instructions.";
             if (!sessionPointer.containsValue(sessionInstructions) || sessionPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.OBJECT) {
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                response = errorResponse.build();
-                return response;
+                tracer.logMessage(LogLevel.ERROR, errorMessage, getClass(), "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage);
+                return errorResponse.build();
             }
+            
+            Response response;
             if (activationPointer.containsValue(sessionInstructions) && activationPointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
                 JsonPointer jsonPointer = Json.createPointer("/session/activation/automaticClose/idleTime");
                 if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.NUMBER) {
-                    tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
-                    ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                    tracer.logMessage(LogLevel.ERROR, errorMessage, getClass(), "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+                    ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage);
                     response = errorResponse.build();
-                    return response;
+                } else {
+                    response = activateSession(keystoreId, sessionId, sessionInstructions.getJsonObject("session"));
                 }
-                
-                response = activateSession(keystoreId, sessionId, sessionInstructions.getJsonObject("session"));
             } else if (closurePointer.containsValue(sessionInstructions) && closurePointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message, "Not supported yet.");
-                response = errorResponse.build();
-                return response;
+                response = closeSession(keystoreId, sessionId, sessionInstructions);
             } else {
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "updateSession(String keystoreId, String sessionId)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                tracer.logMessage(LogLevel.ERROR, errorMessage, getClass(), "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage);
                 response = errorResponse.build();
-                return response;
             }
             
             return response;
@@ -165,7 +163,7 @@ public class SessionRS implements Traceable {
                         currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
                         this.sessionService.save(currentSession);
 
-                        response = Response.status(Response.Status.CREATED)
+                        response = Response.status(Response.Status.OK)
                                 .entity(currentSession.toJson())
                                 .type(MediaType.APPLICATION_JSON)
                                 .encoding("UTF-8")
@@ -190,6 +188,21 @@ public class SessionRS implements Traceable {
             }
 
             return response;
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    Response closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+
+        try {
+            String errorMessage = "Invalid session instructions.";
+            tracer.logMessage(LogLevel.ERROR, errorMessage, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+            ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage, "Not supported yet.");
+            
+            return errorResponse.build();
         } finally {
             tracer.wayout();
         }

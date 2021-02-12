@@ -378,6 +378,17 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             tracer.wayout();
         }
     }
+
+    @Override
+    public void rollOver(DatabasedKeystore databasedKeystore) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "rollOver(DatabasedKeystore databasedKeystore)");
+
+        try {
+        } finally {
+            tracer.wayout();
+        }
+    }
     
     @Override
     public AbstractTracer getCurrentTracer() {

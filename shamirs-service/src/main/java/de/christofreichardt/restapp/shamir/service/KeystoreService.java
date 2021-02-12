@@ -28,4 +28,5 @@ public interface KeystoreService {
     Optional<DatabasedKeystore> findByIdWithActiveSlicesAndCurrentSession(String keystoreId);
     List<DatabasedKeystore> findKeystoresWithCurrentSlicesAndIdleSessions();
     void rollOver();
+    void rollOver(DatabasedKeystore databasedKeystore);
 }
