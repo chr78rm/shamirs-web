@@ -454,7 +454,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     
     @Test
     @Order(7)
-    void closeActiveSession() {
+    void closeActiveSession() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "closeActiveSession()");
 
@@ -515,6 +515,41 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
+            }
+            
+            // waiting a second
+            final long PAUSE = 1000L;
+            Thread.sleep(PAUSE);
+            
+            JsonObject closeSessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("closure", Json.createObjectBuilder()
+                            )
+                    )
+                    .build();
+
+            // close the activated session
+            try (Response response = this.client.target(this.baseUrl)
+                    .path(href)
+                    .request(MediaType.APPLICATION_JSON)
+                    .put(Entity.json(closeSessionInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.NO_CONTENT);
+            }
+            
+            // waiting a second
+            Thread.sleep(PAUSE);
+            
+            // session should be in phase 'CLOSED'
+            try (Response response = this.client.target(this.baseUrl)
+                    .path(href)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("CLOSED");
             }
         } finally {
             tracer.wayout();

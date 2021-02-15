@@ -71,10 +71,10 @@ public class ShamirsApp {
         
         ThreadFactory myThreadFactory = new ThreadFactory() {
             
-            AtomicInteger counter = new AtomicInteger();
+            AtomicInteger counter = new AtomicInteger(1);
             @Override
             public Thread newThread(Runnable runnable) {
-                return new Thread(runnable, "ScheduledExecutor-" + counter.getAndIncrement());
+                return new Thread(runnable, "scheduling-" + counter.getAndIncrement());
             }
         };
         

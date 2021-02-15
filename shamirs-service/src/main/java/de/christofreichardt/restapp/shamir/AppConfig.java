@@ -5,6 +5,9 @@
  */
 package de.christofreichardt.restapp.shamir;
 
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,10 +28,24 @@ public class AppConfig {
     @Autowired
     SessionSanitizer sessionSanitizer;
     
+    @Autowired
+    ScheduledExecutorService scheduledExecutorService;
+    
     @Scheduled(fixedRate = 5000L)
     void trigger() {
         LOGGER.info(String.format("%s: Watching sessions ...", Thread.currentThread().getName()));
         this.sessionSanitizer.cleanup();
+    }
+    
+    @PreDestroy
+    void cleanup() throws InterruptedException {
+        LOGGER.info("Terminating scheduling service ...");
+        
+        final long TIMEOUT = 5;
+        this.scheduledExecutorService.shutdown();
+        boolean terminated = this.scheduledExecutorService.awaitTermination(TIMEOUT, TimeUnit.SECONDS);
+        
+        LOGGER.info(String.format("terminated = %b", terminated));
     }
     
 }
