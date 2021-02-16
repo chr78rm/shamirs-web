@@ -130,7 +130,6 @@ public class KeystoreGeneratorUnit implements Traceable {
                     .forEach((propertyName) -> tracer.out().printfIndentln("%s = %s", propertyName, System.getProperties().getProperty(propertyName)));
             
             Security.addProvider(new ShamirsProvider());
-            TracerFactory.getInstance().openQueueTracer();
             this.jdbcTemplate = new JdbcTemplate(this.dataSource);
             this.scenario = new Scenario(this.jdbcTemplate);
             this.scenario.setup();
@@ -267,7 +266,6 @@ public class KeystoreGeneratorUnit implements Traceable {
         tracer.entry("void", this, "exit()");
 
         try {
-            TracerFactory.getInstance().closeQueueTracer();
             Security.removeProvider(ShamirsProvider.NAME);
         } finally {
             tracer.wayout();

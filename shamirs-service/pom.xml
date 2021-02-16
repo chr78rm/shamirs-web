@@ -141,6 +141,7 @@
                 <configuration>
                     <includes>
                         <include>de/christofreichardt/restapp/shamir/resource/KeystoreGeneratorUnit.java</include>
+                        <include>de/christofreichardt/restapp/shamir/resource/SessionUnit.java</include>
                     </includes>
                     <argLine>-Dfile.encoding=${project.build.sourceEncoding}</argLine>
                     <systemPropertyVariables>
