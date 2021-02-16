@@ -356,6 +356,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                         .peek(slice -> tracer.out().printfIndentln("slice = %s", slice))
                         .map(slice -> {
                             slice.setProcessingState(Slice.ProcessingState.EXPIRED.name());
+                            slice.setModificationTime(LocalDateTime.now());
                             Slice nextSlice = new Slice();
                             nextSlice.setKeystore(databasedKeystore);
                             nextSlice.setParticipant(slice.getParticipant());

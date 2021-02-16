@@ -236,7 +236,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "ce9a98d9-3237-4949-9de3-327fc2f21d26",
                         "8844dd34-c836-4060-ba73-c6d86ad1275d",  // christof
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         4,
                         null,
@@ -245,7 +245,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "c216e2c5-6bc3-4840-aa42-05564b40f0cd",
                         "f6cdb2e5-ea3e-405f-ad0a-14c034497e23", // test-user-1
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         2,
                         null,
@@ -254,7 +254,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "de1a09c0-2dc9-4430-bd07-a693aa9a3abb",
                         "337dd2bd-508d-423d-84ca-81770d8ac30d", // test-user-2
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         2,
                         null,
@@ -263,7 +263,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "56b4db85-1b70-49b8-a934-73b50a0e352a",
                         "48ef6c98-0e04-49bc-9f7f-01f2cec3ccac",  // test-user-3
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         null,
