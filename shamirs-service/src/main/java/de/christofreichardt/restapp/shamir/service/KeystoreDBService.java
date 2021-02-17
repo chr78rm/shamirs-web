@@ -373,12 +373,16 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                 databasedKeystore.setCurrentPartitionId(nextPartitionId);
                 databasedKeystore.getSessions().stream()
                         .filter(session -> Objects.equals(Session.Phase.ACTIVE.name(), session.getPhase()))
-                        .forEach(session -> session.setPhase(Session.Phase.CLOSED.name()));
+                        .forEach(session -> {
+                            session.setPhase(Session.Phase.CLOSED.name());
+                            session.setModificationTime(LocalDateTime.now());
+                        });
                 Session session = new Session();
                 session.setPhase(Session.Phase.PROVISIONED.name());
                 session.setKeystore(databasedKeystore);
                 databasedKeystore.getSessions().add(session);
                 databasedKeystore.setStore(nextKeystoreBytes);
+                databasedKeystore.setMofificationTime(LocalDateTime.now());
                 this.entityManager.merge(databasedKeystore);
             } catch (GeneralSecurityException | IOException ex) {
                 throw new RuntimeException(ex);

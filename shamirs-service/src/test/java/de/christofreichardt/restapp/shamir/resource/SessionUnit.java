@@ -13,12 +13,13 @@ import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.restapp.shamir.ShamirsApp;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
+import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.Security;
-import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 /**
@@ -82,27 +84,25 @@ public class SessionUnit implements Traceable, WithAssertions {
     }
 
     @Test
-    void rollover() throws InterruptedException, SQLException {
+    void rollover() throws InterruptedException, SQLException, GeneralSecurityException, IOException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "rollover()");
 
         try {
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
             final String SESSION_ID = "8bff8ac6-fc31-40de-bd6a-eca4348171c5";
-            final long IDLE_TIME = 1; // seconds
+            final long IDLE_TIME = 2; // seconds
 
             QueueTracer<?> qTracer = TracerFactory.getInstance().takeTracer();
             qTracer.initCurrentTracingContext();
-            qTracer.entry("void", this, "activate()");
+            qTracer.entry("void", this, "rollover()");
             try {
                 Optional<DatabasedKeystore> keystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(KEYSTORE_ID);
-
                 assertThat(keystore).isNotEmpty();
                 tracer.out().printfIndentln("keystore = %s", keystore.get());
                 assertThat(keystore.get().getSessions().isEmpty()).isFalse();
 
                 Session currentSession = keystore.get().getSessions().iterator().next();
-
                 tracer.out().printfIndentln("currentSession = %s", currentSession);
                 assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED.name());
                 assertThat(currentSession.getId()).isEqualTo(SESSION_ID);
@@ -115,48 +115,93 @@ public class SessionUnit implements Traceable, WithAssertions {
                 currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
                 this.sessionService.save(currentSession);
 
-                String sql = String.format(
+                String selectKeystoreWithSession = 
                         "SELECT k.id, k.descriptive_name, k.modification_time, k.current_partition_id, k.version, s.id AS session_id, s.phase, s.idle_time, s.modification_time\n"
                         + "FROM keystore k\n"
                         + "LEFT JOIN csession s ON k.id = s.keystore_id\n"
-                        + "WHERE k.id = '%s'\n"
-                        + "ORDER BY k.id, s.modification_time",
-                        KEYSTORE_ID
-                );
+                        + "WHERE k.id = '%s' AND s.phase = '%s'";
+                RowMapper<Map<String, Object>> keystoreWithSessionRowMapper = (ResultSet resultSet, int rowNum) -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("keystore_id", resultSet.getString("k.id"));
+                    map.put("k.descriptive_name", resultSet.getString("k.descriptive_name"));
+                    map.put("k.modification_time", resultSet.getString("k.modification_time"));
+                    map.put("k.current_partition_id", resultSet.getString("k.current_partition_id"));
+                    map.put("session_id", resultSet.getString("session_id"));
+                    map.put("s.phase", resultSet.getString("s.phase"));
+                    map.put("s.idle_time", resultSet.getString("s.idle_time"));
+                    map.put("s.modification_time", resultSet.getString("s.modification_time"));
+                    return map;
+                };
+                
+                String selectKeystoreWithSlices =
+                        "SELECT k.id, k.descriptive_name, k.current_partition_id, k.modification_time, s.id, s.processing_state, s.modification_time, s.partition_id, s.amount\n"
+                        + "FROM keystore k\n"
+                        + "LEFT JOIN slice s ON s.keystore_id = k.id\n"
+                        + "WHERE k.id = '%s' AND s.processing_state = '%s'";
+                RowMapper<Map<String, Object>> keystoreWithSlicesRowMapper = (ResultSet resultSet, int rowNum) -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("keystore_id", resultSet.getString("k.id"));
+                    map.put("k.descriptive_name", resultSet.getString("k.descriptive_name"));
+                    map.put("k.modification_time", resultSet.getString("k.modification_time"));
+                    map.put("k.current_partition_id", resultSet.getString("k.current_partition_id"));
+                    map.put("slice_id", resultSet.getString("s.id"));
+                    map.put("s.processing_state", resultSet.getString("s.processing_state"));
+                    map.put("s.modification_time", resultSet.getString("s.modification_time"));
+                    map.put("s.partition_id", resultSet.getString("s.partition_id"));
+                    map.put("s.amount", resultSet.getString("s.amount"));
+                    return map;
+                };
 
                 List<Map<String, Object>> result = this.jdbcTemplate.query(
-                        sql,
-                        (resultSet, rowNum) -> {
-                            Map<String, Object> map = new LinkedHashMap<>();
-                            map.put("keystore_id", resultSet.getString("k.id"));
-                            map.put("descriptive_name", resultSet.getString("k.descriptive_name"));
-                            map.put("modification_time", resultSet.getString("k.modification_time"));
-                            map.put("current_partition_id", resultSet.getString("k.current_partition_id"));
-                            map.put("session_id", resultSet.getString("session_id"));
-                            map.put("phase", resultSet.getString("s.phase"));
-                            return map;
-                        });
+                        String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.ACTIVE.name()), 
+                        keystoreWithSessionRowMapper
+                );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+                assertThat(result.size()).isEqualTo(1);
+                tracer.out().printfIndentln("------------");
 
-                assertThat(result).isNotEmpty();
-                assertThat(result.get(0).get("phase")).isEqualTo(Session.Phase.ACTIVE.name());
+                result = this.jdbcTemplate.query(
+                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, Slice.ProcessingState.POSTED.name()), 
+                        keystoreWithSlicesRowMapper
+                );
+                result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+                assertThat(result.size()).isEqualTo(7);
+                tracer.out().printfIndentln("------------");
 
                 final long FIXED_RATE = 5000L;
                 Thread.sleep((IDLE_TIME + 1) * 1000 + FIXED_RATE);
 
                 result = this.jdbcTemplate.query(
-                        sql,
-                        (resultSet, rowNum) -> {
-                            Map<String, Object> map = new LinkedHashMap<>();
-                            map.put("keystore_id", resultSet.getString("id"));
-                            map.put("descriptive_name", resultSet.getString("descriptive_name"));
-                            map.put("modification_time", resultSet.getString("modification_time"));
-                            map.put("current_partition_id", resultSet.getString("current_partition_id"));
-                            map.put("session_id", resultSet.getString("session_id"));
-                            map.put("phase", resultSet.getString("phase"));
-                            return map;
-                        });
+                        String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.CLOSED.name()), 
+                        keystoreWithSessionRowMapper
+                );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+                assertThat(result.size()).isEqualTo(1);
+                result = this.jdbcTemplate.query(
+                        String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.PROVISIONED.name()), 
+                        keystoreWithSessionRowMapper
+                );
+                result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+                assertThat(result.size()).isEqualTo(1);
+                tracer.out().printfIndentln("------------");
+
+                result = this.jdbcTemplate.query(
+                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, Slice.ProcessingState.EXPIRED.name()), 
+                        keystoreWithSlicesRowMapper
+                );
+                result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+                assertThat(result.size()).isEqualTo(7);
+                result = this.jdbcTemplate.query(
+                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, Slice.ProcessingState.CREATED.name()), 
+                        keystoreWithSlicesRowMapper
+                );
+                result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+                assertThat(result.size()).isEqualTo(7);
+                
+                keystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(KEYSTORE_ID);
+                assertThat(keystore).isNotEmpty();
+                tracer.out().printfIndentln("keystore = %s", keystore.get());
+                keystore.get().keystoreInstance();
             } finally {
                 qTracer.wayout();
             }
