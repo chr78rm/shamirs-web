@@ -30,6 +30,10 @@ import org.springframework.jdbc.support.lob.LobCreator;
 public class Scenario implements Traceable {
 
     final JdbcTemplate jdbcTemplate;
+    
+    final Path keystoreBaseDir = Path.of("..", "sql", "keystores");
+    final String MY_FIRST_KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43";
+    final String THE_TOO_FEW_SLICES_KEYSTORE_ID = "3e6b2af3-63e2-4dcb-bb71-c69f1293b072";
 
     public Scenario(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -87,15 +91,14 @@ public class Scenario implements Traceable {
                     + "    1\n"
                     + ")";
 
-            final byte[] keystoreBytes = Files.readAllBytes(Path.of("..", "sql", "my-keys.p12"));
-
+            final byte[] myFirstKeystoreBytes = Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "my-keys.p12")));
             DefaultLobHandler defaultLobHandler = new DefaultLobHandler();
             Integer result = this.jdbcTemplate.execute(sql, new AbstractLobCreatingPreparedStatementCallback(defaultLobHandler) {
                 @Override
                 protected void setValues(PreparedStatement preparedStatement, LobCreator lobCreator) throws SQLException, DataAccessException {
                     preparedStatement.setString(1, "5adab38c-702c-4559-8a5f-b792c14b9a43");
                     preparedStatement.setString(2, "my-first-keystore");
-                    lobCreator.setBlobAsBytes(preparedStatement, 3, keystoreBytes);
+                    lobCreator.setBlobAsBytes(preparedStatement, 3, myFirstKeystoreBytes);
                     preparedStatement.setString(4, "467b268d-1a7f-4f00-993c-672b82494822");
                     preparedStatement.setInt(5, 12);
                     preparedStatement.setInt(6, 4);
@@ -104,12 +107,13 @@ public class Scenario implements Traceable {
             
             tracer.out().printfIndentln("result = %d", result);
             
+            final byte[] theTooFewSlicesKeystoreBytes = Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_TOO_FEW_SLICES_KEYSTORE_ID, "my-keys.p12")));
             result = this.jdbcTemplate.execute(sql, new AbstractLobCreatingPreparedStatementCallback(defaultLobHandler) {
                 @Override
                 protected void setValues(PreparedStatement preparedStatement, LobCreator lobCreator) throws SQLException, DataAccessException {
                     preparedStatement.setString(1, "3e6b2af3-63e2-4dcb-bb71-c69f1293b072");
                     preparedStatement.setString(2, "the-too-few-slices-keystore");
-                    lobCreator.setBlobAsBytes(preparedStatement, 3, keystoreBytes);
+                    lobCreator.setBlobAsBytes(preparedStatement, 3, theTooFewSlicesKeystoreBytes);
                     preparedStatement.setString(4, "467b268d-1a7f-4f00-993c-672b82494822");
                     preparedStatement.setInt(5, 12);
                     preparedStatement.setInt(6, 4);
@@ -171,7 +175,7 @@ public class Scenario implements Traceable {
                         "5adab38c-702c-4559-8a5f-b792c14b9a43",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         4,
-                        Files.readAllBytes(Path.of("..", "sql", "test-0.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-0.json"))),
                         "POSTED"
                     },
                     new Object[]{
@@ -180,7 +184,7 @@ public class Scenario implements Traceable {
                         "5adab38c-702c-4559-8a5f-b792c14b9a43",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         2,
-                        Files.readAllBytes(Path.of("..", "sql", "test-1.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-1.json"))),
                         "POSTED"
                     },
                     new Object[]{
@@ -189,7 +193,7 @@ public class Scenario implements Traceable {
                         "5adab38c-702c-4559-8a5f-b792c14b9a43",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         2,
-                        Files.readAllBytes(Path.of("..", "sql", "test-2.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-2.json"))),
                         "POSTED"
                     },
                     new Object[]{
@@ -198,7 +202,7 @@ public class Scenario implements Traceable {
                         "5adab38c-702c-4559-8a5f-b792c14b9a43",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
-                        Files.readAllBytes(Path.of("..", "sql", "test-3.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-3.json"))),
                         "POSTED"
                     },
                     new Object[]{
@@ -207,7 +211,7 @@ public class Scenario implements Traceable {
                         "5adab38c-702c-4559-8a5f-b792c14b9a43",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
-                        Files.readAllBytes(Path.of("..", "sql", "test-4.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-4.json"))),
                         "POSTED"
                     },
                     new Object[]{
@@ -216,7 +220,7 @@ public class Scenario implements Traceable {
                         "5adab38c-702c-4559-8a5f-b792c14b9a43",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
-                        Files.readAllBytes(Path.of("..", "sql", "test-5.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-5.json"))),
                         "POSTED"
                     },
                     new Object[]{
@@ -225,7 +229,7 @@ public class Scenario implements Traceable {
                         "5adab38c-702c-4559-8a5f-b792c14b9a43",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
-                        Files.readAllBytes(Path.of("..", "sql", "test-6.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-6.json"))),
                         "POSTED"
                     },
                     
@@ -275,7 +279,7 @@ public class Scenario implements Traceable {
                         "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
-                        Files.readAllBytes(Path.of("..", "sql", "test-4.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_TOO_FEW_SLICES_KEYSTORE_ID, "test-4.json"))),
                         "POSTED"
                     },
                     new Object[]{
@@ -284,7 +288,7 @@ public class Scenario implements Traceable {
                         "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
-                        Files.readAllBytes(Path.of("..", "sql", "test-5.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_TOO_FEW_SLICES_KEYSTORE_ID, "test-5.json"))),
                         "POSTED"
                     },
                     new Object[]{
@@ -293,7 +297,7 @@ public class Scenario implements Traceable {
                         "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
-                        Files.readAllBytes(Path.of("..", "sql", "test-6.json")),
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_TOO_FEW_SLICES_KEYSTORE_ID, "test-6.json"))),
                         "POSTED"
                     }
             );
