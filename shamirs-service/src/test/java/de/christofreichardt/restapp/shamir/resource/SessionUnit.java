@@ -9,6 +9,7 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.QueueTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.restapp.shamir.ShamirsApp;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
@@ -18,6 +19,7 @@ import de.christofreichardt.restapp.shamir.service.KeystoreService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.security.Security;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -25,6 +27,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,18 +94,18 @@ public class SessionUnit implements Traceable, WithAssertions {
         try {
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
             final String SESSION_ID = "8bff8ac6-fc31-40de-bd6a-eca4348171c5";
-            final long IDLE_TIME = 2; // seconds
+            final long IDLE_TIME = 1; // seconds
 
             QueueTracer<?> qTracer = TracerFactory.getInstance().takeTracer();
             qTracer.initCurrentTracingContext();
             qTracer.entry("void", this, "rollover()");
             try {
-                Optional<DatabasedKeystore> keystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(KEYSTORE_ID);
-                assertThat(keystore).isNotEmpty();
-                tracer.out().printfIndentln("keystore = %s", keystore.get());
-                assertThat(keystore.get().getSessions().isEmpty()).isFalse();
+                Optional<DatabasedKeystore> databasedKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(KEYSTORE_ID);
+                assertThat(databasedKeystore).isNotEmpty();
+                tracer.out().printfIndentln("keystore = %s", databasedKeystore.get());
+                assertThat(databasedKeystore.get().getSessions().isEmpty()).isFalse();
 
-                Session currentSession = keystore.get().getSessions().iterator().next();
+                Session currentSession = databasedKeystore.get().getSessions().iterator().next();
                 tracer.out().printfIndentln("currentSession = %s", currentSession);
                 assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED.name());
                 assertThat(currentSession.getId()).isEqualTo(SESSION_ID);
@@ -168,7 +171,7 @@ public class SessionUnit implements Traceable, WithAssertions {
                 assertThat(result.size()).isEqualTo(7);
                 tracer.out().printfIndentln("------------");
 
-                final long FIXED_RATE = 5000L;
+                final long FIXED_RATE = 2500L;
                 Thread.sleep((IDLE_TIME + 1) * 1000 + FIXED_RATE);
 
                 result = this.jdbcTemplate.query(
@@ -198,10 +201,17 @@ public class SessionUnit implements Traceable, WithAssertions {
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
                 assertThat(result.size()).isEqualTo(7);
                 
-                keystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(KEYSTORE_ID);
-                assertThat(keystore).isNotEmpty();
-                tracer.out().printfIndentln("keystore = %s", keystore.get());
-                keystore.get().keystoreInstance();
+                databasedKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(KEYSTORE_ID);
+                assertThat(databasedKeystore).isNotEmpty();
+                tracer.out().printfIndentln("keystore = %s", databasedKeystore.get());
+                KeyStore keyStore = databasedKeystore.get().keystoreInstance();
+                ShamirsProtection shamirsProtection = new ShamirsProtection(databasedKeystore.get().sharePoints());
+                Iterator<String> iter = keyStore.aliases().asIterator();
+                while (iter.hasNext()) {
+                    String alias = iter.next();
+                    KeyStore.Entry entry = keyStore.getEntry(alias, shamirsProtection);
+                    tracer.out().printfIndentln("entry.getAttributes() = %s", entry.getAttributes());
+                }
             } finally {
                 qTracer.wayout();
             }

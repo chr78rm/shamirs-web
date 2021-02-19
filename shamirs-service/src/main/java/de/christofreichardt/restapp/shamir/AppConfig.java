@@ -5,47 +5,57 @@
  */
 package de.christofreichardt.restapp.shamir;
 
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
 
 /**
  *
  * @author Developer
  */
 @Configuration
-@EnableScheduling
+@PropertySource("classpath:application.properties")
 public class AppConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AppConfig.class);
-    
+
     @Autowired
     SessionSanitizer sessionSanitizer;
-    
+
     @Autowired
     ScheduledExecutorService scheduledExecutorService;
-    
-    @Scheduled(fixedRate = 5000L)
-    void trigger() {
-        LOGGER.info(String.format("%s: Watching sessions ...", Thread.currentThread().getName()));
-        this.sessionSanitizer.cleanup();
+
+    @Autowired
+    Environment environment;
+
+    @PostConstruct
+    void init() {
+        long initialDelay = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.initialDelay"));
+        long period = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.period"));
+        TimeUnit timeUnit = TimeUnit.of(ChronoUnit.valueOf(this.environment.getProperty("de.christofreichardt.restapp.shamir.temporalUnit")));
+        
+        LOGGER.info(String.format("Scheduling sanitizer service [initialDelay=%d, period=%d, timeUnit=%s] ...", initialDelay, period, timeUnit));
+        
+        this.scheduledExecutorService.scheduleAtFixedRate(this.sessionSanitizer, initialDelay, period, timeUnit);
     }
-    
+
     @PreDestroy
     void cleanup() throws InterruptedException {
         LOGGER.info("Terminating scheduling service ...");
-        
+
         final long TIMEOUT = 5;
         this.scheduledExecutorService.shutdown();
         boolean terminated = this.scheduledExecutorService.awaitTermination(TIMEOUT, TimeUnit.SECONDS);
-        
+
         LOGGER.info(String.format("terminated = %b", terminated));
     }
-    
+
 }

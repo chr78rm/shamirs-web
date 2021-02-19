@@ -19,9 +19,11 @@ import de.christofreichardt.scala.shamir.SecretSharing;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -300,8 +302,10 @@ public class KeystoreDBService implements KeystoreService, Traceable {
         AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
         tracer.entry("void", this, "rollOver()");
         
-        List<DatabasedKeystore> databasedKeystores = findKeystoresWithCurrentSlicesAndIdleSessions();
         try {
+            tracer.out().printfIndentln("LocalDateTime.now() = %s", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss.SSS").withLocale(Locale.US)));
+            
+            List<DatabasedKeystore> databasedKeystores = findKeystoresWithCurrentSlicesAndIdleSessions();
             databasedKeystores.forEach(databasedKeystore -> rollOver(databasedKeystore));
         } finally {
             tracer.wayout();
@@ -353,7 +357,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                                 return 0;
                             }
                         })
-                        .peek(slice -> tracer.out().printfIndentln("slice = %s", slice))
+//                        .peek(slice -> tracer.out().printfIndentln("slice = %s", slice))
                         .map(slice -> {
                             slice.setProcessingState(Slice.ProcessingState.EXPIRED.name());
                             slice.setModificationTime(LocalDateTime.now());
@@ -364,7 +368,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                             nextSlice.setProcessingState(Slice.ProcessingState.CREATED.name());
                             nextSlice.setSize(slice.getSize());
                             JsonValue share = iter.next();
-                            jsonTracer.trace(share.asJsonObject());
+//                            jsonTracer.trace(share.asJsonObject());
                             nextSlice.setShare(share);
                             return nextSlice;
                         })
