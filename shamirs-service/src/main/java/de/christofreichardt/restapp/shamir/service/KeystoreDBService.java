@@ -274,6 +274,8 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                     .setParameter("currentTime", currentTime)
                     .getResultList();
             
+            keystores.forEach(keystore -> tracer.out().printfIndentln("keystore = %s", keystore));
+            
             return keystores;
         } finally {
             tracer.wayout();

@@ -269,7 +269,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
             }
             
             // waiting for autoclosing the session
-            final long FIXED_RATE = 5000L;
+            final long FIXED_RATE = 2500L;
             Thread.sleep(IDLE_TIME*1000 + FIXED_RATE);
             
             // session should be in phase 'CLOSED' now

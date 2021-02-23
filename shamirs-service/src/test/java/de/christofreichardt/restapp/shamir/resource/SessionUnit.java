@@ -36,6 +36,7 @@ import javax.sql.DataSource;
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,6 +88,7 @@ public class SessionUnit implements Traceable, WithAssertions {
     }
 
     @Test
+    @Order(1)
     void rollover() throws InterruptedException, SQLException, GeneralSecurityException, IOException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "rollover()");
@@ -162,12 +164,14 @@ public class SessionUnit implements Traceable, WithAssertions {
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
                 assertThat(result.size()).isEqualTo(1);
                 tracer.out().printfIndentln("------------");
+                tracer.out().flush();
 
                 result = this.jdbcTemplate.query(
                         String.format(selectKeystoreWithSlices, KEYSTORE_ID, Slice.ProcessingState.POSTED.name()), 
                         keystoreWithSlicesRowMapper
                 );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+                tracer.out().flush();
                 assertThat(result.size()).isEqualTo(7);
                 tracer.out().printfIndentln("------------");
 
@@ -179,6 +183,7 @@ public class SessionUnit implements Traceable, WithAssertions {
                         keystoreWithSessionRowMapper
                 );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+                tracer.out().flush();
                 assertThat(result.size()).isEqualTo(1);
                 result = this.jdbcTemplate.query(
                         String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.PROVISIONED.name()), 
@@ -204,6 +209,44 @@ public class SessionUnit implements Traceable, WithAssertions {
                 databasedKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(KEYSTORE_ID);
                 assertThat(databasedKeystore).isNotEmpty();
                 tracer.out().printfIndentln("keystore = %s", databasedKeystore.get());
+                KeyStore keyStore = databasedKeystore.get().keystoreInstance();
+                ShamirsProtection shamirsProtection = new ShamirsProtection(databasedKeystore.get().sharePoints());
+                Iterator<String> iter = keyStore.aliases().asIterator();
+                while (iter.hasNext()) {
+                    String alias = iter.next();
+                    KeyStore.Entry entry = keyStore.getEntry(alias, shamirsProtection);
+                    tracer.out().printfIndentln("entry.getAttributes() = %s", entry.getAttributes());
+                }
+            } finally {
+                qTracer.wayout();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    @Order(2)
+    void idleKeystore() throws GeneralSecurityException, IOException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "idleKeystore()");
+
+        try {
+            final String THE_IDLE_KEYSTORE_ID = "e509eaf0-3fec-4972-9e32-48e6911710f7";
+            
+            QueueTracer<?> qTracer = TracerFactory.getInstance().takeTracer();
+            qTracer.initCurrentTracingContext();
+            qTracer.entry("void", this, "idleKeystore()");
+            try {
+                Optional<DatabasedKeystore> databasedKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(THE_IDLE_KEYSTORE_ID);
+                assertThat(databasedKeystore).isNotEmpty();
+                tracer.out().printfIndentln("keystore = %s", databasedKeystore.get());
+                assertThat(databasedKeystore.get().getSessions().isEmpty()).isFalse();
+
+                Session currentSession = databasedKeystore.get().getSessions().iterator().next();
+                tracer.out().printfIndentln("currentSession = %s", currentSession);
+                assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED.name());
+                
                 KeyStore keyStore = databasedKeystore.get().keystoreInstance();
                 ShamirsProtection shamirsProtection = new ShamirsProtection(databasedKeystore.get().sharePoints());
                 Iterator<String> iter = keyStore.aliases().asIterator();
