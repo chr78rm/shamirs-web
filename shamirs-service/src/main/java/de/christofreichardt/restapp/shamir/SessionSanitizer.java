@@ -6,6 +6,7 @@
 package de.christofreichardt.restapp.shamir;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
@@ -40,7 +41,11 @@ public class SessionSanitizer implements Runnable, Traceable {
         tracer.entry("void", this, "cleanup()");
 
         try {
-            this.keystoreService.rollOver();
+            try {
+                this.keystoreService.rollOver();
+            } catch (Exception ex) {
+                tracer.logException(LogLevel.ERROR, ex, getClass(), "cleanup()");
+            }
         } finally {
             tracer.wayout();
         }

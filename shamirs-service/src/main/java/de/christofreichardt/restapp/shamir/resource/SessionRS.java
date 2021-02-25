@@ -97,7 +97,6 @@ public class SessionRS implements Traceable {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Path("keystores/{keystoreId}/sessions/{sessionId}")
-    // TODO: phase transition from 'ACTIVE' to 'CLOSED'
     public Response updateSession(@PathParam("keystoreId") String keystoreId, @PathParam("sessionId") String sessionId, JsonObject sessionInstructions) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
@@ -221,6 +220,7 @@ public class SessionRS implements Traceable {
         
     }
     
+    // TODO: prevent transition from 'PROVISIONED' to 'CLOSED'
     Response closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");

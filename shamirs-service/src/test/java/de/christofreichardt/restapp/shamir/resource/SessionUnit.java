@@ -176,7 +176,7 @@ public class SessionUnit implements Traceable, WithAssertions {
                 tracer.out().printfIndentln("------------");
 
                 final long FIXED_RATE = 2500L;
-                Thread.sleep((IDLE_TIME + 1) * 1000 + FIXED_RATE);
+                Thread.sleep((IDLE_TIME + 2) * 1000 + (2 * FIXED_RATE));
 
                 result = this.jdbcTemplate.query(
                         String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.CLOSED.name()), 

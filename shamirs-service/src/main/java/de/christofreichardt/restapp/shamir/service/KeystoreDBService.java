@@ -6,6 +6,7 @@
 package de.christofreichardt.restapp.shamir.service;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.PasswordGenerator;
@@ -234,7 +235,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             Optional<DatabasedKeystore> optional;
             try {
                 DatabasedKeystore keystore = this.entityManager
-                        .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :keystoreId AND k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
+                        .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s LEFT JOIN FETCH s.participant WHERE k.id = :keystoreId AND k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
                         .setParameter("keystoreId", keystoreId)
                         .getSingleResult();
                 
@@ -265,7 +266,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
 
         try {
             List<DatabasedKeystore> keystores = this.entityManager
-                    .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
+                    .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s LEFT JOIN FETCH s.participant WHERE k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
                     .getResultList();
             LocalDateTime currentTime = LocalDateTime.now();
             keystores =  this.entityManager
@@ -308,7 +309,13 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             tracer.out().printfIndentln("LocalDateTime.now() = %s", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss.SSS").withLocale(Locale.US)));
             
             List<DatabasedKeystore> databasedKeystores = findKeystoresWithCurrentSlicesAndIdleSessions();
-            databasedKeystores.forEach(databasedKeystore -> rollOver(databasedKeystore));
+            databasedKeystores.forEach(databasedKeystore -> {
+                try {
+                    rollOver(databasedKeystore);
+                } catch (Throwable ex) {
+                    tracer.logException(LogLevel.ERROR, ex, getClass(), "rollOver()");
+                }
+            });
         } finally {
             tracer.wayout();
         }

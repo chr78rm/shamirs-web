@@ -38,6 +38,18 @@ public class Scenario implements Traceable {
     final String MY_FIRST_KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43";
     final String THE_TOO_FEW_SLICES_KEYSTORE_ID = "3e6b2af3-63e2-4dcb-bb71-c69f1293b072";
     final String THE_IDLE_KEYSTORE_ID = "e509eaf0-3fec-4972-9e32-48e6911710f7";
+    
+    static class HexFormatter {
+        
+        static String format(byte[] bytes) {
+            StringBuilder stringBuilder = new StringBuilder("0x");
+            for (byte currentByte : bytes) {
+                stringBuilder.append(String.format("%02x", currentByte));
+            }
+            
+            return stringBuilder.toString();
+        }
+    }
 
     public Scenario(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -96,6 +108,7 @@ public class Scenario implements Traceable {
                     + ")";
 
             final byte[] myFirstKeystoreBytes = Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "my-keys.p12")));
+            tracer.out().printfIndentln("myFirstKeystoreBytes = %s", HexFormatter.format(myFirstKeystoreBytes));
             DefaultLobHandler defaultLobHandler = new DefaultLobHandler();
             Integer result = this.jdbcTemplate.execute(sql, new AbstractLobCreatingPreparedStatementCallback(defaultLobHandler) {
                 @Override
@@ -108,10 +121,10 @@ public class Scenario implements Traceable {
                     preparedStatement.setInt(6, 4);
                 }
             });
-            
             tracer.out().printfIndentln("result = %d", result);
             
             final byte[] theTooFewSlicesKeystoreBytes = Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_TOO_FEW_SLICES_KEYSTORE_ID, "my-keys.p12")));
+            tracer.out().printfIndentln("theTooFewSlicesKeystoreBytes = %s", HexFormatter.format(theTooFewSlicesKeystoreBytes));
             result = this.jdbcTemplate.execute(sql, new AbstractLobCreatingPreparedStatementCallback(defaultLobHandler) {
                 @Override
                 protected void setValues(PreparedStatement preparedStatement, LobCreator lobCreator) throws SQLException, DataAccessException {
@@ -127,6 +140,7 @@ public class Scenario implements Traceable {
             tracer.out().printfIndentln("result = %d", result);
             
             final byte[] theIdleKeystoreBytes = Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_IDLE_KEYSTORE_ID, "my-keys.p12")));
+            tracer.out().printfIndentln("theIdleKeystoreBytes = %s", HexFormatter.format(theIdleKeystoreBytes));
             result = this.jdbcTemplate.execute(sql, new AbstractLobCreatingPreparedStatementCallback(defaultLobHandler) {
                 @Override
                 protected void setValues(PreparedStatement preparedStatement, LobCreator lobCreator) throws SQLException, DataAccessException {
@@ -191,7 +205,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "9a83d398-35d6-4959-aea2-1c930a936b43",
                         "8844dd34-c836-4060-ba73-c6d86ad1275d",  // christof
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        MY_FIRST_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         4,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-0.json"))),
@@ -200,7 +214,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "4f66bb7d-417d-48d8-a269-e0d2011715f1",
                         "f6cdb2e5-ea3e-405f-ad0a-14c034497e23", // test-user-1
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        MY_FIRST_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         2,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-1.json"))),
@@ -209,7 +223,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "35650def-5d15-40d8-a707-21ecf9799d1d",
                         "337dd2bd-508d-423d-84ca-81770d8ac30d", // test-user-2
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        MY_FIRST_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         2,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-2.json"))),
@@ -218,7 +232,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "187b30af-65f6-4bb1-8feb-68263dcdffa7",
                         "48ef6c98-0e04-49bc-9f7f-01f2cec3ccac", // test-user-3
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        MY_FIRST_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-3.json"))),
@@ -227,7 +241,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "6dc636e7-efa8-4e30-9ee3-a373e8063e30",
                         "222185fb-6cbc-45e6-90d1-e5390fb2f9f9", // test-user-4
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        MY_FIRST_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-4.json"))),
@@ -236,7 +250,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "6ef561a2-020a-492e-abb3-106a467a4908",
                         "b78d63a0-e365-4934-93e4-ec1ea713cba8", // test-user-5
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        MY_FIRST_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-5.json"))),
@@ -245,7 +259,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "7b5ab104-a05c-4103-9582-303be0dcb173",
                         "54ce43ce-c335-47a2-98b8-1bd1fc4f93a4", // test-user-6
-                        "5adab38c-702c-4559-8a5f-b792c14b9a43",
+                        MY_FIRST_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(MY_FIRST_KEYSTORE_ID, "test-6.json"))),
@@ -259,7 +273,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "ce9a98d9-3237-4949-9de3-327fc2f21d26",
                         "8844dd34-c836-4060-ba73-c6d86ad1275d",  // christof
-                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        THE_TOO_FEW_SLICES_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         4,
                         null,
@@ -268,7 +282,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "c216e2c5-6bc3-4840-aa42-05564b40f0cd",
                         "f6cdb2e5-ea3e-405f-ad0a-14c034497e23", // test-user-1
-                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        THE_TOO_FEW_SLICES_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         2,
                         null,
@@ -277,7 +291,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "de1a09c0-2dc9-4430-bd07-a693aa9a3abb",
                         "337dd2bd-508d-423d-84ca-81770d8ac30d", // test-user-2
-                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        THE_TOO_FEW_SLICES_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         2,
                         null,
@@ -286,7 +300,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "56b4db85-1b70-49b8-a934-73b50a0e352a",
                         "48ef6c98-0e04-49bc-9f7f-01f2cec3ccac",  // test-user-3
-                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        THE_TOO_FEW_SLICES_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         null,
@@ -295,7 +309,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "f23b7254-3cf5-4e21-b7cb-d709edf01d9f",
                         "222185fb-6cbc-45e6-90d1-e5390fb2f9f9", // test-user-4
-                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        THE_TOO_FEW_SLICES_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_TOO_FEW_SLICES_KEYSTORE_ID, "test-4.json"))),
@@ -304,7 +318,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "d126d03b-8802-45e5-8d0b-90644fed3775",
                         "b78d63a0-e365-4934-93e4-ec1ea713cba8",  // test-user-5
-                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        THE_TOO_FEW_SLICES_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_TOO_FEW_SLICES_KEYSTORE_ID, "test-5.json"))),
@@ -313,7 +327,7 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "282782ec-98a2-41f0-a5b9-427f6860de0d",
                         "54ce43ce-c335-47a2-98b8-1bd1fc4f93a4", // test-user-6
-                        "3e6b2af3-63e2-4dcb-bb71-c69f1293b072",
+                        THE_TOO_FEW_SLICES_KEYSTORE_ID,
                         "467b268d-1a7f-4f00-993c-672b82494822",
                         1,
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_TOO_FEW_SLICES_KEYSTORE_ID, "test-6.json"))),
@@ -395,6 +409,7 @@ public class Scenario implements Traceable {
             int[] affectedRows = this.jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
                 @Override
                 public void setValues(PreparedStatement preparedStatement, int i) throws SQLException {
+                    tracer.out().printfIndentln("i = %d", i);
                     Object[] row = batchArgs.get(i);
                     preparedStatement.setString(1, (String) row[0]);
                     preparedStatement.setString(2, (String) row[1]);
@@ -402,8 +417,11 @@ public class Scenario implements Traceable {
                     preparedStatement.setString(4, (String) row[3]);
                     preparedStatement.setInt(5, (int) row[4]);
                     if (row[5] != null) {
-                        preparedStatement.setBlob(6, new SerialBlob((byte[]) row[5]));
+                        byte[] share = (byte[]) row[5];
+                        tracer.out().printfIndentln("slice(%d) = %s", i, HexFormatter.format(share));
+                        preparedStatement.setBlob(6, new SerialBlob(share));
                     } else {
+                        tracer.out().printfIndentln("slice(%d) = null", i);
                         preparedStatement.setNull(6, Types.BLOB);
                     }
                     preparedStatement.setString(7, (String) row[6]);
@@ -415,7 +433,7 @@ public class Scenario implements Traceable {
             });
             
             for (int rows : affectedRows) {
-                tracer.out().printfIndentln("Affected rows = %s", rows);
+                tracer.out().printfIndentln("Affected rows = %d", rows);
             }
         } finally {
             tracer.wayout();
