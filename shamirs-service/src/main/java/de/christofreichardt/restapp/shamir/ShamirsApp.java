@@ -13,16 +13,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.sql.DataSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
 /**
  *
@@ -52,35 +56,48 @@ public class ShamirsApp {
     }
 
     @Bean
-    @ConfigurationProperties(prefix="spring.datasource")
+    @ConfigurationProperties(prefix = "spring.datasource")
     public DataSource dataSource() {
         return DataSourceBuilder.create()
-//                .url("jdbc:mariadb://localhost:3306/shamirs_db")
-//                .password("Msiw47Ut129")
-//                .username("shamir")
+                //                .url("jdbc:mariadb://localhost:3306/shamirs_db")
+                //                .password("Msiw47Ut129")
+                //                .username("shamir")
                 .build();
     }
-    
+
     @Bean
     SessionSanitizer sessionSanitizer() {
         return new SessionSanitizer();
     }
-    
+
     @Bean
     ScheduledExecutorService singleThreadScheduledExecutor() {
-        
+
         ThreadFactory myThreadFactory = new ThreadFactory() {
-            
+
             AtomicInteger counter = new AtomicInteger(1);
+
             @Override
             public Thread newThread(Runnable runnable) {
                 return new Thread(runnable, "scheduling-" + counter.getAndIncrement());
             }
         };
-        
+
         return Executors.newSingleThreadScheduledExecutor(myThreadFactory);
     }
 
+    @Bean
+    LocalContainerEntityManagerFactoryBean entityManagerFactory(EntityManagerFactoryBuilder entityManagerFactoryBuilder) {
+        return entityManagerFactoryBuilder.dataSource(dataSource())
+                .packages("de.christofreichardt.restapp.shamir.model")
+                .build();
+    }
+
+    @Bean
+    Lock lock() {
+        return new ReentrantLock();
+    }
+    
     /**
      * @param args the command line arguments
      */
@@ -88,5 +105,5 @@ public class ShamirsApp {
         Security.addProvider(new ShamirsProvider());
         SpringApplication.run(ShamirsApp.class);
     }
-    
+
 }

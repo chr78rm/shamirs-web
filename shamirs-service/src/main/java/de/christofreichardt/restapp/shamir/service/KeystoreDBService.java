@@ -269,6 +269,9 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                     .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s LEFT JOIN FETCH s.participant WHERE k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
                     .getResultList();
             LocalDateTime currentTime = LocalDateTime.now();
+            
+            tracer.out().printfIndentln("currentTime = %s", currentTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss.SSS").withLocale(Locale.US)));
+            
             keystores =  this.entityManager
                     .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s WHERE k IN :keystores AND s.phase = 'ACTIVE' AND s.expirationTime < :currentTime", DatabasedKeystore.class)
                     .setParameter("keystores", keystores)
@@ -306,8 +309,6 @@ public class KeystoreDBService implements KeystoreService, Traceable {
         tracer.entry("void", this, "rollOver()");
         
         try {
-            tracer.out().printfIndentln("LocalDateTime.now() = %s", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss.SSS").withLocale(Locale.US)));
-            
             List<DatabasedKeystore> databasedKeystores = findKeystoresWithCurrentSlicesAndIdleSessions();
             databasedKeystores.forEach(databasedKeystore -> {
                 try {

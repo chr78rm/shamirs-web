@@ -32,6 +32,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.locks.Lock;
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.AfterAll;
@@ -66,6 +68,12 @@ public class SessionUnit implements Traceable, WithAssertions {
 
     @Autowired
     SessionService sessionService;
+    
+    @Autowired
+    EntityManagerFactory entityManagerFactory;
+    
+    @Autowired
+    Lock lock;
 
     @BeforeAll
     void init() throws GeneralSecurityException, IOException {
@@ -79,9 +87,16 @@ public class SessionUnit implements Traceable, WithAssertions {
                     .forEach((propertyName) -> tracer.out().printfIndentln("%s = %s", propertyName, System.getProperties().getProperty(propertyName)));
 
             Security.addProvider(new ShamirsProvider());
-            this.jdbcTemplate = new JdbcTemplate(this.dataSource);
-            this.scenario = new Scenario(this.jdbcTemplate);
-            this.scenario.setup();
+            
+            this.lock.lock();
+            try {
+                this.jdbcTemplate = new JdbcTemplate(this.dataSource);
+                this.scenario = new Scenario(this.jdbcTemplate);
+                this.scenario.setup();
+                this.entityManagerFactory.getCache().evictAll();
+            } finally {
+                this.lock.unlock();
+            }
         } finally {
             tracer.wayout();
         }

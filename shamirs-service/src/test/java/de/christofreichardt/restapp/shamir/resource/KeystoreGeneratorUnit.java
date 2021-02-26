@@ -30,11 +30,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.locks.Lock;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.json.JsonValue;
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.AfterAll;
@@ -117,6 +119,12 @@ public class KeystoreGeneratorUnit implements Traceable {
     
     @Autowired
     DataSource dataSource;
+    
+    @Autowired
+    EntityManagerFactory entityManagerFactory;
+    
+    @Autowired
+    Lock lock;
 
     @BeforeAll
     void init() throws GeneralSecurityException, IOException {
@@ -130,9 +138,16 @@ public class KeystoreGeneratorUnit implements Traceable {
                     .forEach((propertyName) -> tracer.out().printfIndentln("%s = %s", propertyName, System.getProperties().getProperty(propertyName)));
             
             Security.addProvider(new ShamirsProvider());
-            this.jdbcTemplate = new JdbcTemplate(this.dataSource);
-            this.scenario = new Scenario(this.jdbcTemplate);
-            this.scenario.setup();
+            
+            this.lock.lock();
+            try {
+                this.jdbcTemplate = new JdbcTemplate(this.dataSource);
+                this.scenario = new Scenario(this.jdbcTemplate);
+                this.scenario.setup();
+                this.entityManagerFactory.getCache().evictAll();
+            } finally {
+                this.lock.unlock();
+            }
         } finally {
             tracer.wayout();
         }
