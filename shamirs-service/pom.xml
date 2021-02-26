@@ -13,7 +13,7 @@
     
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring.version>2.4.2</spring.version>
+        <spring.version>2.4.3</spring.version>
         <app.main.class>de.christofreichardt.restapp.shamir.ShamirsApp</app.main.class>
     </properties>
     
