@@ -89,6 +89,12 @@
             <artifactId>jersey-media-json-processing</artifactId>
             <type>jar</type>
         </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+            <version>1.68</version>
+            <type>jar</type>
+        </dependency>
     </dependencies>
     
     <profiles>

@@ -111,10 +111,12 @@ public class Session implements Serializable {
         this.id = id;
     }
 
+    // TODO: return type should be the enum if possible
     public String getPhase() {
         return phase;
     }
 
+    // TODO: argument type should be the enum if possible
     public void setPhase(String phase) {
         this.phase = phase;
     }

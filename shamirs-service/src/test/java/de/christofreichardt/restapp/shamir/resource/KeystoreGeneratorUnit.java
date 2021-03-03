@@ -77,9 +77,16 @@ public class KeystoreGeneratorUnit implements Traceable {
                             .add("type", "secret-key")
                     )
                     .add(Json.createObjectBuilder()
-                            .add("alias", "my-private-key")
+                            .add("alias", "donalds-private-ec-key")
                             .add("algorithm", "EC")
                             .add("type", "private-key")
+                            .add("x509", Json.createObjectBuilder()
+                                    .add("validity", 100)
+                                    .add("commonName", "Donald Duck")
+                                    .add("locality", "Entenhausen")
+                                    .add("state", "Bayern")
+                                    .add("country", "Deutschland")
+                            )
                     )
             )
             .add("sizes", Json.createArrayBuilder()
@@ -116,13 +123,13 @@ public class KeystoreGeneratorUnit implements Traceable {
 
     JdbcTemplate jdbcTemplate;
     Scenario scenario;
-    
+
     @Autowired
     DataSource dataSource;
-    
+
     @Autowired
     EntityManagerFactory entityManagerFactory;
-    
+
     @Autowired
     Lock lock;
 
@@ -136,9 +143,9 @@ public class KeystoreGeneratorUnit implements Traceable {
             propertyNames.stream()
                     .sorted()
                     .forEach((propertyName) -> tracer.out().printfIndentln("%s = %s", propertyName, System.getProperties().getProperty(propertyName)));
-            
+
             Security.addProvider(new ShamirsProvider());
-            
+
             this.lock.lock();
             try {
                 this.jdbcTemplate = new JdbcTemplate(this.dataSource);
@@ -152,7 +159,7 @@ public class KeystoreGeneratorUnit implements Traceable {
             tracer.wayout();
         }
     }
-    
+
     static class JsonByteReader {
 
         final byte[] bytes;
@@ -164,7 +171,7 @@ public class KeystoreGeneratorUnit implements Traceable {
         JsonValue readValue() {
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(this.bytes);
             JsonReader jsonReader = Json.createReader(byteArrayInputStream);
-            
+
             return jsonReader.readValue();
         }
     }
@@ -203,11 +210,11 @@ public class KeystoreGeneratorUnit implements Traceable {
                             return optionalSize.get().getInt("size") == entry.getValue().getJsonArray("SharePoints").size();
                         });
                 assertThat(allMatched).isTrue();
-                
+
                 Iterator<Map.Entry<String, byte[]>> iter = partition.entrySet().iterator();
                 while (iter.hasNext()) {
                     byte[] slice = iter.next().getValue();
-                    assertThat(Objects.equals(keystoreGenerator.partitionId(), 
+                    assertThat(Objects.equals(keystoreGenerator.partitionId(),
                             new JsonByteReader(slice)
                                     .readValue()
                                     .asJsonObject()

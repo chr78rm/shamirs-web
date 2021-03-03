@@ -30,7 +30,7 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
     public KeystoreResourceUnit(@PropertiesExtension.Config Map<String, String> config) {
         super(config);
     }
-    
+
     @Test
     void postKeystoreTemplate() throws IOException {
         AbstractTracer tracer = getCurrentTracer();
@@ -52,6 +52,13 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
                                     .add("alias", "my-private-key")
                                     .add("algorithm", "EC")
                                     .add("type", "private-key")
+                                    .add("x509", Json.createObjectBuilder()
+                                            .add("validity", 100)
+                                            .add("commonName", "Donald Duck")
+                                            .add("locality", "Entenhausen")
+                                            .add("state", "Bayern")
+                                            .add("country", "Deutschland")
+                                    )
                             )
                     )
                     .add("sizes", Json.createArrayBuilder()
@@ -94,21 +101,21 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             tracer.out().printfIndentln("response = %s", response);
 
             assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
-            
+
             JsonObject keystoreEntity = response.readEntity(JsonObject.class);
             JsonArray links = keystoreEntity.getJsonArray("links");
             Optional<JsonObject> selfLink = links.stream()
                     .map(jsonValue -> jsonValue.asJsonObject())
                     .filter(link -> Objects.equals(link.getString("rel"), "self"))
                     .findFirst();
-            
+
             assertThat(selfLink).isNotEmpty();
             assertThat(selfLink.get().getString("href")).isEqualTo(String.format("/keystores/%s", keystoreEntity.getString("id")));
-            
+
             String href = selfLink.get().getString("href");
-            
+
             tracer.out().printfIndentln("href = %s", href);
-            
+
             response = this.client.target(this.baseUrl)
                     .path(href)
                     .request(MediaType.APPLICATION_JSON)
@@ -121,7 +128,7 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             tracer.wayout();
         }
     }
-    
+
     @Test
     void getKeystore() {
         AbstractTracer tracer = getCurrentTracer();
@@ -141,7 +148,7 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             assertThat(response.hasEntity()).isTrue();
             JsonObject keystoreView = response.readEntity(JsonObject.class);
             assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.ARRAY).isTrue();
-            
+
             final String THE_TOO_FEW_SLICES_KEYSTORE_ID = "3e6b2af3-63e2-4dcb-bb71-c69f1293b072"; // the-too-few-slices-keystore
             response = this.client.target(this.baseUrl)
                     .path("keystores")
@@ -159,7 +166,7 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             tracer.wayout();
         }
     }
-    
+
     @Test
     void unknownKeystore() {
         AbstractTracer tracer = getCurrentTracer();
@@ -219,5 +226,4 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
         }
     }
 
-    
 }

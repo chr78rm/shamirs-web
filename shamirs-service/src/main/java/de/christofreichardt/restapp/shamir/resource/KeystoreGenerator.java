@@ -17,16 +17,24 @@ import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.scala.shamir.SecretSharing;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
+import java.security.spec.ECGenParameterSpec;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -39,6 +47,14 @@ import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonValue;
 import javax.json.JsonWriter;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 /**
  *
@@ -58,10 +74,11 @@ public class KeystoreGenerator implements Traceable {
     final JsonTracer jsonTracer = new JsonTracer() {
         @Override
         public AbstractTracer getCurrentTracer() {
-            return TracerFactory.getInstance().getDefaultTracer();
+            return KeystoreGenerator.this.getCurrentTracer();
         }
     };
 
+    // TODO: validate the JSON
     public KeystoreGenerator(JsonObject keystoreInstructions) throws GeneralSecurityException, IOException {
         this.requestedSizes = keystoreInstructions.getJsonArray("sizes");
         this.keyStore = makeKeyStore();
@@ -74,6 +91,7 @@ public class KeystoreGenerator implements Traceable {
         this.threshold = keystoreInstructions.getInt("threshold");
         this.partition = computeSharePoints(this.shares, this.threshold, sizes);
         generateSecretKeys(keystoreInstructions.getJsonArray("keyinfos"), "AES");
+        generatePrivateKeys(keystoreInstructions.getJsonArray("keyinfos"));
     }
 
     final KeyStore makeKeyStore() throws GeneralSecurityException, IOException {
@@ -95,22 +113,94 @@ public class KeystoreGenerator implements Traceable {
         tracer.entry("void", this, "generateSecretKeys(JsonArray keyInfos, String algorithm)");
 
         try {
-            this.jsonTracer.trace(keyInfos);
-            this.jsonTracer.trace(this.partition);
+//            this.jsonTracer.trace(keyInfos);
+//            this.jsonTracer.trace(this.partition);
 
-            KeyGenerator keyGenerator = KeyGenerator.getInstance(algorithm);
             keyInfos.stream()
                     .map(jsonValue -> jsonValue.asJsonObject())
-                    .filter(keyInfo -> Objects.equals("secret-key", keyInfo.getString("type", "")))
-                    .filter(keyInfo -> Objects.equals(algorithm, keyInfo.getString("algorithm", "")))
+                    .filter(keyInfo -> Objects.equals("secret-key", keyInfo.getString("type")))
+                    .filter(keyInfo -> Objects.equals(algorithm, keyInfo.getString("algorithm")))
                     .peek(keyInfo -> this.jsonTracer.trace(keyInfo))
                     .forEach(keyInfo -> {
-                        keyGenerator.init(keyInfo.getInt("keySize", 256));
-                        SecretKey secretKey = keyGenerator.generateKey();
-                        KeyStore.SecretKeyEntry secretKeyEntry = new KeyStore.SecretKeyEntry(secretKey);
                         try {
+                            KeyGenerator keyGenerator = KeyGenerator.getInstance(algorithm);
+                            keyGenerator.init(keyInfo.getInt("keySize", 256));
+                            SecretKey secretKey = keyGenerator.generateKey();
+                            KeyStore.SecretKeyEntry secretKeyEntry = new KeyStore.SecretKeyEntry(secretKey);
                             this.keyStore.setEntry(keyInfo.getString("alias", ""), secretKeyEntry, new ShamirsProtection(this.partition));
-                        } catch (KeyStoreException ex) {
+                        } catch (GeneralSecurityException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    });
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    final void generatePrivateKeys(JsonArray keyInfos) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "generatePrivateKeys(JsonArray keyInfos)");
+
+        try {
+            keyInfos.stream()
+                    .map(jsonValue -> jsonValue.asJsonObject())
+                    .filter(keyInfo -> Objects.equals("private-key", keyInfo.getString("type")))
+                    .peek(keyInfo -> this.jsonTracer.trace(keyInfo))
+                    .forEach(keyInfo -> {
+                        try {
+                            String alias = keyInfo.getString("alias");
+                            String algorithm = keyInfo.getString("algorithm");
+                            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(algorithm);
+                            String signatureAlgo;
+                            switch (algorithm) {
+                                case "DSA":
+                                    keyPairGenerator.initialize(2048);
+                                    signatureAlgo = "SHA256withDSA";
+                                    break;
+                                case "RSA":
+                                    keyPairGenerator.initialize(4096);
+                                    signatureAlgo = "SHA256withRSA";
+                                    break;
+                                case "EC":
+                                    ECGenParameterSpec ecGenParameterSpec = new ECGenParameterSpec("secp521r1");
+                                    keyPairGenerator.initialize(ecGenParameterSpec);
+                                    signatureAlgo = "SHA256withECDSA";
+                                    break;
+                                default:
+                                    throw new NoSuchAlgorithmException(String.format("%s is not supported.", algorithm));
+                            }
+                            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+                            JsonObject x509 = keyInfo.getJsonObject("x509");
+                            int validity = x509.getInt("validity");
+                            String commonName = x509.getString("commonName");
+                            String locality = x509.getString("locality");
+                            String state = x509.getString("state");
+                            String country = x509.getString("country");
+                            String distinguishedName = String.format("CN=%s, L=%s, ST=%s, C=%s", commonName, locality, state, country);
+                            Instant now = Instant.now();
+                            Date notBefore = Date.from(now);
+                            Date notAfter = Date.from(now.plus(Duration.ofDays(validity)));
+                            ContentSigner contentSigner = new JcaContentSignerBuilder(signatureAlgo).build(keyPair.getPrivate());
+                            X500Name x500Name = new X500Name(distinguishedName);
+                            JcaX509v3CertificateBuilder certificateBuilder = new JcaX509v3CertificateBuilder(
+                                    x500Name,
+                                    BigInteger.valueOf(now.toEpochMilli()),
+                                    notBefore,
+                                    notAfter,
+                                    x500Name,
+                                    keyPair.getPublic()
+                            );
+                            X509CertificateHolder x509CertificateHolder = certificateBuilder.build(contentSigner);
+                            JcaX509CertificateConverter x509CertificateConverter = new JcaX509CertificateConverter();
+                            x509CertificateConverter.setProvider(new BouncyCastleProvider());
+                            X509Certificate x509Certificate = x509CertificateConverter.getCertificate(x509CertificateHolder);
+                            this.keyStore.setEntry(
+                                    alias,
+                                    new KeyStore.PrivateKeyEntry(keyPair.getPrivate(),
+                                            new Certificate[]{x509Certificate}),
+                                    new ShamirsProtection(this.partition)
+                            );
+                        } catch (GeneralSecurityException | OperatorCreationException ex) {
                             throw new RuntimeException(ex);
                         }
                     });
@@ -168,26 +258,26 @@ public class KeystoreGenerator implements Traceable {
             tracer.wayout();
         }
     }
-    
+
     String partitionId() {
         return this.partition.get(0).asJsonObject().getString("PartitionId");
     }
-    
+
     int shares() {
         return this.shares;
     }
-    
+
     int threshold() {
         return this.threshold;
     }
-    
+
     int size(String participant) {
         Optional<JsonObject> sizeForParticipant = this.requestedSizes.stream()
                 .map(size -> size.asJsonObject())
                 .filter(size -> Objects.equals(participant, size.getString("participant")))
                 .findFirst();
         JsonObject size = sizeForParticipant.orElseThrow(() -> new IllegalArgumentException(String.format("No such participant '%s' found.", participant)));
-        
+
         return size.getInt("size");
     }
 
@@ -211,8 +301,7 @@ public class KeystoreGenerator implements Traceable {
                     })
                     .collect(new JsonValueCollector());
 
-            this.jsonTracer.trace(orderedSizes);
-
+//            this.jsonTracer.trace(orderedSizes);
             JsonArray orderedSlices = this.partition.stream()
                     .map(slice -> slice.asJsonObject())
                     .sorted((JsonObject slice1, JsonObject slice2) -> {
@@ -226,8 +315,7 @@ public class KeystoreGenerator implements Traceable {
                     })
                     .collect(new JsonValueCollector());
 
-            this.jsonTracer.trace(orderedSlices);
-
+//            this.jsonTracer.trace(orderedSlices);
             Iterator<JsonValue> iter = orderedSizes.iterator();
             orderedSlices.stream()
                     .map(slice -> {
