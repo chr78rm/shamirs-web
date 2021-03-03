@@ -220,7 +220,6 @@ public class SessionRS implements Traceable {
         
     }
     
-    // TODO: prevent transition from 'PROVISIONED' to 'CLOSED'
     Response closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
@@ -242,7 +241,13 @@ public class SessionRS implements Traceable {
             Session currentSession = databasedKeystore.get().getSessions().iterator().next();
             if (!Objects.equals(currentSession.getId(), sessionId)) {
                 String message = String.format("No such Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                return errorResponse.build();
+            }
+            if (!Objects.equals(currentSession.getPhase(), Session.Phase.ACTIVE.name())) {
+                String message = String.format("Session[id=%s] isn't active.", sessionId);
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }

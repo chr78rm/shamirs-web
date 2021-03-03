@@ -72,43 +72,6 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     }
 
     @Test
-    @Order(4)
-    void putInstructionsForUnknownSession() {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "putInstructionsForUnknownSession()");
-
-        try {
-            JsonObject sessionInstructions = Json.createObjectBuilder()
-                    .add("session", Json.createObjectBuilder()
-                            .add("activation", Json.createObjectBuilder()
-                                    .add("automaticClose", Json.createObjectBuilder()
-                                            .add("idleTime", 30)
-                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
-                                    )
-                            )
-                    )
-                    .build();
-
-            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
-            final String SESSION_ID = UUID.randomUUID().toString(); // with virtual certainty an unknown session
-
-            try (Response response = this.client.target(this.baseUrl)
-                    .path("keystores")
-                    .path(KEYSTORE_ID)
-                    .path("sessions")
-                    .path(SESSION_ID)
-                    .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
-
-                tracer.out().printfIndentln("response = %s", response);
-                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
-            }
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Test
     @Order(1)
     void emptyInstructions() {
         AbstractTracer tracer = getCurrentTracer();
@@ -196,6 +159,43 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 JsonArray sessions = response.readEntity(JsonObject.class).getJsonArray("sessions");
                 assertThat(sessions.size() == 1).isTrue();
                 assertThat(sessions.getJsonObject(0).getString("phase")).isEqualTo("PROVISIONED");
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Test
+    @Order(4)
+    void putInstructionsForUnknownSession() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "putInstructionsForUnknownSession()");
+
+        try {
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("idleTime", 30)
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
+                            )
+                    )
+                    .build();
+
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            final String SESSION_ID = UUID.randomUUID().toString(); // with virtual certainty an unknown session
+
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .put(Entity.json(sessionInstructions))) {
+
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
             }
         } finally {
             tracer.wayout();
@@ -550,6 +550,70 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
                 assertThat(session.getString("phase")).isEqualTo("CLOSED");
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    @Order(8)
+    void closeProvisionedSession() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "closeProvisionedSession()");
+
+        try {
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            
+            // retrieve keystore view to determine the present session
+            String href;
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject keystoreView = response.readEntity(JsonObject.class);
+                assertThat(keystoreView.getValue("/links").getValueType() == JsonValue.ValueType.ARRAY).isTrue();
+                Optional<JsonObject> currentSessionLink = keystoreView.getJsonArray("links").stream()
+                        .map(link -> link.asJsonObject())
+                        .filter(link -> Objects.equals(link.getString("rel"), "currentSession"))
+                        .findFirst();
+                assertThat(currentSessionLink).isNotEmpty();
+                href = currentSessionLink.get().getString("href");
+            }
+                
+            tracer.out().printfIndentln("href = %s", href);
+            
+            // session should be in phase 'PROVISIONED'
+            try (Response response = this.client.target(this.baseUrl)
+                    .path(href)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+            }
+            
+            JsonObject closeSessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("closure", Json.createObjectBuilder()
+                            )
+                    )
+                    .build();
+
+            // try to close the provisioned session
+            try (Response response = this.client.target(this.baseUrl)
+                    .path(href)
+                    .request(MediaType.APPLICATION_JSON)
+                    .put(Entity.json(closeSessionInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                assertThat(response.hasEntity()).isTrue();
             }
         } finally {
             tracer.wayout();
