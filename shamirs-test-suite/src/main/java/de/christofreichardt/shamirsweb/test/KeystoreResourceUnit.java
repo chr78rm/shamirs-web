@@ -10,7 +10,9 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
@@ -37,24 +39,50 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
         tracer.entry("void", this, "postKeystoreTemplate()");
 
         try {
+            final String MY_ALIAS = "my-secret-key", DONALDS_ALIAS = "donalds-private-ec-key", DAGOBERTS_ALIAS = "dagoberts-private-dsa-key", DAISIES_ALIAS = "daisies-private-rsa-key";
+
             JsonObject keystoreInstructions = Json.createObjectBuilder()
                     .add("shares", 12)
                     .add("threshold", 4)
                     .add("descriptiveName", "my-posted-keystore")
                     .add("keyinfos", Json.createArrayBuilder()
                             .add(Json.createObjectBuilder()
-                                    .add("alias", "my-secret-key")
+                                    .add("alias", MY_ALIAS)
                                     .add("algorithm", "AES")
                                     .add("keySize", 256)
                                     .add("type", "secret-key")
                             )
                             .add(Json.createObjectBuilder()
-                                    .add("alias", "my-private-key")
+                                    .add("alias", DONALDS_ALIAS)
                                     .add("algorithm", "EC")
                                     .add("type", "private-key")
                                     .add("x509", Json.createObjectBuilder()
                                             .add("validity", 100)
                                             .add("commonName", "Donald Duck")
+                                            .add("locality", "Entenhausen")
+                                            .add("state", "Bayern")
+                                            .add("country", "Deutschland")
+                                    )
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("alias", DAGOBERTS_ALIAS)
+                                    .add("algorithm", "DSA")
+                                    .add("type", "private-key")
+                                    .add("x509", Json.createObjectBuilder()
+                                            .add("validity", 100)
+                                            .add("commonName", "Dagobert Duck")
+                                            .add("locality", "Entenhausen")
+                                            .add("state", "Bayern")
+                                            .add("country", "Deutschland")
+                                    )
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("alias", DAISIES_ALIAS)
+                                    .add("algorithm", "RSA")
+                                    .add("type", "private-key")
+                                    .add("x509", Json.createObjectBuilder()
+                                            .add("validity", 100)
+                                            .add("commonName", "Daisy Duck")
                                             .add("locality", "Entenhausen")
                                             .add("state", "Bayern")
                                             .add("country", "Deutschland")
@@ -104,6 +132,9 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
 
             JsonObject keystoreEntity = response.readEntity(JsonObject.class);
             JsonArray links = keystoreEntity.getJsonArray("links");
+
+            assertThat(links).isNotNull();
+
             Optional<JsonObject> selfLink = links.stream()
                     .map(jsonValue -> jsonValue.asJsonObject())
                     .filter(link -> Objects.equals(link.getString("rel"), "self"))
@@ -124,6 +155,19 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             tracer.out().printfIndentln("response = %s", response);
 
             assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+            assertThat(response.hasEntity()).isTrue();
+
+            keystoreEntity = response.readEntity(JsonObject.class);
+            JsonArray keyEntries = keystoreEntity.getJsonArray("keyEntries");
+
+            assertThat(keyEntries).isNotNull();
+            
+            Set<String> aliases = keyEntries.stream()
+                    .map(entry -> entry.asJsonObject())
+                    .map(entry -> entry.getString("alias"))
+                    .collect(Collectors.toSet());
+            
+            assertThat(aliases).contains(MY_ALIAS, DAGOBERTS_ALIAS, DONALDS_ALIAS, DAISIES_ALIAS);
         } finally {
             tracer.wayout();
         }

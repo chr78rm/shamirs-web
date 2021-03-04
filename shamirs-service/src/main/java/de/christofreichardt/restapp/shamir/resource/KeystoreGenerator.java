@@ -80,6 +80,7 @@ public class KeystoreGenerator implements Traceable {
 
     // TODO: validate the JSON
     public KeystoreGenerator(JsonObject keystoreInstructions) throws GeneralSecurityException, IOException {
+        validateJSON();
         this.requestedSizes = keystoreInstructions.getJsonArray("sizes");
         this.keyStore = makeKeyStore();
         this.password = password();
@@ -92,6 +93,16 @@ public class KeystoreGenerator implements Traceable {
         this.partition = computeSharePoints(this.shares, this.threshold, sizes);
         generateSecretKeys(keystoreInstructions.getJsonArray("keyinfos"), "AES");
         generatePrivateKeys(keystoreInstructions.getJsonArray("keyinfos"));
+    }
+    
+    final void validateJSON() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "validateJSON()");
+
+        try {
+        } finally {
+            tracer.wayout();
+        }
     }
 
     final KeyStore makeKeyStore() throws GeneralSecurityException, IOException {

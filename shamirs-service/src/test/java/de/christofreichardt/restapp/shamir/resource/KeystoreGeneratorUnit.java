@@ -65,24 +65,49 @@ public class KeystoreGeneratorUnit implements Traceable {
         }
     };
 
+    final String MY_ALIAS = "my-secret-key", DONALDS_ALIAS = "donalds-private-ec-key", DAGOBERTS_ALIAS = "dagoberts-private-dsa-key", DAISIES_ALIAS = "daisies-private-rsa-key";
     final JsonObject keystoreInstructions = Json.createObjectBuilder()
             .add("shares", 12)
             .add("threshold", 4)
             .add("descriptiveName", "my-posted-keystore")
             .add("keyinfos", Json.createArrayBuilder()
                     .add(Json.createObjectBuilder()
-                            .add("alias", "my-secret-key")
+                            .add("alias", MY_ALIAS)
                             .add("algorithm", "AES")
                             .add("keySize", 256)
                             .add("type", "secret-key")
                     )
                     .add(Json.createObjectBuilder()
-                            .add("alias", "donalds-private-ec-key")
+                            .add("alias", DONALDS_ALIAS)
                             .add("algorithm", "EC")
                             .add("type", "private-key")
                             .add("x509", Json.createObjectBuilder()
                                     .add("validity", 100)
                                     .add("commonName", "Donald Duck")
+                                    .add("locality", "Entenhausen")
+                                    .add("state", "Bayern")
+                                    .add("country", "Deutschland")
+                            )
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("alias", DAGOBERTS_ALIAS)
+                            .add("algorithm", "DSA")
+                            .add("type", "private-key")
+                            .add("x509", Json.createObjectBuilder()
+                                    .add("validity", 100)
+                                    .add("commonName", "Dagobert Duck")
+                                    .add("locality", "Entenhausen")
+                                    .add("state", "Bayern")
+                                    .add("country", "Deutschland")
+                            )
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("alias", DAISIES_ALIAS)
+                            .add("algorithm", "RSA")
+                            .add("type", "private-key")
+                            .add("x509", Json.createObjectBuilder()
+                                    .add("validity", 100)
+                                    .add("commonName", "Daisy Duck")
                                     .add("locality", "Entenhausen")
                                     .add("state", "Bayern")
                                     .add("country", "Deutschland")
@@ -247,8 +272,14 @@ public class KeystoreGeneratorUnit implements Traceable {
                 KeyStore keyStore = KeyStore.getInstance("ShamirsKeystore", Security.getProvider(ShamirsProvider.NAME));
                 keyStore.load(shamirsLoadParameter);
                 Set<String> aliases = new HashSet<>();
-                keyStore.aliases().asIterator().forEachRemaining(alias -> aliases.add(alias));
-                assertThat(aliases).contains("my-secret-key");
+                Iterator<String> iter = keyStore.aliases().asIterator();
+                while (iter.hasNext()) {
+                    String alias = iter.next();
+                    KeyStore.Entry entry = keyStore.getEntry(alias, shamirsProtection);
+                    tracer.out().printfIndentln("entry[%s].getAttributes() = %s", alias, entry.getAttributes());
+                    aliases.add(alias);
+                }
+                assertThat(aliases).contains(MY_ALIAS, DONALDS_ALIAS, DAGOBERTS_ALIAS, DAISIES_ALIAS);
             } finally {
                 qTracer.wayout();
             }
