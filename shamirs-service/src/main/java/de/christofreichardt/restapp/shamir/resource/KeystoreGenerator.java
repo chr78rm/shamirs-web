@@ -45,6 +45,7 @@ import javax.crypto.SecretKey;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.json.JsonPointer;
 import javax.json.JsonValue;
 import javax.json.JsonWriter;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -64,6 +65,12 @@ public class KeystoreGenerator implements Traceable {
 
     static final int DEFAULT_PASSWORD_LENGTH = 32;
 
+    static final JsonPointer SHARES_POINTER = Json.createPointer("/shares");
+    static final JsonPointer THRESHOLD_POINTER = Json.createPointer("/threshold");
+    static final JsonPointer DESCRIPTIVE_NAME_POINTER = Json.createPointer("/descriptiveName");
+    static final JsonPointer KEY_INFOS_POINTER = Json.createPointer("/keyinfos");
+    static final JsonPointer SIZES_POINTER = Json.createPointer("/sizes");
+
     final KeyStore keyStore;
     final char[] password;
     final JsonArray partition;
@@ -80,7 +87,7 @@ public class KeystoreGenerator implements Traceable {
 
     // TODO: validate the JSON
     public KeystoreGenerator(JsonObject keystoreInstructions) throws GeneralSecurityException, IOException {
-        validateJSON();
+        validateJSON(keystoreInstructions);
         this.requestedSizes = keystoreInstructions.getJsonArray("sizes");
         this.keyStore = makeKeyStore();
         this.password = password();
@@ -94,12 +101,51 @@ public class KeystoreGenerator implements Traceable {
         generateSecretKeys(keystoreInstructions.getJsonArray("keyinfos"), "AES");
         generatePrivateKeys(keystoreInstructions.getJsonArray("keyinfos"));
     }
-    
-    final void validateJSON() {
+
+    final void validateJSON(JsonObject keystoreInstructions) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "validateJSON()");
+        tracer.entry("void", this, "validateJSON(JsonObject keystoreInstructions)");
 
         try {
+            Map<String, JsonPointer> jsonPointers = Map.of(
+                    "shares", SHARES_POINTER,
+                    "threshold", THRESHOLD_POINTER,
+                    "descriptiveName", DESCRIPTIVE_NAME_POINTER,
+                    "keyinfos", KEY_INFOS_POINTER,
+                    "sizes", SIZES_POINTER
+            );
+            jsonPointers.forEach((name, pointer) -> {
+                if (!pointer.containsValue(keystoreInstructions)) {
+                    throw new IllegalArgumentException(String.format("Missing JSON value '%s'.", name));
+                }
+            });
+            if (SHARES_POINTER.getValue(keystoreInstructions).getValueType() != JsonValue.ValueType.NUMBER) {
+                throw new IllegalArgumentException("Invalid value type for 'shares'.");
+            }
+            if (THRESHOLD_POINTER.getValue(keystoreInstructions).getValueType() != JsonValue.ValueType.NUMBER) {
+                throw new IllegalArgumentException("Invalid value type for 'threshold'.");
+            }
+            if (DESCRIPTIVE_NAME_POINTER.getValue(keystoreInstructions).getValueType() != JsonValue.ValueType.STRING) {
+                throw new IllegalArgumentException("Invalid value type for 'descriptiveName'.");
+            }
+            if (KEY_INFOS_POINTER.getValue(keystoreInstructions).getValueType() != JsonValue.ValueType.ARRAY) {
+                throw new IllegalArgumentException("Invalid value type for 'keyinfos'.");
+            }
+            if (SIZES_POINTER.getValue(keystoreInstructions).getValueType() != JsonValue.ValueType.ARRAY) {
+                throw new IllegalArgumentException("Invalid value type for 'sizes'.");
+            }
+            JsonPointer sizePointer = Json.createPointer("/size");
+            JsonPointer participantPointer = Json.createPointer("/participant");
+            if (!keystoreInstructions.getJsonArray("sizes").stream()
+                    .map(size -> size.asJsonObject())
+                    .allMatch(size -> {
+                        return sizePointer.containsValue(size)
+                                && sizePointer.getValue(size).getValueType() == JsonValue.ValueType.NUMBER
+                                && participantPointer.containsValue(size)
+                                && participantPointer.getValue(size).getValueType() == JsonValue.ValueType.STRING;
+                    })) {
+                throw new IllegalArgumentException("Invalid 'size' object detected.");
+            }
         } finally {
             tracer.wayout();
         }

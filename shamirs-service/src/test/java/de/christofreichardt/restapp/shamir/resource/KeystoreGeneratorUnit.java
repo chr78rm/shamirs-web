@@ -34,11 +34,12 @@ import java.util.concurrent.locks.Lock;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.json.JsonPointer;
 import javax.json.JsonReader;
 import javax.json.JsonValue;
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
-import static org.assertj.core.api.Assertions.assertThat;
+import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -56,7 +57,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = ShamirsApp.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class KeystoreGeneratorUnit implements Traceable {
+public class KeystoreGeneratorUnit implements Traceable, WithAssertions {
 
     final JsonTracer jsonTracer = new JsonTracer() {
         @Override
@@ -308,6 +309,35 @@ public class KeystoreGeneratorUnit implements Traceable {
                         return map;
                     });
             result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void invalidInstructions() throws GeneralSecurityException, IOException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "invalidInstructions()");
+
+        try {
+            Map<String, JsonPointer> jsonPointers = Map.of(
+                    "shares", KeystoreGenerator.SHARES_POINTER,
+                    "threshold", KeystoreGenerator.THRESHOLD_POINTER,
+                    "descriptiveName", KeystoreGenerator.DESCRIPTIVE_NAME_POINTER,
+                    "keyinfos", KeystoreGenerator.KEY_INFOS_POINTER,
+                    "sizes", KeystoreGenerator.SIZES_POINTER
+            );
+            jsonPointers.forEach((name, pointer) -> {
+                JsonObject invalidInstructions = pointer.remove(this.keystoreInstructions);
+                assertThatIllegalArgumentException().isThrownBy(() -> new KeystoreGenerator(invalidInstructions))
+                        .withMessage(String.format("Missing JSON value '%s'.", name));
+            });
+            jsonPointers.forEach((name, pointer) -> {
+                JsonObject invalidInstructions = pointer.replace(this.keystoreInstructions, JsonValue.NULL);
+                this.jsonTracer.trace(invalidInstructions);
+                assertThatIllegalArgumentException().isThrownBy(() -> new KeystoreGenerator(invalidInstructions))
+                        .withMessage(String.format("Invalid value type for '%s'.", name));
+            });
         } finally {
             tracer.wayout();
         }
