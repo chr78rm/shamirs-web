@@ -5,6 +5,7 @@
  */
 package de.christofreichardt.restapp.shamir;
 
+import de.christofreichardt.restapp.shamir.resource.DocumentRS;
 import de.christofreichardt.restapp.shamir.resource.KeystoreRS;
 import de.christofreichardt.restapp.shamir.resource.SessionRS;
 import javax.ws.rs.ApplicationPath;
@@ -24,6 +25,7 @@ public class MyJerseyConfig extends ResourceConfig {
         register(ShamirsRS.class);
         register(KeystoreRS.class);
         register(SessionRS.class);
+        register(DocumentRS.class);
         register(JsonProcessingFeature.class);
         register(MyContainerRequestFilter.class);
     }
