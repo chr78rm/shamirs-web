@@ -10,12 +10,13 @@ import java.time.LocalDateTime;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
+import javax.persistence.MapsId;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -28,8 +29,7 @@ import javax.validation.constraints.Size;
 @Table(name = "document")
 @NamedQueries({
     @NamedQuery(name = "Document.findAll", query = "SELECT d FROM Document d"),
-    @NamedQuery(name = "Document.findById", query = "SELECT d FROM Document d WHERE d.id = :id"),
-    @NamedQuery(name = "Document.findByEffectiveTime", query = "SELECT d FROM Document d WHERE d.effectiveTime = :effectiveTime")})
+    @NamedQuery(name = "Document.findById", query = "SELECT d FROM Document d WHERE d.id = :id")})
 public class Document implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -47,23 +47,23 @@ public class Document implements Serializable {
     
     @Basic(optional = false)
     @NotNull
-    @Column(name = "effective_time")
-    private LocalDateTime effectiveTime;
+    @Column(name = "creation_time")
+    private LocalDateTime creationTime;
     
-    @JoinColumn(name = "session_id", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Session session;
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "modification_time")
+    private LocalDateTime modificationTime;
+    
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    private Metadata metadata;
 
     public Document() {
     }
 
     public Document(String id) {
         this.id = id;
-    }
-
-    public Document(String id, LocalDateTime effectiveTime) {
-        this.id = id;
-        this.effectiveTime = effectiveTime;
     }
 
     public String getId() {
@@ -80,22 +80,6 @@ public class Document implements Serializable {
 
     public void setContent(byte[] content) {
         this.content = content;
-    }
-
-    public LocalDateTime getEffectiveTime() {
-        return effectiveTime;
-    }
-
-    public void setEffectiveTime(LocalDateTime effectiveTime) {
-        this.effectiveTime = effectiveTime;
-    }
-
-    public Session getSession() {
-        return session;
-    }
-
-    public void setSession(Session session) {
-        this.session = session;
     }
 
     @Override

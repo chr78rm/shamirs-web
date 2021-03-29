@@ -29,7 +29,6 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
@@ -86,7 +85,7 @@ public class Session implements Serializable {
     private DatabasedKeystore keystore;
     
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "session")
-    private Collection<Document> documents;
+    private Collection<Metadata> metadatas;
 
     public Session() {
         this.id = UUID.randomUUID().toString();
@@ -161,13 +160,12 @@ public class Session implements Serializable {
         this.keystore = keystore;
     }
 
-    @XmlTransient
-    public Collection<Document> getDocuments() {
-        return documents;
+    public Collection<Metadata> getMetadatas() {
+        return metadatas;
     }
 
-    public void setDocuments(Collection<Document> documents) {
-        this.documents = documents;
+    public void setMetadatas(Collection<Metadata> metadatas) {
+        this.metadatas = metadatas;
     }
 
     @Override

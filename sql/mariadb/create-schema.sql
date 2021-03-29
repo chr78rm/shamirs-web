@@ -2,6 +2,7 @@
 -- cleanup
 --
 DROP TABLE IF EXISTS document;
+DROP TABLE IF EXISTS metadata;
 DROP TABLE IF EXISTS csession;
 DROP TABLE IF EXISTS slice;
 DROP TABLE IF EXISTS participant;
@@ -64,12 +65,25 @@ CREATE TABLE csession (
 ALTER TABLE csession ADD CONSTRAINT fk_session_keystore FOREIGN KEY (keystore_id) REFERENCES keystore(id);
 
 --
+-- metadata
+--
+CREATE TABLE metadata (
+    id CHAR(36) PRIMARY KEY,
+    session_id CHAR(36) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    transformation VARCHAR(20) NOT NULL,
+    creation_time DATETIME NOT NULL,
+    modification_time DATETIME NOT NULL
+);
+ALTER TABLE metadata ADD CONSTRAINT fk_metadata_session FOREIGN KEY (session_id) REFERENCES csession(id);
+
+--
 -- document
 --
 CREATE TABLE document (
-    id CHAR(36) PRIMARY KEY,
-    session_id CHAR(36) NOT NULL,
+    metadata_id CHAR(36) NOT NULL,
     content BLOB,
-    effective_time DATETIME NOT NULL
+    creation_time DATETIME NOT NULL,
+    modification_time DATETIME NOT NULL
 );
-ALTER TABLE document ADD CONSTRAINT fk_document_session FOREIGN KEY (session_id) REFERENCES csession(id);
+ALTER TABLE document ADD CONSTRAINT fk_document_metadata FOREIGN KEY (metadata_id) REFERENCES metadata(id);
