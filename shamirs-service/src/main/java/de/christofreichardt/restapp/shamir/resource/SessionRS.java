@@ -153,7 +153,7 @@ public class SessionRS implements Traceable {
                 if (Objects.equals(currentSession.getId(), sessionId)) {
                     try {
                         ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.sharePoints());
-                        currentSession.setPhase(Session.Phase.ACTIVE.name());
+                        currentSession.setPhase(Session.Phase.ACTIVE);
                         JsonObject automaticClose = sessionInstructions.getJsonObject("activation").getJsonObject("automaticClose");
                         int idleTime = automaticClose.getInt("idleTime");
                         TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
@@ -245,7 +245,7 @@ public class SessionRS implements Traceable {
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }
-            if (!Objects.equals(currentSession.getPhase(), Session.Phase.ACTIVE.name())) {
+            if (Session.Phase.ACTIVE != currentSession.getPhase()) {
                 String message = String.format("Session[id=%s] isn't active.", sessionId);
                 tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);

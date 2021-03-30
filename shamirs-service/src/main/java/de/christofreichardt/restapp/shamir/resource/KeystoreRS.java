@@ -92,7 +92,7 @@ public class KeystoreRS implements Traceable {
                 keystore.setShares(keystoreGenerator.shares());
                 keystore.setThreshold(keystoreGenerator.threshold());
                 Session session = new Session();
-                session.setPhase(Session.Phase.PROVISIONED.name());
+                session.setPhase(Session.Phase.PROVISIONED);
                 session.setKeystore(keystore);
                 keystore.getSessions().add(session);
                 this.keystoreService.persist(keystore);

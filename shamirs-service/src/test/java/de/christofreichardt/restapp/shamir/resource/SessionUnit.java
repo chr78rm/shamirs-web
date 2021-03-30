@@ -124,12 +124,12 @@ public class SessionUnit implements Traceable, WithAssertions {
 
                 Session currentSession = databasedKeystore.get().getSessions().iterator().next();
                 tracer.out().printfIndentln("currentSession = %s", currentSession);
-                assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED.name());
+                assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED);
                 assertThat(currentSession.getId()).isEqualTo(SESSION_ID);
                 assertThat(currentSession.getKeystore().getId()).isEqualTo(KEYSTORE_ID);
 
                 Duration duration = Duration.of(IDLE_TIME, ChronoUnit.SECONDS);
-                currentSession.setPhase(Session.Phase.ACTIVE.name());
+                currentSession.setPhase(Session.Phase.ACTIVE);
                 currentSession.setIdleTime(duration.getSeconds());
                 currentSession.setModificationTime(LocalDateTime.now());
                 currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
@@ -260,7 +260,7 @@ public class SessionUnit implements Traceable, WithAssertions {
 
                 Session currentSession = databasedKeystore.get().getSessions().iterator().next();
                 tracer.out().printfIndentln("currentSession = %s", currentSession);
-                assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED.name());
+                assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED);
                 
                 KeyStore keyStore = databasedKeystore.get().keystoreInstance();
                 ShamirsProtection shamirsProtection = new ShamirsProtection(databasedKeystore.get().sharePoints());

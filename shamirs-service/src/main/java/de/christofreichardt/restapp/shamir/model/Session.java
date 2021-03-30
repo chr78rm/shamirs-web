@@ -110,14 +110,12 @@ public class Session implements Serializable {
         this.id = id;
     }
 
-    // TODO: return type should be the enum if possible
-    public String getPhase() {
-        return phase;
+    public Phase getPhase() {
+        return Enum.valueOf(Phase.class, this.phase);
     }
 
-    // TODO: argument type should be the enum if possible
-    public void setPhase(String phase) {
-        this.phase = phase;
+    public void setPhase(Phase phase) {
+        this.phase = phase.name();
     }
 
     public long getIdleTime() {
