@@ -19,12 +19,12 @@ import de.christofreichardt.restapp.shamir.service.ParticipantService;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
-import javax.persistence.NoResultException;
 import javax.persistence.PersistenceException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -178,22 +178,23 @@ public class KeystoreRS implements Traceable {
 
             Response response;
             try {
-                DatabasedKeystore keystore = this.keystoreService.findByIdWithCurrentSlicesAndValidSession(id); // TODO; Think about using 'findByIdWithActiveSlicesAndCurrentSession'
+                Optional<DatabasedKeystore> keystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(id);
+                if (keystore.isEmpty()) {
+                    tracer.logMessage(LogLevel.ERROR, String.format("No such Keystore[id=%s] found.", id), getClass(), "keystore(@PathParam(\"id\") String id)");
+                    String message = String.format("No such Keystore[id=%s] found.", id);
+                    ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                    return errorResponse.build();
+                }
                 
-                tracer.out().printfIndentln("keystore = %s, keystore.getSlices() = %s, keystore.getSessions() = %s", keystore, keystore.getSlices(), keystore.getSessions());
+                tracer.out().printfIndentln("keystore = %s, keystore.getSlices() = %s, keystore.getSessions() = %s", keystore.get(), keystore.get().getSlices(), keystore.get().getSessions());
                 
-                JsonObject jsonKeystore = keystore.toJson(true);
+                JsonObject jsonKeystore = keystore.get().toJson(true);
                 response = Response.status(Response.Status.OK)
                         .entity(jsonKeystore)
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")
                         .build();
-            } catch (NoResultException ex) {
-                tracer.logException(LogLevel.ERROR, ex, getClass(), "keystore(@PathParam(\"id\") String id)");
-                String message = String.format("No such Keystore[id=%s] found.", id);
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                response = errorResponse.build();
-            } catch (PersistenceException ex) {
+            }  catch (PersistenceException ex) {
                 tracer.logException(LogLevel.ERROR, ex, getClass(), "keystore(@PathParam(\"id\") String id)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.INTERNAL_SERVER_ERROR, ex.getMessage());
                 response = errorResponse.build();
