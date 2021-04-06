@@ -6,12 +6,16 @@
 package de.christofreichardt.restapp.shamir.model;
 
 import java.io.Serializable;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.time.LocalDateTime;
 import javax.persistence.Basic;
 import javax.persistence.Column;
+import javax.persistence.DiscriminatorColumn;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
+import javax.persistence.Inheritance;
 import javax.persistence.Lob;
 import javax.persistence.MapsId;
 import javax.persistence.NamedQueries;
@@ -27,6 +31,8 @@ import javax.validation.constraints.Size;
  */
 @Entity
 @Table(name = "document")
+@Inheritance
+@DiscriminatorColumn(name = "doc_type", length = 3)
 @NamedQueries({
     @NamedQuery(name = "Document.findAll", query = "SELECT d FROM Document d"),
     @NamedQuery(name = "Document.findById", query = "SELECT d FROM Document d WHERE d.id = :id")})
@@ -54,7 +60,7 @@ public class Document implements Serializable {
     @NotNull
     @Column(name = "modification_time")
     private LocalDateTime modificationTime;
-    
+
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
     private Metadata metadata;
@@ -64,6 +70,8 @@ public class Document implements Serializable {
 
     public Document(String id) {
         this.id = id;
+        this.creationTime = LocalDateTime.now();
+        this.modificationTime = LocalDateTime.now();
     }
 
     public String getId() {
@@ -80,6 +88,38 @@ public class Document implements Serializable {
 
     public void setContent(byte[] content) {
         this.content = content;
+    }
+
+    public LocalDateTime getCreationTime() {
+        return creationTime;
+    }
+
+    public void setCreationTime(LocalDateTime creationTime) {
+        this.creationTime = creationTime;
+    }
+
+    public LocalDateTime getModificationTime() {
+        return modificationTime;
+    }
+
+    public void setModificationTime(LocalDateTime modificationTime) {
+        this.modificationTime = modificationTime;
+    }
+
+    public Metadata getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(Metadata metadata) {
+        this.metadata = metadata;
+    }
+    
+    public Document sign(PrivateKey privateKey) {
+        throw new UnsupportedOperationException("Not implemented yet.");
+    }
+    
+    public boolean verify(PublicKey publicKey) {
+        throw new UnsupportedOperationException("Not implemented yet.");
     }
 
     @Override

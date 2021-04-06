@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -30,6 +31,9 @@ import javax.validation.constraints.Size;
 @Entity
 @Table(name = "metadata")
 public class Metadata implements Serializable {
+    
+    public enum Status {PENDING, PROCESSED};
+    public enum Action {SIGN, VERIFY, EMCRYPT, DECRYPT}; // Move this to shamirs-common
 
     private static final long serialVersionUID = 1L;
 
@@ -47,8 +51,13 @@ public class Metadata implements Serializable {
 
     @Size(max = 20)
     @NotNull
-    @Column(name = "transformation")
-    private String transformation;
+    @Column(name = "intended_action")
+    private String action;
+
+    @Size(max = 50)
+    @NotNull
+    @Column(name = "key_alias")
+    private String alias;
 
     @Basic(optional = false)
     @NotNull
@@ -67,6 +76,12 @@ public class Metadata implements Serializable {
     @OneToOne(mappedBy = "metadata", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = false)
     private Document document;
 
+    public Metadata() {
+        this.id = UUID.randomUUID().toString();
+        this.creationTime = LocalDateTime.now();
+        this.modificationTime = LocalDateTime.now();
+    }
+
     public String getId() {
         return id;
     }
@@ -83,20 +98,28 @@ public class Metadata implements Serializable {
         this.session = session;
     }
 
-    public String getState() {
-        return state;
+    public Status getState() {
+        return Enum.valueOf(Status.class, this.state);
     }
 
-    public void setState(String state) {
-        this.state = state;
+    public void setState(Status state) {
+        this.state = state.name();
     }
 
-    public String getTransformation() {
-        return transformation;
+    public Action getAction() {
+        return Enum.valueOf(Action.class, this.action);
     }
 
-    public void setTransformation(String transformation) {
-        this.transformation = transformation;
+    public void setAction(Action action) {
+        this.action = action.name();
+    }
+
+    public String getAlias() {
+        return alias;
+    }
+
+    public void setAlias(String alias) {
+        this.alias = alias;
     }
 
     public LocalDateTime getCreationTime() {
@@ -142,16 +165,13 @@ public class Metadata implements Serializable {
             return false;
         }
         final Metadata other = (Metadata) obj;
-        if (!Objects.equals(this.id, other.id)) {
-            return false;
-        }
-        return true;
+        return Objects.equals(this.id, other.id);
     }
 
     @Override
     public String toString() {
-        return String.format("Metadata[id=%s, state=%s, transformation=%s, creationTime=%s, modificationTime=%s]",
-                this.id, this.state, this.transformation,
+        return String.format("Metadata[id=%s, state=%s, action=%s, alias=%s, creationTime=%s, modificationTime=%s]",
+                this.id, this.state, this.action, this.alias,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
         );

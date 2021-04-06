@@ -1,6 +1,8 @@
 --
 -- cleanup
 --
+DELETE FROM document;
+DELETE FROM metadata;
 DELETE FROM csession;
 DELETE FROM slice;
 DELETE FROM keystore;

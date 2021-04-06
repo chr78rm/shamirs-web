@@ -71,7 +71,8 @@ CREATE TABLE metadata (
     id CHAR(36) PRIMARY KEY,
     session_id CHAR(36) NOT NULL,
     status VARCHAR(20) NOT NULL,
-    transformation VARCHAR(20) NOT NULL,
+    intended_action VARCHAR(20) NOT NULL,
+    key_alias VARCHAR(50) NOT NULL,
     creation_time DATETIME NOT NULL,
     modification_time DATETIME NOT NULL
 );
@@ -84,6 +85,7 @@ CREATE TABLE document (
     metadata_id CHAR(36) NOT NULL,
     content BLOB,
     creation_time DATETIME NOT NULL,
-    modification_time DATETIME NOT NULL
+    modification_time DATETIME NOT NULL,
+    doc_type VARCHAR(3) NOT NULL
 );
 ALTER TABLE document ADD CONSTRAINT fk_document_metadata FOREIGN KEY (metadata_id) REFERENCES metadata(id);

@@ -54,7 +54,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                     .path("sessions")
                     .path(SESSION_ID)
                     .path("documents")
-                    .queryParam("action", "sign")
+                    .queryParam("action", "SIGN") // TODO: use an enum
                     .queryParam("alias", "test-ec-key")
                     .request(MediaType.APPLICATION_JSON)
                     .post(Entity.xml(document))) {
