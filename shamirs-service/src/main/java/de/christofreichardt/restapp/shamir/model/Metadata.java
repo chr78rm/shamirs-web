@@ -5,6 +5,7 @@
  */
 package de.christofreichardt.restapp.shamir.model;
 
+import de.christofreichardt.restapp.shamir.common.MetadataAction;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -33,7 +34,6 @@ import javax.validation.constraints.Size;
 public class Metadata implements Serializable {
     
     public enum Status {PENDING, PROCESSED};
-    public enum Action {SIGN, VERIFY, EMCRYPT, DECRYPT}; // Move this to shamirs-common
 
     private static final long serialVersionUID = 1L;
 
@@ -106,11 +106,11 @@ public class Metadata implements Serializable {
         this.state = state.name();
     }
 
-    public Action getAction() {
-        return Enum.valueOf(Action.class, this.action);
+    public MetadataAction getAction() {
+        return Enum.valueOf(MetadataAction.class, this.action);
     }
 
-    public void setAction(Action action) {
+    public void setAction(MetadataAction action) {
         this.action = action.name();
     }
 

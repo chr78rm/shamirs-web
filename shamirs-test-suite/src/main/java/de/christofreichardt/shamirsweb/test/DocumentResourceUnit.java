@@ -6,6 +6,7 @@
 package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.restapp.shamir.common.MetadataAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
@@ -54,7 +55,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                     .path("sessions")
                     .path(SESSION_ID)
                     .path("documents")
-                    .queryParam("action", "SIGN") // TODO: use an enum
+                    .queryParam("action", MetadataAction.SIGN.name())
                     .queryParam("alias", "test-ec-key")
                     .request(MediaType.APPLICATION_JSON)
                     .post(Entity.xml(document))) {
