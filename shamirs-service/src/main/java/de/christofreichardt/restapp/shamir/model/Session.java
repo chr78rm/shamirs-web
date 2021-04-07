@@ -212,17 +212,17 @@ public class Session implements Serializable {
                         .add("href", String.format("/keystores/%s/sessions/%s", this.keystore.getId(), this.id))
                         .add("type", selfTypes)
                 );
-        if (inFull && !Objects.equals(this.phase, Phase.PROVISIONED.name())) {
+        if (inFull) {
             JsonArrayBuilder documentsTypeBuilder = Json.createArrayBuilder()
                     .add("GET");
-            if (Objects.equals(this.phase, Phase.ACTIVE.name())) {
+            if (this.getPhase() != Phase.CLOSED) {
                 documentsTypeBuilder.add("PUT");
             }
             JsonArray documentsTypes = documentsTypeBuilder.build();
             linksBuilder
                     .add(Json.createObjectBuilder()
                             .add("rel", "documents")
-                            .add("href", String.format("/keystores/%s/sessions/%s/documents", this.keystore.getId(), this.id))
+                            .add("href", String.format("/sessions/%s/documents", this.id))
                             .add("type", documentsTypes)
                     );
         }
@@ -234,8 +234,7 @@ public class Session implements Serializable {
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("expirationTime", this.expirationTime != null ? this.expirationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : "null")
-                .add("links", links
-                )
+                .add("links", links)
                 .build();
     }
 }

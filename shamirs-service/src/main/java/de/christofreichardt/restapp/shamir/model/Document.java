@@ -9,6 +9,9 @@ import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import javax.json.JsonObject;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.DiscriminatorColumn;
@@ -39,23 +42,23 @@ import javax.validation.constraints.Size;
 public class Document implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    
+
     @Id
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 36)
     @Column(name = "id")
     private String id;
-    
+
     @Lob
     @Column(name = "content")
     private byte[] content;
-    
+
     @Basic(optional = false)
     @NotNull
     @Column(name = "creation_time")
     private LocalDateTime creationTime;
-    
+
     @Basic(optional = false)
     @NotNull
     @Column(name = "modification_time")
@@ -113,11 +116,11 @@ public class Document implements Serializable {
     public void setMetadata(Metadata metadata) {
         this.metadata = metadata;
     }
-    
+
     public Document sign(PrivateKey privateKey) {
         throw new UnsupportedOperationException("Not implemented yet.");
     }
-    
+
     public boolean verify(PublicKey publicKey) {
         throw new UnsupportedOperationException("Not implemented yet.");
     }
@@ -144,7 +147,17 @@ public class Document implements Serializable {
 
     @Override
     public String toString() {
-        return "de.christofreichardt.restapp.shamir.model.Document[ id=" + id + " ]";
+        return String.format("Document[id=%s, creationTime=%s, modificationTime=%s]", this.id,
+                this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
+                this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
+        );
     }
-    
+
+    public JsonObject toJson() {
+        return toJson(false);
+    }
+
+    public JsonObject toJson(boolean inFull) {
+        return null;
+    }
 }

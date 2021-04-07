@@ -9,18 +9,24 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.common.MetadataAction;
 import de.christofreichardt.restapp.shamir.model.Document;
 import de.christofreichardt.restapp.shamir.model.Metadata;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.XMLDocument;
+import de.christofreichardt.restapp.shamir.service.MetadataService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonObject;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -38,16 +44,19 @@ import org.springframework.stereotype.Component;
 @Component
 @Path("")
 public class DocumentRS implements Traceable {
-    
+
     @Autowired
     SessionService sessionService;
+
+    @Autowired
+    MetadataService metadataService;
 
     @POST
     @Consumes(MediaType.APPLICATION_XML)
     @Produces(MediaType.APPLICATION_JSON)
     @Path("sessions/{sessionId}/documents")
     public Response processDocument(
-            @PathParam("sessionId") String sessionId, 
+            @PathParam("sessionId") String sessionId,
             @QueryParam("action") String action,
             @QueryParam("alias") String alias,
             InputStream inputStream) {
@@ -58,7 +67,7 @@ public class DocumentRS implements Traceable {
             tracer.out().printfIndentln("sessionId = %s", sessionId);
             tracer.out().printfIndentln("action = %s", action);
             tracer.out().printfIndentln("alias = %s", alias);
-            
+
             Optional<Session> session = this.sessionService.findByID(sessionId);
             if (session.isEmpty()) {
                 String message = String.format("No such Session[id=%s].", sessionId);
@@ -72,7 +81,7 @@ public class DocumentRS implements Traceable {
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }
-            
+
             try {
                 byte[] bytes = inputStream.readAllBytes();
                 Metadata metadata = new Metadata();
@@ -88,14 +97,45 @@ public class DocumentRS implements Traceable {
                 metadatas.add(metadata);
                 session.get().setMetadatas(metadatas);
                 this.sessionService.save(session.get());
+
+                return Response
+                        .status(Response.Status.CREATED)
+                        .entity(metadata.toJson())
+                        .type(MediaType.APPLICATION_JSON)
+                        .encoding("UTF-8")
+                        .build();
             } catch (IOException ex) {
                 tracer.logException(LogLevel.ERROR, ex, getClass(), "processDocument(String sessionId, String action, String alias, InputStream inputStream)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, ex.getMessage());
                 return errorResponse.build();
             }
-            
-            return Response.noContent()
-                    .status(Response.Status.NO_CONTENT)
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("sessions/{sessionId}/documents")
+    public Response documents(@PathParam("sessionId") String sessionId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "documents(String sessionId)");
+
+        try {
+            tracer.out().printfIndentln("sessionId = %s", sessionId);
+
+            JsonArray metadatas = this.metadataService.findAllBySession(sessionId).stream()
+                    .peek(metadata -> tracer.out().printfIndentln("metadata = %s", metadata))
+                    .map(metadata -> metadata.toJson())
+                    .collect(new JsonValueCollector());
+            JsonObject metadataInfo = Json.createObjectBuilder()
+                    .add("documents", metadatas)
+                    .build();
+
+            return Response.status(Response.Status.OK)
+                    .entity(metadataInfo)
+                    .type(MediaType.APPLICATION_JSON)
+                    .encoding("UTF-8")
                     .build();
         } finally {
             tracer.wayout();

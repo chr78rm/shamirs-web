@@ -12,6 +12,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
+import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -32,8 +36,10 @@ import javax.validation.constraints.Size;
 @Entity
 @Table(name = "metadata")
 public class Metadata implements Serializable {
-    
-    public enum Status {PENDING, PROCESSED};
+
+    public enum Status {
+        PENDING, PROCESSED
+    };
 
     private static final long serialVersionUID = 1L;
 
@@ -175,6 +181,32 @@ public class Metadata implements Serializable {
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
         );
+    }
+
+    public JsonObject toJson() {
+        return toJson(false);
+    }
+
+    public JsonObject toJson(boolean inFull) {
+        JsonArrayBuilder selfTypeBuilder = Json.createArrayBuilder()
+                .add("GET");
+        JsonArray selfTypes = selfTypeBuilder.build();
+        JsonArrayBuilder linksBuilder = Json.createArrayBuilder()
+                .add(Json.createObjectBuilder()
+                        .add("rel", "self")
+                        .add("href", String.format("/sessions/%s/documents/%s", this.session.getId(), this.id))
+                        .add("type", selfTypes)
+                );
+        JsonArray links = linksBuilder.build();
+        return Json.createObjectBuilder()
+                .add("id", this.id)
+                .add("state", this.state)
+                .add("action", this.action)
+                .add("alias", this.alias)
+                .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("links", links)
+                .build();
     }
 
 }
