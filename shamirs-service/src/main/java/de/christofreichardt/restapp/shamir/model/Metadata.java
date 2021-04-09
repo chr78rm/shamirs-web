@@ -207,18 +207,26 @@ public class Metadata implements Serializable {
         JsonArrayBuilder linksBuilder = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
                         .add("rel", "self")
-                        .add("href", String.format("/sessions/%s/documents/%s", this.session.getId(), this.id))
+                        .add("href", String.format("/sessions/%s/metadata/%s", this.session.getId(), this.id))
                         .add("type", selfTypes)
                 );
         if (inFull) {
             JsonArrayBuilder sessionTypeBuilder = Json.createArrayBuilder()
                     .add("GET");
             if (this.session.getPhase() != Session.Phase.CLOSED) {
-                sessionTypeBuilder = Json.createArrayBuilder()
-                    .add("PUT");
+                sessionTypeBuilder.add("PUT");
+            }
+            JsonArrayBuilder documentTypesBuilder = Json.createArrayBuilder()
+                    .add("GET");
+            if (this.session.getPhase() == Session.Phase.PROVISIONED) {
+                documentTypesBuilder.add("PUT");
             }
             linksBuilder
                     .add(Json.createObjectBuilder()
+                            .add("rel", "content")
+                            .add("href", String.format("/sessions/%s/documents/%s", this.session.getId(), this.id))
+                            .add("type", documentTypesBuilder)
+                    ).add(Json.createObjectBuilder()
                             .add("rel", "session")
                             .add("href", String.format("/keystores/%s/sessions/%s", this.session.getKeystore().getId(), this.session.getId()))
                             .add("type", sessionTypeBuilder)

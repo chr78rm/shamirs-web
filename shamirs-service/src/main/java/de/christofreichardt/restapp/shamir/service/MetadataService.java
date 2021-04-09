@@ -7,6 +7,7 @@ package de.christofreichardt.restapp.shamir.service;
 
 import de.christofreichardt.restapp.shamir.model.Metadata;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,4 +17,5 @@ import org.springframework.stereotype.Component;
 @Component
 public interface MetadataService {
     List<Metadata> findAllBySession(String sessionId);
+    Optional<Metadata> findById(String documentId);
 }

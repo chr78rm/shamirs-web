@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.ws.rs.client.Entity;
@@ -145,11 +144,30 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
             assertThat(hrefs).isNotEmpty();
             assertThat(hrefs.get(0)).isNotEmpty();
             
-            // fetch the content of the first document
-            byte[] content;
-            String href = hrefs.get(0).get();
+            // fetch the metadata of the first document
+            String hrefMetadata = hrefs.get(0).get();
+            String hrefContent;
             try ( Response response = this.client.target(this.baseUrl)
-                    .path(href)
+                    .path(hrefMetadata)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject metadata = response.readEntity(JsonObject.class);
+                Optional<JsonObject> contentLink = metadata.getJsonArray("links").stream()
+                        .map(link -> link.asJsonObject())
+                        .filter(link -> Objects.equals(link.getString("rel"), "content"))
+                        .findFirst();
+                assertThat(contentLink).isNotEmpty();
+                hrefContent = contentLink.get().getString("href");
+            }
+            
+            // fetch the content of the first document
+            tracer.out().printfIndentln("hrefContent = %s", hrefContent);
+            byte[] content;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path(hrefContent)
                     .request(MediaType.APPLICATION_OCTET_STREAM)
                     .get()) {
                 tracer.out().printfIndentln("response = %s", response);

@@ -158,6 +158,35 @@ public class DocumentRS implements Traceable {
     }
 
     @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("sessions/{sessionId}/metadata/{documentId}")
+    public Response metadata(@PathParam("sessionId") String sessionId, @PathParam("documentId") String documentId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "metadata(String sessionId, String documentId)");
+
+        try {
+            tracer.out().printfIndentln("sessionId = %s", sessionId);
+            tracer.out().printfIndentln("documentId = %s", documentId);
+            
+            Optional<Metadata> metadata = this.metadataService.findById(documentId);
+            if (metadata.isEmpty()) {
+                String message = String.format("No such Document[id=%s].", documentId);
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "document(String sessionId, String documentId)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                return errorResponse.build();
+            }
+
+            return Response.status(Response.Status.OK)
+                    .entity(metadata.get().toJson(true))
+                    .type(MediaType.APPLICATION_JSON)
+                    .encoding("UTF-8")
+                    .build();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @GET
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Path("sessions/{sessionId}/documents/{documentId}")
     public Response document(@PathParam("sessionId") String sessionId, @PathParam("documentId") String documentId) {
