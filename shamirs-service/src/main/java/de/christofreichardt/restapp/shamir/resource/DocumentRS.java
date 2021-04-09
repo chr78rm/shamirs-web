@@ -15,6 +15,7 @@ import de.christofreichardt.restapp.shamir.model.Document;
 import de.christofreichardt.restapp.shamir.model.Metadata;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.XMLDocument;
+import de.christofreichardt.restapp.shamir.service.DocumentService;
 import de.christofreichardt.restapp.shamir.service.MetadataService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
 import java.io.IOException;
@@ -51,6 +52,9 @@ public class DocumentRS implements Traceable {
 
     @Autowired
     MetadataService metadataService;
+    
+    @Autowired
+    DocumentService documentService;
 
     @POST
     @Consumes(MediaType.APPLICATION_XML)
@@ -127,7 +131,7 @@ public class DocumentRS implements Traceable {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Path("sessions/{sessionId}/documents")
+    @Path("sessions/{sessionId}/metadata")
     public Response documents(@PathParam("sessionId") String sessionId) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "documents(String sessionId)");
@@ -147,6 +151,34 @@ public class DocumentRS implements Traceable {
                     .entity(metadataInfo)
                     .type(MediaType.APPLICATION_JSON)
                     .encoding("UTF-8")
+                    .build();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @GET
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    @Path("sessions/{sessionId}/documents/{documentId}")
+    public Response document(@PathParam("sessionId") String sessionId, @PathParam("documentId") String documentId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "document(String sessionId, String documentId)");
+
+        try {
+            tracer.out().printfIndentln("sessionId = %s", sessionId);
+            tracer.out().printfIndentln("documentId = %s", documentId);
+            
+            Optional<Document> document = this.documentService.findById(documentId);
+            if (document.isEmpty()) {
+                String message = String.format("No such Document[id=%s].", documentId);
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), "document(String sessionId, String documentId)");
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                return errorResponse.build();
+            }
+            
+            return Response.status(Response.Status.OK)
+                    .entity(document.get().getContent())
+                    .type(MediaType.APPLICATION_OCTET_STREAM)
                     .build();
         } finally {
             tracer.wayout();

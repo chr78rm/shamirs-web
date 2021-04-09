@@ -7,11 +7,16 @@ package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.restapp.shamir.common.MetadataAction;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
@@ -101,24 +106,64 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
             tracer.wayout();
         }
     }
-    
+
     @Test
     @Order(2)
-    void documentsBySession() {
+    void documentsBySession() throws ParserConfigurationException, SAXException, IOException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "documentsBySession()");
 
         try {
+            // retrieve the metadata of the documents
+            JsonArray documents;
             try ( Response response = this.client.target(this.baseUrl)
                     .path("sessions")
                     .path(SESSION_ID)
-                    .path("documents")
+                    .path("metadata")
                     .request(MediaType.APPLICATION_JSON)
                     .get()) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
+                documents = response.readEntity(JsonObject.class).getJsonArray("documents");
             }
+
+            // extract the self links and the hrefs
+            List<Optional<String>> hrefs = documents.stream()
+                    .map(document -> document.asJsonObject())
+                    .map(document -> document.getJsonArray("links"))
+                    .map(links -> {
+                        return links.stream()
+                                .map(link -> link.asJsonObject())
+                                .filter(link -> Objects.equals("self", link.getString("rel")))
+                                .findFirst()
+                                .map(link -> link.getString("href"));
+                    })
+                    .collect(Collectors.toList());
+
+            tracer.out().printfIndentln("hrefs = %s", hrefs);
+            assertThat(hrefs).isNotEmpty();
+            assertThat(hrefs.get(0)).isNotEmpty();
+            
+            // fetch the content of the first document
+            byte[] content;
+            String href = hrefs.get(0).get();
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path(href)
+                    .request(MediaType.APPLICATION_OCTET_STREAM)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                content = response.readEntity(byte[].class);
+            }
+                
+            // rebuild the DOM
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(content);
+            DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newDefaultInstance();
+            documentBuilderFactory.setNamespaceAware(true);
+            DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+            documentBuilder.parse(inputStream);
         } finally {
             tracer.wayout();
         }
