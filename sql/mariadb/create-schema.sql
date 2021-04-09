@@ -72,6 +72,7 @@ CREATE TABLE metadata (
     session_id CHAR(36) NOT NULL,
     status VARCHAR(20) NOT NULL,
     intended_action VARCHAR(20) NOT NULL,
+    media_type VARCHAR(100) NOT NULL,
     key_alias VARCHAR(50) NOT NULL,
     creation_time DATETIME NOT NULL,
     modification_time DATETIME NOT NULL

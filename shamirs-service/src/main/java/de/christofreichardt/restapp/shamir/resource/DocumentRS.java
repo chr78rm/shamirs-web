@@ -27,6 +27,7 @@ import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -59,25 +60,34 @@ public class DocumentRS implements Traceable {
             @PathParam("sessionId") String sessionId,
             @QueryParam("action") String action,
             @QueryParam("alias") String alias,
+            @HeaderParam("content-type") String contentType,
             InputStream inputStream) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "processDocument(String sessionId, String action, String alias, InputStream inputStream)");
+        final String methodSignature = "processDocument(String sessionId, String action, String alias, String contentType, InputStream inputStream)";
+        tracer.entry("Response", this, methodSignature);
 
         try {
             tracer.out().printfIndentln("sessionId = %s", sessionId);
             tracer.out().printfIndentln("action = %s", action);
             tracer.out().printfIndentln("alias = %s", alias);
+            tracer.out().printfIndentln("contentType = %s", contentType);
 
+            if (!contentType.equalsIgnoreCase("application/xml")) {
+                String message = String.format("Only 'application/xml' documents are supported yet.", sessionId);
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), methodSignature);
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                return errorResponse.build();
+            }
             Optional<Session> session = this.sessionService.findByID(sessionId);
             if (session.isEmpty()) {
                 String message = String.format("No such Session[id=%s].", sessionId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "processDocument(String sessionId, String action, String alias, InputStream inputStream)");
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), methodSignature);
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }
             if (session.get().getPhase() != Session.Phase.PROVISIONED) {
                 String message = "Currently, only provisioned sessions are supported.";
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "processDocument(String sessionId, String action, String alias, InputStream inputStream)");
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), methodSignature);
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }
@@ -89,6 +99,7 @@ public class DocumentRS implements Traceable {
                 metadata.setState(Metadata.Status.PENDING);
                 metadata.setAction(Enum.valueOf(MetadataAction.class, action));
                 metadata.setAlias(alias);
+                metadata.setMediaType(contentType);
                 Document document = new XMLDocument(metadata.getId());
                 document.setContent(bytes);
                 document.setMetadata(metadata);

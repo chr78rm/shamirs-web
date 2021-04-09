@@ -60,6 +60,11 @@ public class Metadata implements Serializable {
     @Column(name = "intended_action")
     private String action;
 
+    @Size(max = 100)
+    @NotNull
+    @Column(name = "media_type")
+    private String mediaType;
+
     @Size(max = 50)
     @NotNull
     @Column(name = "key_alias")
@@ -114,6 +119,14 @@ public class Metadata implements Serializable {
 
     public MetadataAction getAction() {
         return Enum.valueOf(MetadataAction.class, this.action);
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
     }
 
     public void setAction(MetadataAction action) {
@@ -176,8 +189,8 @@ public class Metadata implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Metadata[id=%s, state=%s, action=%s, alias=%s, creationTime=%s, modificationTime=%s]",
-                this.id, this.state, this.action, this.alias,
+        return String.format("Metadata[id=%s, state=%s, action=%s, alias=%s, mediaType=%s, creationTime=%s, modificationTime=%s]",
+                this.id, this.state, this.action, this.alias, this.mediaType,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
         );
@@ -203,6 +216,7 @@ public class Metadata implements Serializable {
                 .add("state", this.state)
                 .add("action", this.action)
                 .add("alias", this.alias)
+                .add("mediaType", this.mediaType)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("links", links)
