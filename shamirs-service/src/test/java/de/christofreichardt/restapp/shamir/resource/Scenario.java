@@ -76,7 +76,7 @@ public class Scenario implements Traceable {
         }
     }
 
-    void setup() throws IOException {
+    public void setup() throws IOException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "setup()");
 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><payment xmlns="http://www.christofreichardt.de/shamirs-web">
+    <amount currency="EUR">
+        099.000.000,00
+    </amount>
+    <debtor>
+        Donald Trump
+    </debtor>
+    <creditor>
+        Deutsche Bank
+    </creditor>
+<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/><SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"/><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><DigestValue>t6bsbRiJxyiPqM9TZpL1kkb1W1pMoHryZySdLe2NYSA=</DigestValue></Reference></SignedInfo><SignatureValue>AVh2cl6fpYGCCXX+xEu93s+f8rPXTi5tXIh0Nvvn9iV5hxTshr1uyWRLXVE+ZkFi7IOIFV1VnX9z&#13;
+sK8SJteZAf6ZAXd1k4UFjLjzRcHHIk635A2KsrCorSNJErRuanQzcWQ7iuS5AWJwDkEnSETi5OV9&#13;
+INWScZqoHLYOkwLbtgPnMUMH</SignatureValue></Signature></payment>
