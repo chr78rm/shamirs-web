@@ -44,7 +44,7 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Session.findAllByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId"),
     @NamedQuery(name = "Session.findCurrentByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId AND s.phase != 'CLOSED'"),
 })
-public class Session implements Serializable {
+public class Session implements Serializable { // TODO: think about optimistic locking (@Version)
     
     public enum Phase {PROVISIONED, ACTIVE, CLOSED};
 
@@ -193,6 +193,10 @@ public class Session implements Serializable {
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.expirationTime != null ? this.expirationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)) : "null"
         );
+    }
+    
+    public void updateModificationTime() {
+        this.modificationTime = LocalDateTime.now();
     }
     
     public JsonObject toJson() {

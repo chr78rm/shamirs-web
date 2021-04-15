@@ -62,6 +62,25 @@ public class MetadataDBService implements MetadataService, Traceable {
     }
 
     @Override
+    public List<Metadata> findPendingBySession(String sessionId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("List<Metadata>", this, "findPendingBySession(String sessionId)");
+
+        try {
+            tracer.out().printfIndentln("sessionId = %s", sessionId);
+            
+            return this.entityManager.createQuery(
+                    "SELECT m FROM Metadata m WHERE m.session.id = :sessionId AND m.state = :state", 
+                    Metadata.class)
+                    .setParameter("sessionId", sessionId)
+                    .setParameter("state", Metadata.Status.PENDING.name())
+                    .getResultList();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
     public AbstractTracer getCurrentTracer() {
         return TracerFactory.getInstance().getCurrentQueueTracer();
     }

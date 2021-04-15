@@ -111,6 +111,7 @@ public class DocumentRS implements Traceable {
                 List<Metadata> metadatas = new ArrayList<>();
                 metadatas.add(metadata);
                 session.get().setMetadatas(metadatas);
+                session.get().updateModificationTime();
                 this.sessionService.save(session.get());
 
                 return Response

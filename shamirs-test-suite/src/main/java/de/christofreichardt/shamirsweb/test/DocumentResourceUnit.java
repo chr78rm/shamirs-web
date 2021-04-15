@@ -10,11 +10,13 @@ import de.christofreichardt.restapp.shamir.common.MetadataAction;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.ws.rs.client.Entity;
@@ -101,6 +103,34 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 assertThat(metadata.getString("state")).isEqualTo("PENDING");
                 assertThat(metadata.getString("action")).isEqualTo(MetadataAction.SIGN.name());
             }
+                
+            final int IDLE_TIME = 10;
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("idleTime", IDLE_TIME)
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
+                            )
+                    )
+                    .build();
+            
+            // activate the provisioned session
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .put(Entity.json(sessionInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("ACTIVE");
+                assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
+            }
         } finally {
             tracer.wayout();
         }
@@ -186,4 +216,5 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
             tracer.wayout();
         }
     }
+    
 }

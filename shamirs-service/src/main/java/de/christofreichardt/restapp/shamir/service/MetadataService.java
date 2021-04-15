@@ -18,4 +18,5 @@ import org.springframework.stereotype.Component;
 public interface MetadataService {
     List<Metadata> findAllBySession(String sessionId);
     Optional<Metadata> findById(String documentId);
+    List<Metadata> findPendingBySession(String sessionId);
 }

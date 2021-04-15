@@ -13,15 +13,19 @@ import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
+import de.christofreichardt.restapp.shamir.model.Metadata;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
+import de.christofreichardt.restapp.shamir.service.MetadataService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.json.Json;
@@ -38,6 +42,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /**
@@ -47,15 +52,22 @@ import org.springframework.stereotype.Component;
 @Component
 @Path("")
 public class SessionRS implements Traceable {
-    
+
     @Autowired
     SessionService sessionService;
 
     @Autowired
     KeystoreService keystoreService;
-    
+
+    @Autowired
+    MetadataService metadataService;
+
     @Autowired
     ScheduledExecutorService scheduledExecutorService;
+
+    @Autowired
+    @Qualifier("singleThreadExecutor")
+    ExecutorService executorService;
 
     final JsonTracer jsonTracer = new JsonTracer() {
         @Override
@@ -109,13 +121,13 @@ public class SessionRS implements Traceable {
             JsonPointer activationPointer = Json.createPointer("/session/activation");
             JsonPointer closurePointer = Json.createPointer("/session/closure");
             String errorMessage = "Invalid session instructions.";
-            
+
             if (!sessionPointer.containsValue(sessionInstructions) || sessionPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.OBJECT) {
                 tracer.logMessage(LogLevel.ERROR, errorMessage, getClass(), "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage);
                 return errorResponse.build();
             }
-            
+
             Response response;
             if (activationPointer.containsValue(sessionInstructions) && activationPointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
                 JsonPointer jsonPointer = Json.createPointer("/session/activation/automaticClose/idleTime");
@@ -133,10 +145,37 @@ public class SessionRS implements Traceable {
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage);
                 response = errorResponse.build();
             }
-            
+
             return response;
         } finally {
             tracer.wayout();
+        }
+    }
+
+    class SessionActivationService implements Runnable, Traceable {
+
+        final List<Metadata> pendingDocuments;
+
+        public SessionActivationService(List<Metadata> pendingDocuments) {
+            this.pendingDocuments = pendingDocuments;
+        }
+
+        @Override
+        public void run() {
+            AbstractTracer tracer = getCurrentTracer();
+            tracer.initCurrentTracingContext();
+            tracer.entry("void", this, "run()");
+
+            try {
+                tracer.out().printfIndentln("pendingDocuments = %s", pendingDocuments);
+            } finally {
+                tracer.wayout();
+            }
+        }
+
+        @Override
+        public AbstractTracer getCurrentTracer() {
+            return TracerFactory.getInstance().getCurrentPoolTracer();
         }
     }
 
@@ -166,7 +205,7 @@ public class SessionRS implements Traceable {
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }
-            
+
             try {
                 ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.get().sharePoints());
                 currentSession.setPhase(Session.Phase.ACTIVE);
@@ -177,6 +216,8 @@ public class SessionRS implements Traceable {
                 currentSession.setIdleTime(duration.getSeconds());
                 currentSession.setModificationTime(LocalDateTime.now());
                 currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
+                List<Metadata> pendingDocuments = this.metadataService.findPendingBySession(sessionId);
+                this.executorService.submit(new SessionActivationService(pendingDocuments));
                 this.sessionService.save(currentSession);
 
                 response = Response.status(Response.Status.OK)
@@ -196,9 +237,9 @@ public class SessionRS implements Traceable {
             tracer.wayout();
         }
     }
-    
+
     class SessionClosureService implements Runnable, Traceable {
-        
+
         final DatabasedKeystore keystore;
 
         public SessionClosureService(DatabasedKeystore keystore) {
@@ -221,9 +262,9 @@ public class SessionRS implements Traceable {
         public AbstractTracer getCurrentTracer() {
             return TracerFactory.getInstance().getCurrentPoolTracer();
         }
-        
+
     }
-    
+
     Response closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
@@ -255,9 +296,9 @@ public class SessionRS implements Traceable {
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }
-            
+
             this.scheduledExecutorService.schedule(new SessionClosureService(databasedKeystore.get()), 0, TimeUnit.SECONDS);
-            
+
             return Response.status(Response.Status.NO_CONTENT)
                     .build();
         } finally {
@@ -282,10 +323,10 @@ public class SessionRS implements Traceable {
             if (session.isPresent()) {
                 if (session.get().getKeystore().getId().equals(keystoreId)) {
                     response = Response.status(Response.Status.OK)
-                        .entity(session.get().toJson(true))
-                        .type(MediaType.APPLICATION_JSON)
-                        .encoding("UTF-8")
-                        .build();
+                            .entity(session.get().toJson(true))
+                            .type(MediaType.APPLICATION_JSON)
+                            .encoding("UTF-8")
+                            .build();
                 } else {
                     String message = String.format("No Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
                     tracer.logMessage(LogLevel.ERROR, message, getClass(), "session(String keystoreId, String sessionId)");
@@ -298,7 +339,7 @@ public class SessionRS implements Traceable {
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 response = errorResponse.build();
             }
-            
+
             return response;
         } finally {
             tracer.wayout();

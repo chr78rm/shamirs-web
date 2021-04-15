@@ -25,6 +25,18 @@
                 </Thread>
             </Context>
         </TraceLogger>
+        <TraceLogger name="ExecutorService" class="de.christofreichardt.diagnosis.file.FileTracer">
+            <LogDir>./log/</LogDir>
+            <AutoFlush>true</AutoFlush>
+            <BufSize>1024</BufSize>
+            <Limit>4194304</Limit>
+            <Context>
+                <Thread name="executing-1">
+                    <Online>true</Online>
+                    <DebugLevel>10</DebugLevel>
+                </Thread>
+            </Context>
+        </TraceLogger>
     </Pool>
     <Map>
         <Threads>
@@ -33,6 +45,9 @@
             </Thread>
             <Thread name="scheduling-1">
                 <TraceLogger ref="SessionSanitizer" />
+            </Thread>
+            <Thread name="executing-1">
+                <TraceLogger ref="ExecutorService" />
             </Thread>
         </Threads>
     </Map>
@@ -44,6 +59,7 @@
             <LogDir>./log</LogDir>
             <AutoFlush>true</AutoFlush>
             <BufSize>1024</BufSize>
+            <Limit>4194304</Limit>
         </TraceLogger>
         <Online>true</Online>
         <DebugLevel>5</DebugLevel>

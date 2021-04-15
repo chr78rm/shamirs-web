@@ -9,6 +9,7 @@ import de.christofreichardt.jca.shamir.ShamirsProvider;
 import java.security.Security;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -96,6 +97,21 @@ public class ShamirsApp {
     @Bean
     Lock lock() {
         return new ReentrantLock();
+    }
+    
+    @Bean("singleThreadExecutor")
+    ExecutorService singleThreadExecutor() {
+        ThreadFactory myThreadFactory = new ThreadFactory() {
+
+            AtomicInteger counter = new AtomicInteger(1);
+
+            @Override
+            public Thread newThread(Runnable runnable) {
+                return new Thread(runnable, "executing-" + counter.getAndIncrement());
+            }
+        };
+
+        return Executors.newSingleThreadExecutor(myThreadFactory);
     }
     
     /**
