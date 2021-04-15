@@ -6,6 +6,7 @@
 package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.rs.MyClientRequestFilter;
@@ -42,6 +43,8 @@ public class ShamirsBaseUnit implements Traceable {
     final Map<String, String> config;
     final String baseUrl;
     final boolean externalService;
+    final int maxTrials;
+    final int pause;
 
     Client client;
     Process process;
@@ -50,6 +53,8 @@ public class ShamirsBaseUnit implements Traceable {
         this.config = config;
         this.baseUrl = config.getOrDefault("de.christofreichardt.shamirsweb.test.baseUrl", "https://localhost:8443/shamir/v1");
         this.externalService = Boolean.parseBoolean(config.getOrDefault("de.christofreichardt.shamirsweb.test.externalService", "false"));
+        this.maxTrials = Integer.parseInt(config.getOrDefault("de.christofreichardt.shamirsweb.test.maxTrials", "10"));
+        this.pause = Integer.parseInt(config.getOrDefault("de.christofreichardt.shamirsweb.test.pause", "1"));
     }
     
 
@@ -101,7 +106,6 @@ public class ShamirsBaseUnit implements Traceable {
         try {
             String response = null;
             int trials = 0;
-            final int MAX_TRIALS = 5, PAUSE = 1;
             do {
                 try {
                     response = this.client.target(this.baseUrl)
@@ -117,17 +121,26 @@ public class ShamirsBaseUnit implements Traceable {
                     tracer.out().printfIndentln("%d: ex.getCause() = %s", trials, ex.getCause());
 
                     if (ex.getCause() != null && (ex.getCause() instanceof ConnectException)) {
-                        if (trials >= MAX_TRIALS) {
+                        if (trials >= this.maxTrials) {
                             break;
                         } else {
-                            tracer.out().printfIndentln("Waiting %d second(s) ...", PAUSE);
-                            Thread.sleep(TimeUnit.SECONDS.toMillis(PAUSE));
+                            tracer.out().printfIndentln("Waiting %d second(s) ...", this.pause);
+                            Thread.sleep(TimeUnit.SECONDS.toMillis(this.pause));
                         }
                     } else {
                         break;
                     }
                 }
             } while (true);
+            
+            if (trials >= this.maxTrials) {
+                tracer.logMessage(LogLevel.SEVERE, "Cannot establish connection to the service. Aborting ...", getClass(), "ping()");
+                this.process.destroy();
+                boolean terminated = this.process.waitFor(5, TimeUnit.SECONDS);
+                tracer.out().printfIndentln("terminated = %b", terminated);
+                TracerFactory.getInstance().closePoolTracer();
+                System.exit(1);
+            }
 
             tracer.out().printfIndentln("response = %s", response);
             assertThat(Objects.equals("ping", response)).isTrue();
