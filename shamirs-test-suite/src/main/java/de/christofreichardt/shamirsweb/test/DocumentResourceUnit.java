@@ -10,6 +10,7 @@ import de.christofreichardt.restapp.shamir.common.MetadataAction;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -25,12 +26,15 @@ import javax.ws.rs.core.Response;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 /**
@@ -138,7 +142,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
 
     @Test
     @Order(2)
-    void documentsBySession() throws ParserConfigurationException, SAXException, IOException {
+    void documentsBySession() throws ParserConfigurationException, SAXException, IOException, InterruptedException, TransformerConfigurationException, TransformerException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "documentsBySession()");
 
@@ -177,21 +181,34 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
             // fetch the metadata of the first document
             String hrefMetadata = hrefs.get(0).get();
             String hrefContent;
-            try ( Response response = this.client.target(this.baseUrl)
-                    .path(hrefMetadata)
-                    .request(MediaType.APPLICATION_JSON)
-                    .get()) {
-                tracer.out().printfIndentln("response = %s", response);
-                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
-                assertThat(response.hasEntity()).isTrue();
-                JsonObject metadata = response.readEntity(JsonObject.class);
-                Optional<JsonObject> contentLink = metadata.getJsonArray("links").stream()
-                        .map(link -> link.asJsonObject())
-                        .filter(link -> Objects.equals(link.getString("rel"), "content"))
-                        .findFirst();
-                assertThat(contentLink).isNotEmpty();
-                hrefContent = contentLink.get().getString("href");
-            }
+            String state;
+            final int MAX_TRIALS = 3, PAUSE = 1;
+            int trials = 0;
+            do {                
+                try ( Response response = this.client.target(this.baseUrl)
+                        .path(hrefMetadata)
+                        .request(MediaType.APPLICATION_JSON)
+                        .get()) {
+                    trials++;
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                    assertThat(response.hasEntity()).isTrue();
+                    JsonObject metadata = response.readEntity(JsonObject.class);
+                    state = metadata.getString("state");
+                    Optional<JsonObject> contentLink = metadata.getJsonArray("links").stream()
+                            .map(link -> link.asJsonObject())
+                            .filter(link -> Objects.equals(link.getString("rel"), "content"))
+                            .findFirst();
+                    assertThat(contentLink).isNotEmpty();
+                    hrefContent = contentLink.get().getString("href");
+                    if (Objects.equals("PENDING", state) && trials < MAX_TRIALS) {
+                        Thread.sleep(Duration.ofSeconds(PAUSE).toMillis());
+                    } else {
+                        break;
+                    }
+                }
+            } while (true);
+            assertThat(state).isEqualTo("PROCESSED");
             
             // fetch the content of the first document
             tracer.out().printfIndentln("hrefContent = %s", hrefContent);
@@ -205,13 +222,22 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 assertThat(response.hasEntity()).isTrue();
                 content = response.readEntity(byte[].class);
             }
-                
+
             // rebuild the DOM
             ByteArrayInputStream inputStream = new ByteArrayInputStream(content);
             DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newDefaultInstance();
             documentBuilderFactory.setNamespaceAware(true);
             DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
-            documentBuilder.parse(inputStream);
+            Document signedDocument = documentBuilder.parse(inputStream);
+            NodeList nodeList = signedDocument.getDocumentElement().getElementsByTagNameNS("http://www.w3.org/2000/09/xmldsig#", "Signature");
+            assertThat(nodeList.getLength()).isEqualTo(1);
+//            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+//            transformerFactory.setAttribute("indent-number", 2);
+//            Transformer transformer = transformerFactory.newTransformer();
+//            transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+//            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+//            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+//            transformer.transform(new DOMSource(signedDocument), new StreamResult(tracer.out()));
         } finally {
             tracer.wayout();
         }

@@ -18,6 +18,9 @@ import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
 import de.christofreichardt.restapp.shamir.service.MetadataService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -155,9 +158,13 @@ public class SessionRS implements Traceable {
     class SessionActivationService implements Runnable, Traceable {
 
         final List<Metadata> pendingDocuments;
+        final ShamirsProtection shamirsProtection;
+        final KeyStore keyStore;
 
-        public SessionActivationService(List<Metadata> pendingDocuments) {
+        public SessionActivationService(List<Metadata> pendingDocuments, ShamirsProtection shamirsProtection, KeyStore keyStore) {
             this.pendingDocuments = pendingDocuments;
+            this.shamirsProtection = shamirsProtection;
+            this.keyStore = keyStore;
         }
 
         @Override
@@ -167,7 +174,37 @@ public class SessionRS implements Traceable {
             tracer.entry("void", this, "run()");
 
             try {
-                tracer.out().printfIndentln("pendingDocuments = %s", pendingDocuments);
+                tracer.out().printfIndentln("pendingDocuments = %s", this.pendingDocuments);
+                try {
+                    this.pendingDocuments.forEach(metadata -> processPendingDocument(metadata));
+                } catch (Exception ex) {
+                    tracer.logException(LogLevel.ERROR, ex, getClass(), "run()");
+                }
+            } finally {
+                tracer.wayout();
+            }
+        }
+        
+        void processPendingDocument(Metadata metadata) {
+            AbstractTracer tracer = getCurrentTracer();
+            tracer.entry("void", this, "processPendingDocuments(Metadata metadata)");
+
+            try {
+                try {
+                    String alias = metadata.getAlias();
+                    if (this.keyStore.containsAlias(alias)) {
+                        if (!this.keyStore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
+                            throw new UnsupportedOperationException("Document encryption isn't implemented yet.");
+                        }
+                        KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) this.keyStore.getEntry(alias, this.shamirsProtection);
+                        metadata.getDocument().sign(privateKeyEntry.getPrivateKey());
+                        SessionRS.this.metadataService.savePending(metadata);
+                    } else {
+                        tracer.logMessage(LogLevel.ERROR, String.format("No such key entry: %s", alias), getClass(), "processPendingDocument(Metadata metadata)");
+                    }
+                } catch (GeneralSecurityException ex) {
+                    throw new RuntimeException(ex);
+                }
             } finally {
                 tracer.wayout();
             }
@@ -185,20 +222,20 @@ public class SessionRS implements Traceable {
 
         try {
             Response response;
-            Optional<DatabasedKeystore> keystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
-            if (keystore.isEmpty()) {
+            Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
+            if (dbKeystore.isEmpty()) {
                 String message = String.format("No such Keystore[id=%s].", keystoreId);
                 tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }
-            if (keystore.get().getSessions().isEmpty()) {
+            if (dbKeystore.get().getSessions().isEmpty()) {
                 String message = String.format("Couldn't retrieve a session for Keystore[id=%s].", keystoreId);
                 tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.INTERNAL_SERVER_ERROR, message);
                 return errorResponse.build();
             }
-            Session currentSession = keystore.get().getSessions().iterator().next();
+            Session currentSession = dbKeystore.get().getSessions().iterator().next();
             if (!Objects.equals(currentSession.getId(), sessionId)) {
                 String message = String.format("No active Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
                 tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
@@ -207,7 +244,8 @@ public class SessionRS implements Traceable {
             }
 
             try {
-                ShamirsProtection shamirsProtection = new ShamirsProtection(keystore.get().sharePoints());
+                ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.get().sharePoints());
+                KeyStore keyStore = dbKeystore.get().keystoreInstance();
                 currentSession.setPhase(Session.Phase.ACTIVE);
                 JsonObject automaticClose = sessionInstructions.getJsonObject("activation").getJsonObject("automaticClose");
                 int idleTime = automaticClose.getInt("idleTime");
@@ -217,7 +255,7 @@ public class SessionRS implements Traceable {
                 currentSession.setModificationTime(LocalDateTime.now());
                 currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
                 List<Metadata> pendingDocuments = this.metadataService.findPendingBySession(sessionId);
-                this.executorService.submit(new SessionActivationService(pendingDocuments));
+                this.executorService.submit(new SessionActivationService(pendingDocuments, shamirsProtection, keyStore));
                 this.sessionService.save(currentSession);
 
                 response = Response.status(Response.Status.OK)
@@ -225,7 +263,7 @@ public class SessionRS implements Traceable {
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")
                         .build();
-            } catch (IllegalArgumentException ex) {
+            } catch (GeneralSecurityException | IOException | IllegalArgumentException ex) {
                 String message = String.format("Cannot activate session for Keystore[id=%s].", keystoreId);
                 tracer.logException(LogLevel.ERROR, ex, getClass(), "activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message, ex.getMessage());
