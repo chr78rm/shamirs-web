@@ -363,7 +363,7 @@ VALUES (
 --
 -- setup session for keystore[id='3e6b2af3-63e2-4dcb-bb71-c69f1293b072', descriptive_name='the-too-few-slices-keystore']
 --
-INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time, expiration_time)
+INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time, expiration_time, version)
 VALUES (
     '1232d4be-fa07-45d8-b741-65f60ce9ebf0', 
     '3e6b2af3-63e2-4dcb-bb71-c69f1293b072', -- the-too-few-slices-keystore
@@ -371,13 +371,14 @@ VALUES (
     0,
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP,
-    null
+    null,
+    1
 );
 
 --
 -- setup session for keystore[id='5adab38c-702c-4559-8a5f-b792c14b9a43', descriptive_name='my-first-keystore']
 --
-INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time, expiration_time)
+INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time, expiration_time, version)
 VALUES (
     '8bff8ac6-fc31-40de-bd6a-eca4348171c5', 
     '5adab38c-702c-4559-8a5f-b792c14b9a43', -- my-first-keystore
@@ -385,13 +386,14 @@ VALUES (
     0,
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP,
-    null
+    null,
+    1
 );
 
 --
 -- setup session for keystore[id='e509eaf0-3fec-4972-9e32-48e6911710f7', descriptive_name='the-idle-keystore']
 --
-INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time, expiration_time)
+INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time, expiration_time, version)
 VALUES (
     '09f6f079-cd70-4221-a44e-45862a4fb777', 
     'e509eaf0-3fec-4972-9e32-48e6911710f7', -- the-idle-keystore
@@ -399,5 +401,6 @@ VALUES (
     5,
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP,
-    DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 SECOND)
+    DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 SECOND),
+    1
 );

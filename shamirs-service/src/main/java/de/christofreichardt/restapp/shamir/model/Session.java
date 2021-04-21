@@ -27,6 +27,7 @@ import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
+import javax.persistence.Version;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
@@ -79,6 +80,12 @@ public class Session implements Serializable { // TODO: think about optimistic l
     @Basic
     @Column(name = "expiration_time")
     private LocalDateTime expirationTime;
+    
+    @Version
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "version")
+    private int version;
     
     @JoinColumn(name = "keystore_id", referencedColumnName = "id")
     @ManyToOne(optional = false)

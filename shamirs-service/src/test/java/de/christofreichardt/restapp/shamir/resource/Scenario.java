@@ -457,7 +457,7 @@ public class Scenario implements Traceable {
                     new Object[]{"09f6f079-cd70-4221-a44e-45862a4fb777", THE_IDLE_KEYSTORE_ID, "ACTIVE", 5, CURRENT_TIME, CURRENT_TIME, LocalDateTime.now().plusSeconds(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
             );
 
-            String sql = "INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time, expiration_time)\n"
+            String sql = "INSERT INTO csession (id, keystore_id, phase, idle_time, creation_time, modification_time, expiration_time, version)\n"
                     + "VALUES (\n"
                     + "    ?,\n"
                     + "    ?,\n"
@@ -465,7 +465,8 @@ public class Scenario implements Traceable {
                     + "    ?,\n"
                     + "    ?,\n"
                     + "    ?,\n"
-                    + "    ?\n"
+                    + "    ?,\n"
+                    + "    1\n"
                     + ")";
 
             int[] affectedRows = this.jdbcTemplate.batchUpdate(sql, batchArgs);
