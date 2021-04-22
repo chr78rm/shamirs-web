@@ -50,6 +50,11 @@ public class Metadata implements Serializable {
     @Column(name = "id")
     private String id;
 
+    @Size(max = 100)
+    @NotNull
+    @Column(name = "title")
+    private String title;
+
     @Size(max = 20)
     @NotNull
     @Column(name = "status")
@@ -88,7 +93,12 @@ public class Metadata implements Serializable {
     private Document document;
 
     public Metadata() {
+        this(null);
+    }
+
+    public Metadata(String title) {
         this.id = UUID.randomUUID().toString();
+        this.title = title;
         this.creationTime = LocalDateTime.now();
         this.modificationTime = LocalDateTime.now();
     }
@@ -107,6 +117,14 @@ public class Metadata implements Serializable {
 
     public void setSession(Session session) {
         this.session = session;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public Status getState() {
@@ -235,6 +253,7 @@ public class Metadata implements Serializable {
         JsonArray links = linksBuilder.build();
         return Json.createObjectBuilder()
                 .add("id", this.id)
+                .add("title", this.title)
                 .add("state", this.state)
                 .add("action", this.action)
                 .add("alias", this.alias)

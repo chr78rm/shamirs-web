@@ -53,9 +53,9 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
 
     @Test
     @Order(1)
-    void postDocument() throws IOException, SAXException, ParserConfigurationException {
+    void postDocumentToProvisionedSession() throws IOException, SAXException, ParserConfigurationException {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "postDocument()");
+        tracer.entry("void", this, "postDocumentToProvisionedSession()");
 
         try {
             // session should be in phase 'PROVISIONED'
@@ -94,11 +94,13 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 document = documentBuilder.parse(inputStream);
             }
 
+            // post the document to the provsioned session (for review)
             try ( Response response = this.client.target(this.baseUrl)
                     .path(href)
                     .queryParam("action", MetadataAction.SIGN.name())
                     .queryParam("alias", "test-ec-key")
                     .request(MediaType.APPLICATION_JSON)
+                    .header("doc-title", "payment-order-1")
                     .post(Entity.xml(document))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
@@ -106,34 +108,6 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 JsonObject metadata = response.readEntity(JsonObject.class);
                 assertThat(metadata.getString("state")).isEqualTo("PENDING");
                 assertThat(metadata.getString("action")).isEqualTo(MetadataAction.SIGN.name());
-            }
-                
-            final int IDLE_TIME = 10;
-            JsonObject sessionInstructions = Json.createObjectBuilder()
-                    .add("session", Json.createObjectBuilder()
-                            .add("activation", Json.createObjectBuilder()
-                                    .add("automaticClose", Json.createObjectBuilder()
-                                            .add("idleTime", IDLE_TIME)
-                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
-                                    )
-                            )
-                    )
-                    .build();
-            
-            // activate the provisioned session
-            try (Response response = this.client.target(this.baseUrl)
-                    .path("keystores")
-                    .path(KEYSTORE_ID)
-                    .path("sessions")
-                    .path(SESSION_ID)
-                    .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
-                tracer.out().printfIndentln("response = %s", response);
-                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
-                assertThat(response.hasEntity()).isTrue();
-                JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("ACTIVE");
-                assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
             }
         } finally {
             tracer.wayout();
@@ -147,7 +121,22 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
         tracer.entry("void", this, "documentsBySession()");
 
         try {
-            // retrieve the metadata of the documents
+            // session should be in phase 'PROVISIONED'
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+            }
+
+            // retrieve the metadata for all documents
             JsonArray documents;
             try ( Response response = this.client.target(this.baseUrl)
                     .path("sessions")
@@ -173,12 +162,38 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                                 .map(link -> link.getString("href"));
                     })
                     .collect(Collectors.toList());
-
             tracer.out().printfIndentln("hrefs = %s", hrefs);
             assertThat(hrefs).isNotEmpty();
             assertThat(hrefs.get(0)).isNotEmpty();
             
-            // fetch the metadata of the first document
+            // activate the provisioned session
+            final int IDLE_TIME = 10;
+            JsonObject sessionInstructions = Json.createObjectBuilder()
+                    .add("session", Json.createObjectBuilder()
+                            .add("activation", Json.createObjectBuilder()
+                                    .add("automaticClose", Json.createObjectBuilder()
+                                            .add("idleTime", IDLE_TIME)
+                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
+                                    )
+                            )
+                    )
+                    .build();
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .put(Entity.json(sessionInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("ACTIVE");
+                assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
+            }
+
+            // fetch the metadata of the first document and wait until it is processed
             String hrefMetadata = hrefs.get(0).get();
             String hrefContent;
             String state;
@@ -223,7 +238,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 content = response.readEntity(byte[].class);
             }
 
-            // rebuild the DOM
+            // rebuild the DOM and check for the signature
             ByteArrayInputStream inputStream = new ByteArrayInputStream(content);
             DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newDefaultInstance();
             documentBuilderFactory.setNamespaceAware(true);
@@ -243,4 +258,15 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
         }
     }
     
+    @Test
+    @Order(3)
+    void postDocumentToActiveSession() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "postDocumentToActiveSession()");
+
+        try {
+        } finally {
+            tracer.wayout();
+        }
+    }
 }

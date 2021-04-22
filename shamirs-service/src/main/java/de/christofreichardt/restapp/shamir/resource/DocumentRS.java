@@ -65,9 +65,10 @@ public class DocumentRS implements Traceable {
             @QueryParam("action") String action,
             @QueryParam("alias") String alias,
             @HeaderParam("content-type") String contentType,
+            @HeaderParam("doc-title") String docTitle,
             InputStream inputStream) {
         AbstractTracer tracer = getCurrentTracer();
-        final String methodSignature = "processDocument(String sessionId, String action, String alias, String contentType, InputStream inputStream)";
+        final String methodSignature = "processDocument(String sessionId, String action, String alias, String contentType, String docTitle, InputStream inputStream)";
         tracer.entry("Response", this, methodSignature);
 
         try {
@@ -75,6 +76,7 @@ public class DocumentRS implements Traceable {
             tracer.out().printfIndentln("action = %s", action);
             tracer.out().printfIndentln("alias = %s", alias);
             tracer.out().printfIndentln("contentType = %s", contentType);
+            tracer.out().printfIndentln("docTitle = %s", docTitle);
 
             if (!contentType.equalsIgnoreCase("application/xml")) {
                 String message = String.format("Only 'application/xml' documents are supported yet.", sessionId);
@@ -98,7 +100,7 @@ public class DocumentRS implements Traceable {
 
             try {
                 byte[] bytes = inputStream.readAllBytes();
-                Metadata metadata = new Metadata();
+                Metadata metadata = new Metadata(docTitle);
                 metadata.setSession(session.get());
                 metadata.setState(Metadata.Status.PENDING);
                 metadata.setAction(Enum.valueOf(MetadataAction.class, action));

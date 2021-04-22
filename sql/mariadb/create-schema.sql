@@ -71,6 +71,7 @@ ALTER TABLE csession ADD CONSTRAINT fk_session_keystore FOREIGN KEY (keystore_id
 CREATE TABLE metadata (
     id CHAR(36) PRIMARY KEY,
     session_id CHAR(36) NOT NULL,
+    title VARCHAR(100) NOT NULL,
     status VARCHAR(20) NOT NULL,
     intended_action VARCHAR(20) NOT NULL,
     media_type VARCHAR(100) NOT NULL,
