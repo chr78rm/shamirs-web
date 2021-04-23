@@ -22,4 +22,5 @@ public interface SessionService {
     Session findCurrentSessionByKeystore(String keystoreId);
     int closeIdleSessions();
     Optional<Session> findByID(String sessionId);
+    Optional<Session> findByIDWithMetadata(String sessionId);
 }

@@ -17,6 +17,7 @@ import javax.persistence.PersistenceContext;
 import javax.persistence.Subgraph;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  *
@@ -32,6 +33,7 @@ public class MetadataDBService implements MetadataService, Traceable {
     MetadataRepository metadataRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<Metadata> findAllBySession(String sessionId) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("List<Metadata>", this, "findAllBySession(String sessionId)");
@@ -50,6 +52,7 @@ public class MetadataDBService implements MetadataService, Traceable {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Metadata> findById(String documentId) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Optional<Metadata>", this, "findById(String documentId)");
@@ -64,6 +67,7 @@ public class MetadataDBService implements MetadataService, Traceable {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Metadata> findPendingBySession(String sessionId) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("List<Metadata>", this, "findPendingBySession(String sessionId)");
@@ -89,6 +93,7 @@ public class MetadataDBService implements MetadataService, Traceable {
     }
 
     @Override
+    @Transactional()
     public Metadata savePending(Metadata metadata) {
         AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
         tracer.entry("Metadata", this, "savePending(Metadata metadata)");

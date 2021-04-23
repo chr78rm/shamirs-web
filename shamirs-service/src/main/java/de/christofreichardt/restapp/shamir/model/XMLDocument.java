@@ -26,6 +26,7 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 /**
@@ -58,20 +59,25 @@ public class XMLDocument extends Document {
             documentBuilderFactory.setNamespaceAware(true);
             DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(this.getContent());
-            org.w3c.dom.Document signedDocument = xmlSignatureProcessor.sign(documentBuilder.parse(byteArrayInputStream), privateKey);
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-            transformer.transform(new DOMSource(signedDocument), new StreamResult(byteArrayOutputStream));
-            this.setContent(byteArrayOutputStream.toByteArray());
-            this.setModificationTime(LocalDateTime.now());
-            this.getMetadata().setState(Metadata.Status.PROCESSED);
-            this.getMetadata().setModificationTime(this.getModificationTime());
+            org.w3c.dom.Document parsedDocument = documentBuilder.parse(byteArrayInputStream);
+            NodeList nodeList = parsedDocument.getDocumentElement().getElementsByTagNameNS("http://www.w3.org/2000/09/xmldsig#", "Signature"); // TODO: use a constant for the namespace
+            if (nodeList.getLength() == 0) {
+                org.w3c.dom.Document signedDocument = xmlSignatureProcessor.sign(parsedDocument, privateKey);
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                Transformer transformer = TransformerFactory.newInstance().newTransformer();
+                transformer.transform(new DOMSource(signedDocument), new StreamResult(byteArrayOutputStream));
+                this.setContent(byteArrayOutputStream.toByteArray());
+                this.setModificationTime(LocalDateTime.now());
+                this.getMetadata().setState(Metadata.Status.PROCESSED);
+                this.getMetadata().setModificationTime(this.getModificationTime());
+            } else {
+                this.getMetadata().setState(Metadata.Status.ERROR);
+            }
         
             return this;
-        } catch (ParserConfigurationException | SAXException | GeneralSecurityException | MarshalException | XMLSignatureException | TransformerException ex) {
-            throw new RuntimeException(ex);
-        } catch (IOException ex) {
-            throw new UncheckedIOException(ex);
+        } catch (ParserConfigurationException | SAXException | GeneralSecurityException | MarshalException | XMLSignatureException | TransformerException | IOException ex) {
+            this.getMetadata().setState(Metadata.Status.ERROR);
+            throw new RuntimeException(ex); // TODO: think about an application specific exception
         }
     }
 

@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import javax.persistence.EntityManager;
+import javax.persistence.NonUniqueResultException;
 import javax.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -129,6 +130,31 @@ public class SessionDBService implements SessionService, Traceable {
             tracer.out().printfIndentln("sessionId = %s", sessionId);
             
             return this.sessionRepository.findById(sessionId);
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
+    public Optional<Session> findByIDWithMetadata(String sessionId) {
+        AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
+        tracer.entry("Optional<Session>", this, "findByIDWithMetadata(String sessionId)");
+        try {
+            tracer.out().printfIndentln("sessionId = %s", sessionId);
+            
+            Optional<Session> session;
+            List<Session> sessions = this.entityManager.createQuery("SELECT s FROM Session s LEFT JOIN FETCH s.metadatas LEFT JOIN FETCH s.keystore WHERE s.id = :sessionId", Session.class)
+                    .setParameter("sessionId", sessionId)
+                    .getResultList();
+            if (sessions.size() > 1) {
+                throw new NonUniqueResultException(String.format("Found more than one session for sessionId=%s.", sessionId));
+            } else if (sessions.size() == 1) {
+                session = Optional.of(sessions.get(0));
+            } else {
+                session = Optional.empty();
+            }
+            
+            return session;
         } finally {
             tracer.wayout();
         }

@@ -9,6 +9,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -47,7 +48,7 @@ import javax.validation.constraints.Size;
 })
 public class Session implements Serializable { // TODO: think about optimistic locking (@Version)
     
-    public enum Phase {PROVISIONED, ACTIVE, CLOSED};
+    public enum Phase {PROVISIONED, ACTIVE, CLOSED}; // TODO: move this to shamirs-common
 
     private static final long serialVersionUID = 1L;
     
@@ -92,7 +93,7 @@ public class Session implements Serializable { // TODO: think about optimistic l
     private DatabasedKeystore keystore;
     
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "session")
-    private Collection<Metadata> metadatas;
+    private Collection<Metadata> metadatas = new HashSet<>();
 
     public Session() {
         this.id = UUID.randomUUID().toString();

@@ -38,7 +38,7 @@ import javax.validation.constraints.Size;
 public class Metadata implements Serializable {
 
     public enum Status {
-        PENDING, PROCESSED
+        PENDING, PROCESSED, ERROR
     };
 
     private static final long serialVersionUID = 1L;
