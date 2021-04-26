@@ -9,7 +9,6 @@ import de.christofreichardt.restapp.shamir.service.XMLSignatureProcessor;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -48,7 +47,26 @@ public class XMLDocument extends Document {
 
     @Override
     public boolean verify(PublicKey publicKey) {
-        return super.verify(publicKey); //To change body of generated methods, choose Tools | Templates.
+        XMLSignatureProcessor xmlSignatureProcessor = null;
+        org.w3c.dom.Document parsedDocument = null;
+        try {
+            xmlSignatureProcessor = new XMLSignatureProcessor();
+            DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newDefaultInstance();
+            documentBuilderFactory.setNamespaceAware(true);
+            DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(this.getContent());
+            parsedDocument = documentBuilder.parse(byteArrayInputStream);
+            boolean verified = xmlSignatureProcessor.validate(parsedDocument, publicKey);
+            this.getMetadata().setValidated(verified);
+            this.setModificationTime(LocalDateTime.now());
+            this.getMetadata().setState(Metadata.Status.PROCESSED);
+            this.getMetadata().setModificationTime(this.getModificationTime());
+
+            return xmlSignatureProcessor.validate(parsedDocument, publicKey);
+        } catch (ParserConfigurationException | SAXException | IOException | MarshalException | XMLSignatureException ex) {
+            this.getMetadata().setState(Metadata.Status.ERROR);
+            throw new RuntimeException(ex); // TODO: think about an application specific exception
+        }
     }
 
     @Override
@@ -73,7 +91,7 @@ public class XMLDocument extends Document {
             } else {
                 this.getMetadata().setState(Metadata.Status.ERROR);
             }
-        
+
             return this;
         } catch (ParserConfigurationException | SAXException | GeneralSecurityException | MarshalException | XMLSignatureException | TransformerException | IOException ex) {
             this.getMetadata().setState(Metadata.Status.ERROR);

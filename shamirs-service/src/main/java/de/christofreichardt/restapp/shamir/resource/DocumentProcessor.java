@@ -10,6 +10,7 @@ import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
+import de.christofreichardt.restapp.shamir.common.MetadataAction;
 import de.christofreichardt.restapp.shamir.model.Metadata;
 import de.christofreichardt.restapp.shamir.service.MetadataDBService;
 import de.christofreichardt.restapp.shamir.service.MetadataService;
@@ -61,11 +62,17 @@ public class DocumentProcessor implements Runnable, Traceable {
             try {
                 String alias = metadata.getAlias();
                 if (this.keyStore.containsAlias(alias)) {
-                    if (!this.keyStore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
-                        throw new UnsupportedOperationException("Document encryption isn't implemented yet.");
+                    if (metadata.getAction() == MetadataAction.SIGN || metadata.getAction() == MetadataAction.VERIFY) {
+                        if (!this.keyStore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
+                            throw new RuntimeException("Signing/Verifying needs a private key entry.");
+                        }
+                        KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) this.keyStore.getEntry(alias, this.shamirsProtection);
+                        if (metadata.getAction() == MetadataAction.SIGN) {
+                            metadata.getDocument().sign(privateKeyEntry.getPrivateKey());
+                        } else if (metadata.getAction() == MetadataAction.VERIFY) {
+                            metadata.getDocument().verify(privateKeyEntry.getCertificate().getPublicKey());
+                        }
                     }
-                    KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) this.keyStore.getEntry(alias, this.shamirsProtection);
-                    metadata.getDocument().sign(privateKeyEntry.getPrivateKey());
                     this.metadataService.savePending(metadata);
                 } else {
                     tracer.logMessage(LogLevel.ERROR, String.format("No such key entry: %s", alias), getClass(), "processPendingDocument(Metadata metadata)");

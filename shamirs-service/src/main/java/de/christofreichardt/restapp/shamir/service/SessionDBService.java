@@ -143,7 +143,7 @@ public class SessionDBService implements SessionService, Traceable {
             tracer.out().printfIndentln("sessionId = %s", sessionId);
             
             Optional<Session> session;
-            List<Session> sessions = this.entityManager.createQuery("SELECT s FROM Session s LEFT JOIN FETCH s.metadatas LEFT JOIN FETCH s.keystore WHERE s.id = :sessionId", Session.class)
+            List<Session> sessions = this.entityManager.createQuery("SELECT DISTINCT s FROM Session s LEFT JOIN FETCH s.metadatas LEFT JOIN FETCH s.keystore WHERE s.id = :sessionId", Session.class)
                     .setParameter("sessionId", sessionId)
                     .getResultList();
             if (sessions.size() > 1) {

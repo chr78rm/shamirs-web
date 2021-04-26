@@ -16,6 +16,7 @@ import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -64,6 +65,10 @@ public class Metadata implements Serializable {
     @NotNull
     @Column(name = "intended_action")
     private String action;
+
+    @Size(max = 1)
+    @Column(name = "validated")
+    private String validated;
 
     @Size(max = 100)
     @NotNull
@@ -135,10 +140,6 @@ public class Metadata implements Serializable {
         this.state = state.name();
     }
 
-    public MetadataAction getAction() {
-        return Enum.valueOf(MetadataAction.class, this.action);
-    }
-
     public String getMediaType() {
         return mediaType;
     }
@@ -147,8 +148,24 @@ public class Metadata implements Serializable {
         this.mediaType = mediaType;
     }
 
+    public MetadataAction getAction() {
+        return Enum.valueOf(MetadataAction.class, this.action);
+    }
+
     public void setAction(MetadataAction action) {
         this.action = action.name();
+    }
+
+    public boolean isValidated() {
+        return Objects.equals("y", this.validated);
+    }
+
+    public void setValidated(boolean validated) {
+        if (validated) {
+            this.validated = "y";
+        } else {
+            this.validated = "n";
+        }
     }
 
     public String getAlias() {
@@ -207,8 +224,8 @@ public class Metadata implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Metadata[id=%s, state=%s, action=%s, alias=%s, mediaType=%s, creationTime=%s, modificationTime=%s]",
-                this.id, this.state, this.action, this.alias, this.mediaType,
+        return String.format("Metadata[id=%s, state=%s, action=%s, alias=%s, validated=%b, mediaType=%s, creationTime=%s, modificationTime=%s]",
+                this.id, this.state, this.action, this.alias, this.isValidated(), this.mediaType,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
         );
@@ -251,17 +268,20 @@ public class Metadata implements Serializable {
                     );
         }
         JsonArray links = linksBuilder.build();
-        return Json.createObjectBuilder()
+        JsonObjectBuilder representationBuilder = Json.createObjectBuilder()
                 .add("id", this.id)
                 .add("title", this.title)
                 .add("state", this.state)
-                .add("action", this.action)
-                .add("alias", this.alias)
+                .add("action", this.action);
+        if (Objects.nonNull(this.validated)) {
+            representationBuilder.add("validated", this.isValidated());
+        }
+        representationBuilder.add("alias", this.alias)
                 .add("mediaType", this.mediaType)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-                .add("links", links)
-                .build();
+                .add("links", links);
+        return representationBuilder.build();
     }
 
 }

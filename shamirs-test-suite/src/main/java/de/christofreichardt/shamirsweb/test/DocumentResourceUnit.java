@@ -271,7 +271,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
         tracer.entry("void", this, "postDocumentToActiveSession()");
 
         try {
-            // session should be in phase 'PROVISIONED'
+            // session should be in phase 'ACTIVE'
             String href;
             try ( Response response = this.client.target(this.baseUrl)
                     .path("keystores")
@@ -369,6 +369,75 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
             Document signedDocument = documentBuilder.parse(inputStream);
             NodeList nodeList = signedDocument.getDocumentElement().getElementsByTagNameNS("http://www.w3.org/2000/09/xmldsig#", "Signature"); // TODO: use a constant for the namespace
             assertThat(nodeList.getLength()).isEqualTo(1);
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    @Order(4)
+    void postDocumentForValidation() throws ParserConfigurationException, IOException, SAXException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "postDocumentForValidation()");
+
+        try {
+            // session should be in phase 'ACTIVE'
+            String href;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .path("sessions")
+                    .path(SESSION_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject session = response.readEntity(JsonObject.class);
+                assertThat(session.getString("phase")).isEqualTo("ACTIVE");
+                Optional<JsonObject> documentsLink = session.getJsonArray("links").stream()
+                        .map(link -> link.asJsonObject())
+                        .filter(link -> Objects.equals(link.getString("rel"), "documents"))
+                        .findFirst();
+                assertThat(documentsLink).isPresent();
+                href = documentsLink.get().getString("href");
+            }
+            tracer.out().printfIndentln("href = %s", href);
+
+            DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newDefaultInstance();
+            documentBuilderFactory.setNamespaceAware(true);
+            DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+
+            tracer.out().printfIndentln("documentBuilder.isNamespaceAware() = %b", documentBuilder.isNamespaceAware());
+            tracer.out().printfIndentln("documentBuilder.isValidating() = %b", documentBuilder.isValidating());
+
+            Document document;
+            try ( InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/signed-payment-order.xml")) {
+                document = documentBuilder.parse(inputStream);
+            }
+            
+            // post the document to the active session
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path(href)
+                    .queryParam("action", MetadataAction.VERIFY.name())
+                    .queryParam("alias", "test-ec-key")
+                    .request(MediaType.APPLICATION_JSON)
+                    .header("doc-title", "signed-payment-order")
+                    .post(Entity.xml(document))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject metadata = response.readEntity(JsonObject.class);
+                assertThat(metadata.getString("state")).isEqualTo("PROCESSED");
+                assertThat(metadata.getString("action")).isEqualTo(MetadataAction.VERIFY.name());
+                var option = metadata.getJsonArray("links").stream()
+                        .map(link -> link.asJsonObject())
+                        .filter(link -> Objects.equals(link.getString("rel"), "self"))
+                        .map(link -> link.getString("href"))
+                        .findFirst();
+                assertThat(option).isNotEmpty();
+                href = option.get();
+            }
         } finally {
             tracer.wayout();
         }

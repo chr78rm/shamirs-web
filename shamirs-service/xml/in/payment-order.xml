@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <payment xmlns="http://www.christofreichardt.de/shamirs-web">
+    <timestamp></timestamp>
     <amount currency="EUR">
         100.000.000,00
     </amount>

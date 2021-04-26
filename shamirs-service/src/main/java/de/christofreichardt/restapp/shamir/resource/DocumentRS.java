@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -101,6 +102,12 @@ public class DocumentRS implements Traceable {
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                 return errorResponse.build();
             }
+            if (!(Objects.equals(MetadataAction.SIGN.name(), action) || Objects.equals(MetadataAction.VERIFY.name(), action))) {
+                String message = String.format("Only signing and validating are supported.", sessionId);
+                tracer.logMessage(LogLevel.ERROR, message, getClass(), methodSignature);
+                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
+                return errorResponse.build();
+            }
             Optional<Session> session = this.sessionService.findByIDWithMetadata(sessionId); // TODO: think about fetching the slices as well
             if (session.isEmpty()) {
                 String message = String.format("No such Session[id=%s].", sessionId);
@@ -131,6 +138,7 @@ public class DocumentRS implements Traceable {
                 session.get().getMetadatas().add(metadata);
                 session.get().updateModificationTime();
                 this.sessionService.save(session.get());
+                Response.Status responseStatus = Response.Status.CREATED;
                 if (session.get().getPhase() == Session.Phase.ACTIVE) {
                     Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(session.get().getKeystore().getId()); // TODO: check error conditions
                     ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.get().sharePoints());
@@ -143,12 +151,13 @@ public class DocumentRS implements Traceable {
                     } catch (TimeoutException timeoutException) {
                         tracer.logMessage(LogLevel.INFO, String.format("Timeout expired for %s. Moving on ...", document), getClass(), 
                                 "processDocument(String sessionId, String action, String alias, String contentType, String docTitle, InputStream inputStream)");
+                        responseStatus = Response.Status.ACCEPTED;
                     }
                 }
                 metadata = this.metadataService.findById(documentId).orElseThrow();
 
                 return Response
-                        .status(Response.Status.CREATED)
+                        .status(responseStatus)
                         .entity(metadata.toJson())
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")

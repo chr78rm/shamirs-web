@@ -74,6 +74,7 @@ CREATE TABLE metadata (
     title VARCHAR(100) NOT NULL,
     status VARCHAR(20) NOT NULL,
     intended_action VARCHAR(20) NOT NULL,
+    validated VARCHAR(1),
     media_type VARCHAR(100) NOT NULL,
     key_alias VARCHAR(50) NOT NULL,
     creation_time DATETIME NOT NULL,
