@@ -85,7 +85,6 @@ public class KeystoreGenerator implements Traceable {
         }
     };
 
-    // TODO: validate the JSON
     public KeystoreGenerator(JsonObject keystoreInstructions) throws GeneralSecurityException, IOException {
         validateJSON(keystoreInstructions);
         this.requestedSizes = keystoreInstructions.getJsonArray("sizes");

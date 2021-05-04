@@ -46,7 +46,7 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Session.findAllByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId"),
     @NamedQuery(name = "Session.findCurrentByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId AND s.phase != 'CLOSED'"),
 })
-public class Session implements Serializable { // TODO: think about optimistic locking (@Version)
+public class Session implements Serializable { 
     
     public enum Phase {PROVISIONED, ACTIVE, CLOSED}; // TODO: move this to shamirs-common
 
