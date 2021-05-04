@@ -7,8 +7,6 @@ package de.christofreichardt.restapp.shamir.resource;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
-import de.christofreichardt.diagnosis.Traceable;
-import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Participant;
@@ -44,7 +42,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Path("")
-public class KeystoreRS implements Traceable {
+public class KeystoreRS extends BaseRS {
 
     @Autowired
     KeystoreService keystoreService;
@@ -205,11 +203,6 @@ public class KeystoreRS implements Traceable {
         } finally {
             tracer.wayout();
         }
-    }
-
-    @Override
-    public AbstractTracer getCurrentTracer() {
-        return TracerFactory.getInstance().getCurrentQueueTracer();
     }
 
 }

@@ -54,7 +54,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Path("")
-public class SessionRS implements Traceable {
+public class SessionRS extends BaseRS {
 
     @Autowired
     SessionService sessionService;
@@ -98,11 +98,7 @@ public class SessionRS implements Traceable {
                     .add("sessions", sessions)
                     .build();
 
-            return Response.status(Response.Status.OK)
-                    .entity(sessionsInfo)
-                    .type(MediaType.APPLICATION_JSON)
-                    .encoding("UTF-8")
-                    .build();
+            return ok(sessionsInfo);
         } finally {
             tracer.wayout();
         }
@@ -126,27 +122,21 @@ public class SessionRS implements Traceable {
             String errorMessage = "Invalid session instructions.";
 
             if (!sessionPointer.containsValue(sessionInstructions) || sessionPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.OBJECT) {
-                tracer.logMessage(LogLevel.ERROR, errorMessage, getClass(), "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage);
-                return errorResponse.build();
+                return badRequest(errorMessage);
             }
 
             Response response;
             if (activationPointer.containsValue(sessionInstructions) && activationPointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
                 JsonPointer jsonPointer = Json.createPointer("/session/activation/automaticClose/idleTime");
                 if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.NUMBER) {
-                    tracer.logMessage(LogLevel.ERROR, errorMessage, getClass(), "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                    ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage);
-                    response = errorResponse.build();
+                    response = badRequest(errorMessage);
                 } else {
                     response = activateSession(keystoreId, sessionId, sessionInstructions.getJsonObject("session"));
                 }
             } else if (closurePointer.containsValue(sessionInstructions) && closurePointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
                 response = closeSession(keystoreId, sessionId, sessionInstructions);
             } else {
-                tracer.logMessage(LogLevel.ERROR, errorMessage, getClass(), "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, errorMessage);
-                response = errorResponse.build();
+                response = badRequest(errorMessage);
             }
 
             return response;
@@ -224,23 +214,14 @@ public class SessionRS implements Traceable {
             Response response;
             Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
             if (dbKeystore.isEmpty()) {
-                String message = String.format("No such Keystore[id=%s].", keystoreId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("No such Keystore[id=%s].", keystoreId));
             }
             if (dbKeystore.get().getSessions().isEmpty()) {
-                String message = String.format("Couldn't retrieve a session for Keystore[id=%s].", keystoreId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.INTERNAL_SERVER_ERROR, message);
-                return errorResponse.build();
+                return internalServerError(String.format("Couldn't retrieve a session for Keystore[id=%s].", keystoreId));
             }
             Session currentSession = dbKeystore.get().getSessions().iterator().next();
             if (!Objects.equals(currentSession.getId(), sessionId)) {
-                String message = String.format("No active Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("No active Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
             }
 
             try {
@@ -258,16 +239,9 @@ public class SessionRS implements Traceable {
                 this.executorService.submit(new SessionActivationService(pendingDocuments, shamirsProtection, keyStore));
                 this.sessionService.save(currentSession);
 
-                response = Response.status(Response.Status.OK)
-                        .entity(currentSession.toJson())
-                        .type(MediaType.APPLICATION_JSON)
-                        .encoding("UTF-8")
-                        .build();
+                response = ok(currentSession.toJson());
             } catch (GeneralSecurityException | IOException | IllegalArgumentException ex) {
-                String message = String.format("Cannot activate session for Keystore[id=%s].", keystoreId);
-                tracer.logException(LogLevel.ERROR, ex, getClass(), "activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message, ex.getMessage());
-                response = errorResponse.build();
+                response = badRequest(String.format("Cannot activate session for Keystore[id=%s].", keystoreId), ex);
             }
 
             return response;
@@ -310,35 +284,22 @@ public class SessionRS implements Traceable {
         try {
             Optional<DatabasedKeystore> databasedKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
             if (databasedKeystore.isEmpty()) {
-                String message = String.format("No such Keystore[id=%s].", keystoreId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("No such Keystore[id=%s].", keystoreId));
             }
             if (databasedKeystore.get().getSessions().isEmpty()) {
-                String message = String.format("Couldn't retrieve a session for Keystore[id=%s].", keystoreId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.INTERNAL_SERVER_ERROR, message);
-                return errorResponse.build();
+                return internalServerError(String.format("Couldn't retrieve a session for Keystore[id=%s].", keystoreId));
             }
             Session currentSession = databasedKeystore.get().getSessions().iterator().next();
             if (!Objects.equals(currentSession.getId(), sessionId)) {
-                String message = String.format("No such Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("No such Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
             }
             if (Session.Phase.ACTIVE != currentSession.getPhase()) {
-                String message = String.format("Session[id=%s] isn't active.", sessionId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("Session[id=%s] isn't active.", sessionId));
             }
 
             this.scheduledExecutorService.schedule(new SessionClosureService(databasedKeystore.get()), 0, TimeUnit.SECONDS);
 
-            return Response.status(Response.Status.NO_CONTENT)
-                    .build();
+            return Response.noContent().build();
         } finally {
             tracer.wayout();
         }
@@ -349,44 +310,25 @@ public class SessionRS implements Traceable {
     @Path("keystores/{keystoreId}/sessions/{sessionId}")
     public Response session(@PathParam("keystoreId") String keystoreId, @PathParam("sessionId") String sessionId) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "session(String keystoreId, String sessionId)");
+        String method = "session(String keystoreId, String sessionId)";
+        tracer.entry("Response", this, method);
 
         try {
             tracer.out().printfIndentln("keystoreId = %s", keystoreId);
             tracer.out().printfIndentln("sessionId = %s", sessionId);
 
-            Response response;
-
             Optional<Session> session = this.sessionService.findByID(sessionId);
-            if (session.isPresent()) {
-                if (session.get().getKeystore().getId().equals(keystoreId)) {
-                    response = Response.status(Response.Status.OK)
-                            .entity(session.get().toJson(true))
-                            .type(MediaType.APPLICATION_JSON)
-                            .encoding("UTF-8")
-                            .build();
-                } else {
-                    String message = String.format("No Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId);
-                    tracer.logMessage(LogLevel.ERROR, message, getClass(), "session(String keystoreId, String sessionId)");
-                    ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                    response = errorResponse.build();
-                }
-            } else {
-                String message = String.format("No such Session[id=%s].", sessionId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), "session(String keystoreId, String sessionId)");
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                response = errorResponse.build();
+            if (session.isEmpty()) {
+                return badRequest(String.format("No such Session[id=%s].", sessionId));
             }
-
-            return response;
+            if (!Objects.equals(session.get().getKeystore().getId(), keystoreId)) {
+                return badRequest(String.format("No Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
+            }
+            
+            return ok(session.get().toJson(true));
         } finally {
             tracer.wayout();
         }
-    }
-
-    @Override
-    public AbstractTracer getCurrentTracer() {
-        return TracerFactory.getInstance().getCurrentQueueTracer();
     }
 
 }
