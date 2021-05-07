@@ -90,6 +90,7 @@ CREATE TABLE document (
     content BLOB,
     creation_time DATETIME NOT NULL,
     modification_time DATETIME NOT NULL,
-    doc_type VARCHAR(3) NOT NULL
+    doc_type VARCHAR(3) NOT NULL,
+    UNIQUE KEY (metadata_id)
 );
 ALTER TABLE document ADD CONSTRAINT fk_document_metadata FOREIGN KEY (metadata_id) REFERENCES metadata(id);

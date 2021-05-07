@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<payment>
+    <timestamp></timestamp>
+    <amount currency="EUR">
+        100.000.000,00
+    </amount>
+    <debtor>
+        Donald Trump
+    </debtor>
+    <creditor>
+        Deutsche Bank
+    </creditor>
+</payment>
