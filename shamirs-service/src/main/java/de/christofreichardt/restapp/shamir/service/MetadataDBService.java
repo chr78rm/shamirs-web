@@ -107,6 +107,20 @@ public class MetadataDBService implements MetadataService, Traceable {
     }
 
     @Override
+    @Transactional()
+    public void saveAll(Iterable<Metadata> metadatas) {
+        AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
+        tracer.entry("void", this, "saveAll(Iterable<Metadata> metadatas)");
+
+        try {
+            tracer.out().printfIndentln("metadatas = %s", metadatas);
+            this.metadataRepository.saveAll(metadatas);
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
     public AbstractTracer getCurrentTracer() {
         return TracerFactory.getInstance().getCurrentQueueTracer();
     }

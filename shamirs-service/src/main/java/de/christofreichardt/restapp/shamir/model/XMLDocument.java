@@ -47,26 +47,26 @@ public class XMLDocument extends Document {
 
     @Override
     public boolean verify(PublicKey publicKey) {
-        XMLSignatureProcessor xmlSignatureProcessor = null;
-        org.w3c.dom.Document parsedDocument = null;
+        boolean verified = false;
         try {
-            xmlSignatureProcessor = new XMLSignatureProcessor();
+            XMLSignatureProcessor xmlSignatureProcessor = new XMLSignatureProcessor();
             DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newDefaultInstance();
             documentBuilderFactory.setNamespaceAware(true);
             DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(this.getContent());
-            parsedDocument = documentBuilder.parse(byteArrayInputStream);
-            boolean verified = xmlSignatureProcessor.validate(parsedDocument, publicKey);
+            org.w3c.dom.Document parsedDocument = documentBuilder.parse(byteArrayInputStream);
+            verified = xmlSignatureProcessor.validate(parsedDocument, publicKey);
             this.getMetadata().setValidated(verified);
             this.setModificationTime(LocalDateTime.now());
             this.getMetadata().setState(Metadata.Status.PROCESSED);
             this.getMetadata().setModificationTime(this.getModificationTime());
-
-            return xmlSignatureProcessor.validate(parsedDocument, publicKey);
-        } catch (ParserConfigurationException | SAXException | IOException | MarshalException | XMLSignatureException ex) {
+        } catch (SAXException | IOException ex) {
             this.getMetadata().setState(Metadata.Status.ERROR);
-            throw new RuntimeException(ex); // TODO: think about an application specific exception
+        } catch (ParserConfigurationException | MarshalException | XMLSignatureException ex) {
+            throw new RuntimeException(this.getMetadata().toString(), ex);
         }
+        
+        return verified;
     }
 
     @Override
@@ -91,12 +91,13 @@ public class XMLDocument extends Document {
             } else {
                 this.getMetadata().setState(Metadata.Status.ERROR);
             }
-
-            return this;
-        } catch (ParserConfigurationException | SAXException | GeneralSecurityException | MarshalException | XMLSignatureException | TransformerException | IOException ex) {
+        } catch (SAXException | IOException ex) {
             this.getMetadata().setState(Metadata.Status.ERROR);
-            throw new RuntimeException(ex); // TODO: think about an application specific exception
+        } catch (ParserConfigurationException | GeneralSecurityException | MarshalException | XMLSignatureException | TransformerException ex) {
+            throw new RuntimeException(this.getMetadata().toString(), ex);
         }
+        
+        return this;
     }
 
 }

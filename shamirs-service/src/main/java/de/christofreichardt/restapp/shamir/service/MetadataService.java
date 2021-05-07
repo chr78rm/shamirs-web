@@ -20,4 +20,5 @@ public interface MetadataService {
     Optional<Metadata> findById(String documentId);
     List<Metadata> findPendingBySession(String sessionId);
     Metadata savePending(Metadata metadata);
+    void saveAll(Iterable<Metadata> metadatas);
 }

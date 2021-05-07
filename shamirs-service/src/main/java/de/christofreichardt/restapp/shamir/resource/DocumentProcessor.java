@@ -12,8 +12,6 @@ import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.restapp.shamir.common.MetadataAction;
 import de.christofreichardt.restapp.shamir.model.Metadata;
-import de.christofreichardt.restapp.shamir.service.MetadataDBService;
-import de.christofreichardt.restapp.shamir.service.MetadataService;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.List;
@@ -22,33 +20,37 @@ import java.util.List;
  *
  * @author Developer
  */
-public class DocumentProcessor implements Runnable, Traceable {
+public class DocumentProcessor implements Traceable {
 
-    final MetadataService metadataService;
     final List<Metadata> pendingDocuments;
     final ShamirsProtection shamirsProtection;
     final KeyStore keyStore;
 
-    public DocumentProcessor(MetadataService metadataService, List<Metadata> pendingDocuments, ShamirsProtection shamirsProtection, KeyStore keyStore) {
-        this.metadataService = metadataService;
+    public DocumentProcessor(List<Metadata> pendingDocuments, ShamirsProtection shamirsProtection, KeyStore keyStore) {
         this.pendingDocuments = pendingDocuments;
         this.shamirsProtection = shamirsProtection;
         this.keyStore = keyStore;
     }
 
-    @Override
-    public void run() {
+    public List<Metadata> getPendingDocuments() {
+        return pendingDocuments;
+    }
+
+    public List<Metadata> processAll() {
         AbstractTracer tracer = getCurrentTracer();
         tracer.initCurrentTracingContext();
-        tracer.entry("void", this, "run()");
+        tracer.entry("void", this, "processAll()");
 
         try {
             tracer.out().printfIndentln("pendingDocuments = %s", this.pendingDocuments);
+            
             try {
                 this.pendingDocuments.forEach(metadata -> processPendingDocument(metadata));
             } catch (Exception ex) {
                 tracer.logException(LogLevel.ERROR, ex, getClass(), "run()");
             }
+                
+            return this.pendingDocuments;
         } finally {
             tracer.wayout();
         }
@@ -73,7 +75,6 @@ public class DocumentProcessor implements Runnable, Traceable {
                             metadata.getDocument().verify(privateKeyEntry.getCertificate().getPublicKey());
                         }
                     }
-                    this.metadataService.savePending(metadata);
                 } else {
                     tracer.logMessage(LogLevel.ERROR, String.format("No such key entry: %s", alias), getClass(), "processPendingDocument(Metadata metadata)");
                 }

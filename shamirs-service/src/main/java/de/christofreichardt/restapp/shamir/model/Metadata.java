@@ -224,8 +224,8 @@ public class Metadata implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Metadata[id=%s, state=%s, action=%s, alias=%s, validated=%b, mediaType=%s, creationTime=%s, modificationTime=%s]",
-                this.id, this.state, this.action, this.alias, this.isValidated(), this.mediaType,
+        return String.format("Metadata[id=%s, title=%s, state=%s, action=%s, alias=%s, validated=%b, mediaType=%s, creationTime=%s, modificationTime=%s]",
+                this.id, this.title, this.state, this.action, this.alias, this.isValidated(), this.mediaType,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
         );

@@ -26,6 +26,7 @@ import java.security.KeyStore;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -94,30 +95,19 @@ public class DocumentRS extends BaseRS {
             tracer.out().printfIndentln("contentType = %s", contentType);
             tracer.out().printfIndentln("docTitle = %s", docTitle);
 
+            // guard clauses
             if (!contentType.equalsIgnoreCase("application/xml")) {
-                String message = String.format("Only 'application/xml' documents are supported yet.", sessionId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), methodSignature);
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("Only 'application/xml' documents are supported yet.", sessionId));
             }
             if (!(Objects.equals(MetadataAction.SIGN.name(), action) || Objects.equals(MetadataAction.VERIFY.name(), action))) {
-                String message = String.format("Only signing and validating are supported.", sessionId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), methodSignature);
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("Only signing and validating are supported.", sessionId));
             }
             Optional<Session> session = this.sessionService.findByIDWithMetadata(sessionId); // TODO: think about fetching the slices as well
             if (session.isEmpty()) {
-                String message = String.format("No such Session[id=%s].", sessionId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), methodSignature);
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("No such Session[id=%s].", sessionId));
             }
             if (session.get().getPhase() == Session.Phase.CLOSED) {
-                String message = String.format("Session[id=%s] has been closed already.", sessionId);
-                tracer.logMessage(LogLevel.ERROR, message, getClass(), methodSignature);
-                ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
-                return errorResponse.build();
+                return badRequest(String.format("Session[id=%s] has been closed already.", sessionId));
             }
 
             try {
@@ -141,13 +131,15 @@ public class DocumentRS extends BaseRS {
                     Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(session.get().getKeystore().getId()); // TODO: check error conditions
                     ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.get().sharePoints());
                     KeyStore keyStore = dbKeystore.get().keystoreInstance();
-                    DocumentProcessor documentProcessor = new DocumentProcessor(this.metadataService, List.of(metadata), shamirsProtection, keyStore);
-                    Future<?> future = this.executorService.submit(documentProcessor);
+                    DocumentProcessor documentProcessor = new DocumentProcessor(List.of(metadata), shamirsProtection, keyStore);
+                    Future<?> future = CompletableFuture.supplyAsync(() -> documentProcessor.processAll(), this.executorService)
+                            .thenAcceptAsync(metadatas -> this.metadataService.saveAll(metadatas), this.executorService)
+                            .toCompletableFuture();
                     try {
                         final int TIMEOUT = 250; // TODO: think about configuration
                         future.get(TIMEOUT, TimeUnit.MILLISECONDS);
                     } catch (TimeoutException timeoutException) {
-                        tracer.logMessage(LogLevel.INFO, String.format("Timeout expired for %s. Moving on ...", document), getClass(), 
+                        tracer.logMessage(LogLevel.INFO, String.format("Timeout expired for %s. Moving on ...", document), getClass(),
                                 "processDocument(String sessionId, String action, String alias, String contentType, String docTitle, InputStream inputStream)");
                         responseStatus = Response.Status.ACCEPTED;
                     }
@@ -176,7 +168,7 @@ public class DocumentRS extends BaseRS {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Path("sessions/{sessionId}/metadata")
+    @Path("sessions/{sessionId}/metadata") // TODO: think about changing this Path to "sessions/{sessionId}/documents"
     public Response documents(@PathParam("sessionId") String sessionId) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "documents(String sessionId)");

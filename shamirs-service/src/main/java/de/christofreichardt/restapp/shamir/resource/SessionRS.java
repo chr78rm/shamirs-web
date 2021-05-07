@@ -28,6 +28,7 @@ import java.time.temporal.TemporalUnit;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -145,67 +146,6 @@ public class SessionRS extends BaseRS {
         }
     }
 
-    class SessionActivationService implements Runnable, Traceable {
-
-        final List<Metadata> pendingDocuments;
-        final ShamirsProtection shamirsProtection;
-        final KeyStore keyStore;
-
-        public SessionActivationService(List<Metadata> pendingDocuments, ShamirsProtection shamirsProtection, KeyStore keyStore) {
-            this.pendingDocuments = pendingDocuments;
-            this.shamirsProtection = shamirsProtection;
-            this.keyStore = keyStore;
-        }
-
-        @Override
-        public void run() {
-            AbstractTracer tracer = getCurrentTracer();
-            tracer.initCurrentTracingContext();
-            tracer.entry("void", this, "run()");
-
-            try {
-                tracer.out().printfIndentln("pendingDocuments = %s", this.pendingDocuments);
-                try {
-                    this.pendingDocuments.forEach(metadata -> processPendingDocument(metadata));
-                } catch (Exception ex) {
-                    tracer.logException(LogLevel.ERROR, ex, getClass(), "run()");
-                }
-            } finally {
-                tracer.wayout();
-            }
-        }
-        
-        void processPendingDocument(Metadata metadata) {
-            AbstractTracer tracer = getCurrentTracer();
-            tracer.entry("void", this, "processPendingDocuments(Metadata metadata)");
-
-            try {
-                try {
-                    String alias = metadata.getAlias();
-                    if (this.keyStore.containsAlias(alias)) {
-                        if (!this.keyStore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
-                            throw new UnsupportedOperationException("Document encryption isn't implemented yet.");
-                        }
-                        KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) this.keyStore.getEntry(alias, this.shamirsProtection);
-                        metadata.getDocument().sign(privateKeyEntry.getPrivateKey());
-                        SessionRS.this.metadataService.savePending(metadata);
-                    } else {
-                        tracer.logMessage(LogLevel.ERROR, String.format("No such key entry: %s", alias), getClass(), "processPendingDocument(Metadata metadata)");
-                    }
-                } catch (GeneralSecurityException ex) {
-                    throw new RuntimeException(ex);
-                }
-            } finally {
-                tracer.wayout();
-            }
-        }
-
-        @Override
-        public AbstractTracer getCurrentTracer() {
-            return TracerFactory.getInstance().getCurrentPoolTracer();
-        }
-    }
-
     Response activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
@@ -235,9 +175,11 @@ public class SessionRS extends BaseRS {
                 currentSession.setIdleTime(duration.getSeconds());
                 currentSession.setModificationTime(LocalDateTime.now());
                 currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
-                List<Metadata> pendingDocuments = this.metadataService.findPendingBySession(sessionId);
-                this.executorService.submit(new SessionActivationService(pendingDocuments, shamirsProtection, keyStore));
                 this.sessionService.save(currentSession);
+                List<Metadata> pendingDocuments = this.metadataService.findPendingBySession(sessionId);
+                DocumentProcessor documentProcessor = new DocumentProcessor(pendingDocuments, shamirsProtection, keyStore);
+                CompletableFuture.supplyAsync(() -> documentProcessor.processAll(), this.executorService)
+                        .thenAcceptAsync(metadatas -> this.metadataService.saveAll(metadatas), this.executorService);
 
                 response = ok(currentSession.toJson());
             } catch (GeneralSecurityException | IOException | IllegalArgumentException ex) {
@@ -324,7 +266,7 @@ public class SessionRS extends BaseRS {
             if (!Objects.equals(session.get().getKeystore().getId(), keystoreId)) {
                 return badRequest(String.format("No Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
             }
-            
+
             return ok(session.get().toJson(true));
         } finally {
             tracer.wayout();
