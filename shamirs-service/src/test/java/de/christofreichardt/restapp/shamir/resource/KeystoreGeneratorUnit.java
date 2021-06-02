@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.locks.Lock;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
@@ -156,9 +155,6 @@ public class KeystoreGeneratorUnit implements Traceable, WithAssertions {
     @Autowired
     EntityManagerFactory entityManagerFactory;
 
-    @Autowired
-    Lock lock;
-
     @BeforeAll
     void init() throws GeneralSecurityException, IOException {
         AbstractTracer tracer = getCurrentTracer();
@@ -172,15 +168,10 @@ public class KeystoreGeneratorUnit implements Traceable, WithAssertions {
 
             Security.addProvider(new ShamirsProvider());
 
-            this.lock.lock();
-            try {
-                this.jdbcTemplate = new JdbcTemplate(this.dataSource);
-                this.scenario = new Scenario(this.jdbcTemplate);
-                this.scenario.setup();
-                this.entityManagerFactory.getCache().evictAll();
-            } finally {
-                this.lock.unlock();
-            }
+            this.jdbcTemplate = new JdbcTemplate(this.dataSource);
+            this.scenario = new Scenario(this.jdbcTemplate);
+            this.scenario.setup();
+            this.entityManagerFactory.getCache().evictAll();
         } finally {
             tracer.wayout();
         }

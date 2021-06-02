@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.locks.Lock;
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import javax.xml.crypto.MarshalException;
@@ -68,9 +67,6 @@ public class XMLSignatureUnit implements Traceable, WithAssertions {
     EntityManagerFactory entityManagerFactory;
 
     @Autowired
-    Lock lock;
-
-    @Autowired
     KeystoreService keystoreService;
 
     @BeforeAll
@@ -86,15 +82,10 @@ public class XMLSignatureUnit implements Traceable, WithAssertions {
 
             Security.addProvider(new ShamirsProvider());
 
-            this.lock.lock();
-            try {
-                this.jdbcTemplate = new JdbcTemplate(this.dataSource);
-                this.scenario = new Scenario(this.jdbcTemplate);
-                this.scenario.setup();
-                this.entityManagerFactory.getCache().evictAll();
-            } finally {
-                this.lock.unlock();
-            }
+            this.jdbcTemplate = new JdbcTemplate(this.dataSource);
+            this.scenario = new Scenario(this.jdbcTemplate);
+            this.scenario.setup();
+            this.entityManagerFactory.getCache().evictAll();
         } finally {
             tracer.wayout();
         }

@@ -11,6 +11,7 @@ import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
+import de.christofreichardt.restapp.shamir.SessionSanitizer;
 import de.christofreichardt.restapp.shamir.ShamirsApp;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
@@ -32,7 +33,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.locks.Lock;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import org.assertj.core.api.WithAssertions;
@@ -71,9 +76,12 @@ public class SessionUnit implements Traceable, WithAssertions {
     
     @Autowired
     EntityManagerFactory entityManagerFactory;
-    
+
     @Autowired
-    Lock lock;
+    ScheduledExecutorService scheduledExecutorService;
+
+    @Autowired
+    SessionSanitizer sessionSanitizer;
 
     @BeforeAll
     void init() throws GeneralSecurityException, IOException {
@@ -88,15 +96,10 @@ public class SessionUnit implements Traceable, WithAssertions {
 
             Security.addProvider(new ShamirsProvider());
             
-            this.lock.lock();
-            try {
-                this.jdbcTemplate = new JdbcTemplate(this.dataSource);
-                this.scenario = new Scenario(this.jdbcTemplate);
-                this.scenario.setup();
-                this.entityManagerFactory.getCache().evictAll();
-            } finally {
-                this.lock.unlock();
-            }
+            this.jdbcTemplate = new JdbcTemplate(this.dataSource);
+            this.scenario = new Scenario(this.jdbcTemplate);
+            this.scenario.setup();
+            this.entityManagerFactory.getCache().evictAll();
         } finally {
             tracer.wayout();
         }
@@ -104,7 +107,7 @@ public class SessionUnit implements Traceable, WithAssertions {
 
     @Test
     @Order(1)
-    void rollover() throws InterruptedException, SQLException, GeneralSecurityException, IOException {
+    void rollover() throws InterruptedException, SQLException, GeneralSecurityException, IOException, ExecutionException, TimeoutException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "rollover()");
 
@@ -190,8 +193,8 @@ public class SessionUnit implements Traceable, WithAssertions {
                 assertThat(result.size()).isEqualTo(7);
                 tracer.out().printfIndentln("------------");
 
-                final long FIXED_RATE = 2500L;
-                Thread.sleep((IDLE_TIME + 2) * 1000 + (2 * FIXED_RATE));
+                ScheduledFuture<?> scheduledFuture = this.scheduledExecutorService.schedule(this.sessionSanitizer, IDLE_TIME + 2, TimeUnit.SECONDS);
+                scheduledFuture.get(IDLE_TIME + 5, TimeUnit.SECONDS);
 
                 result = this.jdbcTemplate.query(
                         String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.CLOSED.name()), 

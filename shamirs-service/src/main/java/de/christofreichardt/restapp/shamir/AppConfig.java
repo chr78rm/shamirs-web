@@ -35,16 +35,21 @@ public class AppConfig {
 
     @Autowired
     Environment environment;
-
+    
     @PostConstruct
     void init() {
-        long initialDelay = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.initialDelay"));
-        long period = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.period"));
-        TimeUnit timeUnit = TimeUnit.of(ChronoUnit.valueOf(this.environment.getProperty("de.christofreichardt.restapp.shamir.temporalUnit")));
-        
-        LOGGER.info(String.format("Scheduling sanitizer service [initialDelay=%d, period=%d, timeUnit=%s] ...", initialDelay, period, timeUnit));
-        
-        this.scheduledExecutorService.scheduleAtFixedRate(this.sessionSanitizer, initialDelay, period, timeUnit);
+        boolean scheduleSanitizer = Boolean.valueOf(this.environment.getProperty("de.christofreichardt.restapp.shamir.scheduleSanitizer", "true"));
+        if (scheduleSanitizer) {
+            long initialDelay = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.initialDelay"));
+            long period = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.period"));
+            TimeUnit timeUnit = TimeUnit.of(ChronoUnit.valueOf(this.environment.getProperty("de.christofreichardt.restapp.shamir.temporalUnit")));
+
+            LOGGER.info(String.format("Scheduling sanitizer service [initialDelay=%d, period=%d, timeUnit=%s] ...", initialDelay, period, timeUnit));
+
+            this.scheduledExecutorService.scheduleAtFixedRate(this.sessionSanitizer, initialDelay, period, timeUnit);
+        } else {
+            LOGGER.info(String.format("Scheduling sanitizer service skipped ..."));
+        }
     }
 
     @PreDestroy
