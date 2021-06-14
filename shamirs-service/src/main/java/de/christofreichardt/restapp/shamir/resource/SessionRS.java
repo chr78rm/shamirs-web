@@ -6,7 +6,6 @@
 package de.christofreichardt.restapp.shamir.resource;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
-import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProtection;

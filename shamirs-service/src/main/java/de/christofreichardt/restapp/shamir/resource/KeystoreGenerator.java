@@ -180,10 +180,10 @@ public class KeystoreGenerator implements Traceable {
                     .forEach(keyInfo -> {
                         try {
                             KeyGenerator keyGenerator = KeyGenerator.getInstance(algorithm);
-                            keyGenerator.init(keyInfo.getInt("keySize", 256));
+                            keyGenerator.init(keyInfo.getInt("keySize"));
                             SecretKey secretKey = keyGenerator.generateKey();
                             KeyStore.SecretKeyEntry secretKeyEntry = new KeyStore.SecretKeyEntry(secretKey);
-                            this.keyStore.setEntry(keyInfo.getString("alias", ""), secretKeyEntry, new ShamirsProtection(this.partition));
+                            this.keyStore.setEntry(keyInfo.getString("alias"), secretKeyEntry, new ShamirsProtection(this.partition));
                         } catch (GeneralSecurityException ex) {
                             throw new RuntimeException(ex);
                         }

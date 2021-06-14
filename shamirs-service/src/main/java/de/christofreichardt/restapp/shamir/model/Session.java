@@ -228,7 +228,7 @@ public class Session implements Serializable {
             JsonArrayBuilder documentsTypeBuilder = Json.createArrayBuilder()
                     .add("GET");
             if (this.getPhase() != Phase.CLOSED) {
-                documentsTypeBuilder.add("PUT");
+                documentsTypeBuilder.add("POST");
             }
             JsonArray documentsTypes = documentsTypeBuilder.build();
             linksBuilder

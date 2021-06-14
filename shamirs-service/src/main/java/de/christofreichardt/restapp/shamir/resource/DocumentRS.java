@@ -168,7 +168,7 @@ public class DocumentRS extends BaseRS {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Path("sessions/{sessionId}/metadata") // TODO: think about changing this Path to "sessions/{sessionId}/documents"
+    @Path("sessions/{sessionId}/documents")
     public Response documents(@PathParam("sessionId") String sessionId) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "documents(String sessionId)");
@@ -184,11 +184,7 @@ public class DocumentRS extends BaseRS {
                     .add("documents", metadatas)
                     .build();
 
-            return Response.status(Response.Status.OK)
-                    .entity(metadataInfo)
-                    .type(MediaType.APPLICATION_JSON)
-                    .encoding("UTF-8")
-                    .build();
+            return ok(metadataInfo);
         } finally {
             tracer.wayout();
         }

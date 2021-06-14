@@ -147,7 +147,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
             try ( Response response = this.client.target(this.baseUrl)
                     .path("sessions")
                     .path(SESSION_ID)
-                    .path("metadata")
+                    .path("documents")
                     .request(MediaType.APPLICATION_JSON)
                     .get()) {
                 tracer.out().printfIndentln("response = %s", response);
