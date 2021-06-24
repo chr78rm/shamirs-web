@@ -11,6 +11,7 @@ import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Metadata;
 import de.christofreichardt.restapp.shamir.model.Session;
@@ -166,7 +167,7 @@ public class SessionRS extends BaseRS {
             try {
                 ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.get().sharePoints());
                 KeyStore keyStore = dbKeystore.get().keystoreInstance();
-                currentSession.setPhase(Session.Phase.ACTIVE);
+                currentSession.setPhase(SessionPhase.ACTIVE);
                 JsonObject automaticClose = sessionInstructions.getJsonObject("activation").getJsonObject("automaticClose");
                 int idleTime = automaticClose.getInt("idleTime");
                 TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
@@ -234,7 +235,7 @@ public class SessionRS extends BaseRS {
             if (!Objects.equals(currentSession.getId(), sessionId)) {
                 return badRequest(String.format("No such Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
             }
-            if (Session.Phase.ACTIVE != currentSession.getPhase()) {
+            if (SessionPhase.ACTIVE != currentSession.getPhase()) {
                 return badRequest(String.format("Session[id=%s] isn't active.", sessionId));
             }
 

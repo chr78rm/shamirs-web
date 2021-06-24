@@ -8,6 +8,7 @@ package de.christofreichardt.restapp.shamir.resource;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Participant;
 import de.christofreichardt.restapp.shamir.model.Session;
@@ -90,7 +91,7 @@ public class KeystoreRS extends BaseRS {
                 keystore.setShares(keystoreGenerator.shares());
                 keystore.setThreshold(keystoreGenerator.threshold());
                 Session session = new Session();
-                session.setPhase(Session.Phase.PROVISIONED);
+                session.setPhase(SessionPhase.PROVISIONED);
                 session.setKeystore(keystore);
                 keystore.getSessions().add(session);
                 this.keystoreService.persist(keystore);

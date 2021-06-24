@@ -5,6 +5,7 @@
  */
 package de.christofreichardt.restapp.shamir.model;
 
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -48,8 +49,6 @@ import javax.validation.constraints.Size;
 })
 public class Session implements Serializable { 
     
-    public enum Phase {PROVISIONED, ACTIVE, CLOSED}; // TODO: move this to shamirs-common
-
     private static final long serialVersionUID = 1L;
     
     @Id
@@ -118,11 +117,11 @@ public class Session implements Serializable {
         this.id = id;
     }
 
-    public Phase getPhase() {
-        return Enum.valueOf(Phase.class, this.phase);
+    public SessionPhase getPhase() {
+        return Enum.valueOf(SessionPhase.class, this.phase);
     }
 
-    public void setPhase(Phase phase) {
+    public void setPhase(SessionPhase phase) {
         this.phase = phase.name();
     }
 
@@ -214,7 +213,7 @@ public class Session implements Serializable {
     public JsonObject toJson(boolean inFull) {
         JsonArrayBuilder selfTypeBuilder = Json.createArrayBuilder()
                 .add("GET");
-        if (!Objects.equals(this.phase, Phase.CLOSED.name())) {
+        if (!Objects.equals(this.phase, SessionPhase.CLOSED.name())) {
             selfTypeBuilder.add("PUT");
         }
         JsonArray selfTypes = selfTypeBuilder.build();
@@ -227,7 +226,7 @@ public class Session implements Serializable {
         if (inFull) {
             JsonArrayBuilder documentsTypeBuilder = Json.createArrayBuilder()
                     .add("GET");
-            if (this.getPhase() != Phase.CLOSED) {
+            if (this.getPhase() != SessionPhase.CLOSED) {
                 documentsTypeBuilder.add("POST");
             }
             JsonArray documentsTypes = documentsTypeBuilder.build();

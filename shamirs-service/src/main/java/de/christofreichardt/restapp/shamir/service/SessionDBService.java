@@ -8,6 +8,7 @@ package de.christofreichardt.restapp.shamir.service;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.Session;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -94,7 +95,7 @@ public class SessionDBService implements SessionService, Traceable {
             
             return this.entityManager.createQuery("SELECT s "
                     + "FROM Session s "
-                    + "WHERE s.keystore.id = :keystoreId AND s.phase != '" + Session.Phase.CLOSED.name() + "'", Session.class)
+                    + "WHERE s.keystore.id = :keystoreId AND s.phase != '" + SessionPhase.CLOSED.name() + "'", Session.class)
                     .setParameter("keystoreId", keystoreId)
                     .getSingleResult();
         } finally {
@@ -113,8 +114,8 @@ public class SessionDBService implements SessionService, Traceable {
             tracer.out().printfIndentln("currentTime = %s", currentTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
             
             return this.entityManager.createQuery("UPDATE Session s "
-                    + "SET s.phase ='" + Session.Phase.CLOSED.name() + "' "
-                    + "WHERE s.phase = '" + Session.Phase.ACTIVE.name() + "' AND s.expirationTime < :currentTime")
+                    + "SET s.phase ='" + SessionPhase.CLOSED.name() + "' "
+                    + "WHERE s.phase = '" + SessionPhase.ACTIVE.name() + "' AND s.expirationTime < :currentTime")
                     .setParameter("currentTime", currentTime)
                     .executeUpdate();
         } finally {

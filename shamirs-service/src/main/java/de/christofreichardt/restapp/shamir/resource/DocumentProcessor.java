@@ -66,7 +66,7 @@ public class DocumentProcessor implements Traceable {
                 if (this.keyStore.containsAlias(alias)) {
                     if (metadata.getAction() == MetadataAction.SIGN || metadata.getAction() == MetadataAction.VERIFY) {
                         if (!this.keyStore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
-                            throw new RuntimeException("Signing/Verifying needs a private key entry.");
+                            throw new RuntimeException("Signing/Verifying needs a private key entry."); // TODO: Don't raise an exception, mark the Metadata instance as faulty instead.
                         }
                         KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) this.keyStore.getEntry(alias, this.shamirsProtection);
                         if (metadata.getAction() == MetadataAction.SIGN) {

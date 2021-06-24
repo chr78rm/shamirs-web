@@ -13,6 +13,7 @@ import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.restapp.shamir.SessionSanitizer;
 import de.christofreichardt.restapp.shamir.ShamirsApp;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.Slice;
@@ -127,12 +128,12 @@ public class SessionUnit implements Traceable, WithAssertions {
 
                 Session currentSession = databasedKeystore.get().getSessions().iterator().next();
                 tracer.out().printfIndentln("currentSession = %s", currentSession);
-                assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED);
+                assertThat(currentSession.getPhase()).isEqualTo(SessionPhase.PROVISIONED);
                 assertThat(currentSession.getId()).isEqualTo(SESSION_ID);
                 assertThat(currentSession.getKeystore().getId()).isEqualTo(KEYSTORE_ID);
 
                 Duration duration = Duration.of(IDLE_TIME, ChronoUnit.SECONDS);
-                currentSession.setPhase(Session.Phase.ACTIVE);
+                currentSession.setPhase(SessionPhase.ACTIVE);
                 currentSession.setIdleTime(duration.getSeconds());
                 currentSession.setModificationTime(LocalDateTime.now());
                 currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
@@ -176,7 +177,7 @@ public class SessionUnit implements Traceable, WithAssertions {
                 };
 
                 List<Map<String, Object>> result = this.jdbcTemplate.query(
-                        String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.ACTIVE.name()), 
+                        String.format(selectKeystoreWithSession, KEYSTORE_ID, SessionPhase.ACTIVE.name()), 
                         keystoreWithSessionRowMapper
                 );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
@@ -197,14 +198,14 @@ public class SessionUnit implements Traceable, WithAssertions {
                 scheduledFuture.get(IDLE_TIME + 5, TimeUnit.SECONDS);
 
                 result = this.jdbcTemplate.query(
-                        String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.CLOSED.name()), 
+                        String.format(selectKeystoreWithSession, KEYSTORE_ID, SessionPhase.CLOSED.name()), 
                         keystoreWithSessionRowMapper
                 );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
                 tracer.out().flush();
                 assertThat(result.size()).isEqualTo(1);
                 result = this.jdbcTemplate.query(
-                        String.format(selectKeystoreWithSession, KEYSTORE_ID, Session.Phase.PROVISIONED.name()), 
+                        String.format(selectKeystoreWithSession, KEYSTORE_ID, SessionPhase.PROVISIONED.name()), 
                         keystoreWithSessionRowMapper
                 );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
@@ -263,7 +264,7 @@ public class SessionUnit implements Traceable, WithAssertions {
 
                 Session currentSession = databasedKeystore.get().getSessions().iterator().next();
                 tracer.out().printfIndentln("currentSession = %s", currentSession);
-                assertThat(currentSession.getPhase()).isEqualTo(Session.Phase.PROVISIONED);
+                assertThat(currentSession.getPhase()).isEqualTo(SessionPhase.PROVISIONED);
                 
                 KeyStore keyStore = databasedKeystore.get().keystoreInstance();
                 ShamirsProtection shamirsProtection = new ShamirsProtection(databasedKeystore.get().sharePoints());

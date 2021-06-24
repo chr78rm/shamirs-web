@@ -6,6 +6,7 @@
 package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
@@ -158,7 +159,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.hasEntity()).isTrue();
                 JsonArray sessions = response.readEntity(JsonObject.class).getJsonArray("sessions");
                 assertThat(sessions.size() == 1).isTrue();
-                assertThat(sessions.getJsonObject(0).getString("phase")).isEqualTo("PROVISIONED");
+                assertThat(sessions.getJsonObject(0).getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
             }
         } finally {
             tracer.wayout();
@@ -225,7 +226,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
             }
  
             JsonObject sessionInstructions = Json.createObjectBuilder()
@@ -251,7 +252,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("ACTIVE");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.ACTIVE.name());
                 assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
             }
             
@@ -284,7 +285,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("CLOSED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.CLOSED.name());
             }
             
             // check that the rolled over keystore is loadable
@@ -322,7 +323,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                         .filter(session -> Objects.equals(session.getString("id"), SESSION_ID))
                         .findFirst();
                 assertThat(sessionView).isPresent();
-                assertThat(sessionView.get().getString("phase")).isEqualTo("CLOSED");
+                assertThat(sessionView.get().getString("phase")).isEqualTo(SessionPhase.CLOSED.name());
             }
             
             // retrieve the current session for given keystore
@@ -368,7 +369,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("CLOSED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.CLOSED.name());
             }
  
             JsonObject sessionInstructions = Json.createObjectBuilder()
@@ -421,7 +422,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
             }
             
             JsonObject sessionInstructions = Json.createObjectBuilder()
@@ -493,7 +494,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
             }
             
             JsonObject activateSessionInstructions = Json.createObjectBuilder()
@@ -549,7 +550,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("CLOSED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.CLOSED.name());
             }
         } finally {
             tracer.wayout();
@@ -596,7 +597,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
             }
             
             JsonObject closeSessionInstructions = Json.createObjectBuilder()
@@ -658,7 +659,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
             }
             
             JsonObject activateSessionInstructions = Json.createObjectBuilder()

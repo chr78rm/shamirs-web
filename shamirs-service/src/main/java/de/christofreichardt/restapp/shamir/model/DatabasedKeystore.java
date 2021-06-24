@@ -9,6 +9,7 @@ import de.christofreichardt.jca.shamir.ShamirsLoadParameter;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -317,7 +318,7 @@ public class DatabasedKeystore implements Serializable {
     
     Optional<Session> currentSession() {
         return this.sessions.stream()
-                .filter(session -> Session.Phase.CLOSED != session.getPhase())
+                .filter(session -> SessionPhase.CLOSED != session.getPhase())
                 .findFirst();
     }
 

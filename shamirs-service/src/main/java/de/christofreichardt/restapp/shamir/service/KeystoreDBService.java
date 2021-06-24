@@ -13,6 +13,7 @@ import de.christofreichardt.jca.shamir.PasswordGenerator;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.Slice;
@@ -153,7 +154,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             keystore = this.entityManager.createQuery(
                     "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s "
                     + "WHERE k = :keystore "
-                    + "AND s.phase != '" + Session.Phase.CLOSED.name() + "'",
+                    + "AND s.phase != '" + SessionPhase.CLOSED.name() + "'",
                     DatabasedKeystore.class)
                     .setParameter("keystore", keystore)
                     .getSingleResult();
@@ -242,7 +243,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                 keystore = this.entityManager.createQuery(
                         "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s "
                         + "WHERE k = :keystore "
-                        + "AND s.phase != '" + Session.Phase.CLOSED.name() + "'",
+                        + "AND s.phase != '" + SessionPhase.CLOSED.name() + "'",
                         DatabasedKeystore.class)
                         .setParameter("keystore", keystore)
                         .getSingleResult();
@@ -386,13 +387,13 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                 databasedKeystore.getSlices().addAll(nextSlices);
                 databasedKeystore.setCurrentPartitionId(nextPartitionId);
                 databasedKeystore.getSessions().stream()
-                        .filter(session -> Session.Phase.ACTIVE == session.getPhase())
+                        .filter(session -> SessionPhase.ACTIVE == session.getPhase())
                         .forEach(session -> {
-                            session.setPhase(Session.Phase.CLOSED);
+                            session.setPhase(SessionPhase.CLOSED);
                             session.setModificationTime(LocalDateTime.now());
                         });
                 Session session = new Session();
-                session.setPhase(Session.Phase.PROVISIONED);
+                session.setPhase(SessionPhase.PROVISIONED);
                 session.setKeystore(databasedKeystore);
                 databasedKeystore.getSessions().add(session);
                 databasedKeystore.setStore(nextKeystoreBytes);

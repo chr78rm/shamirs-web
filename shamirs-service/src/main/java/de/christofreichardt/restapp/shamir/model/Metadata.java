@@ -6,6 +6,7 @@
 package de.christofreichardt.restapp.shamir.model;
 
 import de.christofreichardt.restapp.shamir.common.MetadataAction;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -248,12 +249,12 @@ public class Metadata implements Serializable {
         if (inFull) {
             JsonArrayBuilder sessionTypeBuilder = Json.createArrayBuilder()
                     .add("GET");
-            if (this.session.getPhase() != Session.Phase.CLOSED) {
+            if (this.session.getPhase() != SessionPhase.CLOSED) {
                 sessionTypeBuilder.add("PUT");
             }
             JsonArrayBuilder documentTypesBuilder = Json.createArrayBuilder()
                     .add("GET");
-            if (this.session.getPhase() == Session.Phase.PROVISIONED) {
+            if (this.session.getPhase() == SessionPhase.PROVISIONED) {
                 documentTypesBuilder.add("PUT");
             }
             linksBuilder

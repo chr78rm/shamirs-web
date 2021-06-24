@@ -7,6 +7,7 @@ package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.restapp.shamir.common.MetadataAction;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,7 +74,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
                 Optional<JsonObject> documentsLink = session.getJsonArray("links").stream()
                         .map(link -> link.asJsonObject())
                         .filter(link -> Objects.equals(link.getString("rel"), "documents"))
@@ -139,7 +140,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("PROVISIONED");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
             }
 
             // retrieve the metadata for all documents
@@ -195,7 +196,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("ACTIVE");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.ACTIVE.name());
                 assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
             }
 
@@ -284,7 +285,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("ACTIVE");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.ACTIVE.name());
                 Optional<JsonObject> documentsLink = session.getJsonArray("links").stream()
                         .map(link -> link.asJsonObject())
                         .filter(link -> Objects.equals(link.getString("rel"), "documents"))
@@ -394,7 +395,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
-                assertThat(session.getString("phase")).isEqualTo("ACTIVE");
+                assertThat(session.getString("phase")).isEqualTo(SessionPhase.ACTIVE.name());
                 Optional<JsonObject> documentsLink = session.getJsonArray("links").stream()
                         .map(link -> link.asJsonObject())
                         .filter(link -> Objects.equals(link.getString("rel"), "documents"))

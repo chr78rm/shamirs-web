@@ -10,6 +10,7 @@ import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.common.MetadataAction;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Document;
 import de.christofreichardt.restapp.shamir.model.Metadata;
@@ -106,7 +107,7 @@ public class DocumentRS extends BaseRS {
             if (session.isEmpty()) {
                 return badRequest(String.format("No such Session[id=%s].", sessionId));
             }
-            if (session.get().getPhase() == Session.Phase.CLOSED) {
+            if (session.get().getPhase() == SessionPhase.CLOSED) {
                 return badRequest(String.format("Session[id=%s] has been closed already.", sessionId));
             }
 
@@ -127,7 +128,7 @@ public class DocumentRS extends BaseRS {
                 session.get().updateModificationTime();
                 this.sessionService.save(session.get());
                 Response.Status responseStatus = Response.Status.CREATED;
-                if (session.get().getPhase() == Session.Phase.ACTIVE) {
+                if (session.get().getPhase() == SessionPhase.ACTIVE) {
                     Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(session.get().getKeystore().getId()); // TODO: check error conditions
                     ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.get().sharePoints());
                     KeyStore keyStore = dbKeystore.get().keystoreInstance();
