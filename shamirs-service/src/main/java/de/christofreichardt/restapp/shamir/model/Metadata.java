@@ -40,7 +40,7 @@ import javax.validation.constraints.Size;
 public class Metadata implements Serializable {
 
     public enum Status {
-        PENDING, PROCESSED, ERROR
+        PENDING, PROCESSED, ERROR // TODO: move this to shamirs-common
     };
 
     private static final long serialVersionUID = 1L;
@@ -254,9 +254,6 @@ public class Metadata implements Serializable {
             }
             JsonArrayBuilder documentTypesBuilder = Json.createArrayBuilder()
                     .add("GET");
-            if (this.session.getPhase() == SessionPhase.PROVISIONED) {
-                documentTypesBuilder.add("PUT");
-            }
             linksBuilder
                     .add(Json.createObjectBuilder()
                             .add("rel", "content")

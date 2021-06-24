@@ -15,6 +15,7 @@ import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.json.JsonPointer;
 import javax.json.JsonValue;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
@@ -622,7 +623,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     }
     
     @Test
-    void activateSessionWithPendingDocuments() {
+    void activateSessionWithPendingDocuments() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "activateSessionWithPendingDocuments()");
 
@@ -631,7 +632,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
             final int IDLE_TIME = 300;
             
             // retrieve keystore view to determine the present session
-            String href;
+            String hrefSession;
             try (Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(KEYSTORE_ID)
@@ -647,12 +648,13 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                         .filter(link -> Objects.equals(link.getString("rel"), "currentSession"))
                         .findFirst();
                 assertThat(currentSessionLink).isNotEmpty();
-                href = currentSessionLink.get().getString("href");
+                hrefSession = currentSessionLink.get().getString("href");
             }
             
             // session should be in phase 'PROVISIONED'
+            String hrefDocuments;
             try (Response response = this.client.target(this.baseUrl)
-                    .path(href)
+                    .path(hrefSession)
                     .request(MediaType.APPLICATION_JSON)
                     .get()) {
                 tracer.out().printfIndentln("response = %s", response);
@@ -660,6 +662,28 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
                 assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
+                hrefDocuments = session.getJsonArray("links").stream()
+                        .map(jsonValue -> jsonValue.asJsonObject())
+                        .filter(link -> link.getString("rel").equals("documents"))
+                        .findFirst()
+                        .orElseThrow()
+                        .getString("href");
+            }
+            
+            // session should have pending documents
+            tracer.out().printfIndentln("hrefDocuments = %s", hrefDocuments);
+            try (Response response = this.client.target(this.baseUrl)
+                    .path(hrefDocuments)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonArray documents = response.readEntity(JsonObject.class).getJsonArray("documents");
+                boolean allMatched = documents.stream()
+                        .map(jsonValue -> jsonValue.asJsonObject())
+                        .allMatch(document -> document.getString("state").equals("PENDING"));
+                assertThat(allMatched).isTrue();
             }
             
             JsonObject activateSessionInstructions = Json.createObjectBuilder()
@@ -675,13 +699,41 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
 
             // activate the provisioned session
             try (Response response = this.client.target(this.baseUrl)
-                    .path(href)
+                    .path(hrefSession)
                     .request(MediaType.APPLICATION_JSON)
                     .put(Entity.json(activateSessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
             }
+            
+            // session should have processed documents
+            final int MAX_TRIALS = 3;
+            int trials = 0;
+            boolean allProcessed = false;
+            do {
+                trials++;
+                tracer.out().printfIndentln("trials = %d", trials);
+                try ( Response response = this.client.target(this.baseUrl)
+                        .path(hrefDocuments)
+                        .request(MediaType.APPLICATION_JSON)
+                        .get()) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                    assertThat(response.hasEntity()).isTrue();
+                    JsonArray documents = response.readEntity(JsonObject.class).getJsonArray("documents");
+                    allProcessed = documents.stream()
+                            .map(jsonValue -> jsonValue.asJsonObject())
+                            .map(document -> document.getString("state"))
+                            .allMatch(state -> state.equals("PROCESSED") || state.equals("ERROR"));
+                    if (allProcessed || trials >= MAX_TRIALS) {
+                        break;
+                    } else {
+                        Thread.sleep(1000);
+                    }
+                }
+            } while (true);
+            assertThat(allProcessed).isTrue();
         } finally {
             tracer.wayout();
         }

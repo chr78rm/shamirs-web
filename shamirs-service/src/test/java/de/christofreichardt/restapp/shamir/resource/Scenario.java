@@ -583,7 +583,11 @@ public class Scenario implements Traceable {
                     new Object[]{"b73ac5ed-81e3-4cdd-94e9-7e2925a9b388", "90d38be1-78f1-417f-99e4-12a082c60141", "pending-doc-1", "PENDING", MetadataAction.SIGN.name(),
                         null, "application/xml", "testers-private-ec-key", CURRENT_TIME, CURRENT_TIME},
                     new Object[]{"374d0eb2-06e7-497e-9eec-7934c6ba7a58", "90d38be1-78f1-417f-99e4-12a082c60141", "pending-doc-2", "PENDING", MetadataAction.SIGN.name(),
-                        null, "application/xml", "testers-private-ec-key", CURRENT_TIME, CURRENT_TIME}
+                        null, "application/xml", "testers-private-ec-key", CURRENT_TIME, CURRENT_TIME},
+                    new Object[]{"74e00512-d3bf-4a6d-b4c8-f2ec3415fd93", "90d38be1-78f1-417f-99e4-12a082c60141", "faulty-pending-doc-1", "PENDING", MetadataAction.SIGN.name(),
+                        null, "application/xml", "testers-private-ec-key", CURRENT_TIME, CURRENT_TIME},
+                    new Object[]{"04d364de-775a-4d4f-b4b0-7bf7d6cde2ee", "90d38be1-78f1-417f-99e4-12a082c60141", "faulty-pending-doc-2", "PENDING", MetadataAction.SIGN.name(),
+                        null, "application/xml", "test-aes-key", CURRENT_TIME, CURRENT_TIME}
             );
 
             String sql = "INSERT INTO metadata (id, session_id, title, status, intended_action, validated, media_type, key_alias, creation_time, modification_time)\n"
@@ -629,6 +633,16 @@ public class Scenario implements Traceable {
                     new Object[]{
                         "374d0eb2-06e7-497e-9eec-7934c6ba7a58", 
                         Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_PENDING_DOCS_KEYSTORE_ID, "pending-doc-2.xml"))),
+                        "xml"
+                    },
+                    new Object[]{
+                        "74e00512-d3bf-4a6d-b4c8-f2ec3415fd93", 
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_PENDING_DOCS_KEYSTORE_ID, "faulty-pending-doc-1.xml"))),
+                        "xml"
+                    },
+                    new Object[]{
+                        "04d364de-775a-4d4f-b4b0-7bf7d6cde2ee", 
+                        Files.readAllBytes(this.keystoreBaseDir.resolve(Path.of(THE_PENDING_DOCS_KEYSTORE_ID, "pending-doc-1.xml"))),
                         "xml"
                     }
             );

@@ -65,18 +65,19 @@ public class DocumentProcessor implements Traceable {
                 String alias = metadata.getAlias();
                 if (this.keyStore.containsAlias(alias)) {
                     if (metadata.getAction() == MetadataAction.SIGN || metadata.getAction() == MetadataAction.VERIFY) {
-                        if (!this.keyStore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
-                            throw new RuntimeException("Signing/Verifying needs a private key entry."); // TODO: Don't raise an exception, mark the Metadata instance as faulty instead.
-                        }
-                        KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) this.keyStore.getEntry(alias, this.shamirsProtection);
-                        if (metadata.getAction() == MetadataAction.SIGN) {
-                            metadata.getDocument().sign(privateKeyEntry.getPrivateKey());
-                        } else if (metadata.getAction() == MetadataAction.VERIFY) {
-                            metadata.getDocument().verify(privateKeyEntry.getCertificate().getPublicKey());
+                        if (this.keyStore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
+                            KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) this.keyStore.getEntry(alias, this.shamirsProtection);
+                            if (metadata.getAction() == MetadataAction.SIGN) {
+                                metadata.getDocument().sign(privateKeyEntry.getPrivateKey());
+                            } else if (metadata.getAction() == MetadataAction.VERIFY) {
+                                metadata.getDocument().verify(privateKeyEntry.getCertificate().getPublicKey());
+                            }
+                        } else {
+                            metadata.setState(Metadata.Status.ERROR);
                         }
                     }
                 } else {
-                    tracer.logMessage(LogLevel.ERROR, String.format("No such key entry: %s", alias), getClass(), "processPendingDocument(Metadata metadata)");
+                    tracer.logMessage(LogLevel.ERROR, String.format("No such key entry: %s", alias), getClass(), "processPendingDocument(Metadata metadata)"); // TODO: set metadata state to faulty
                 }
             } catch (GeneralSecurityException ex) {
                 throw new RuntimeException(ex); // TODO: rethink error handling, processing of other documents should proceed if one fails for specific reasons
