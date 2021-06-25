@@ -73,14 +73,14 @@ public class DocumentProcessor implements Traceable {
                                 metadata.getDocument().verify(privateKeyEntry.getCertificate().getPublicKey());
                             }
                         } else {
-                            metadata.setState(Metadata.Status.ERROR);
+                            metadata.fault("Need a private key.");
                         }
                     }
                 } else {
-                    tracer.logMessage(LogLevel.ERROR, String.format("No such key entry: %s", alias), getClass(), "processPendingDocument(Metadata metadata)"); // TODO: set metadata state to faulty
+                    metadata.fault(String.format("Key entry '%s' not found.", alias));
                 }
             } catch (GeneralSecurityException ex) {
-                throw new RuntimeException(ex); // TODO: rethink error handling, processing of other documents should proceed if one fails for specific reasons
+                metadata.fault(ex.getMessage());
             }
         } finally {
             tracer.wayout();

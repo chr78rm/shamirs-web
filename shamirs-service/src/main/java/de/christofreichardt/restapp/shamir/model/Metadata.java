@@ -40,7 +40,7 @@ import javax.validation.constraints.Size;
 public class Metadata implements Serializable {
 
     public enum Status {
-        PENDING, PROCESSED, ERROR // TODO: move this to shamirs-common
+        NEW, PENDING, PROCESSED, ERROR // TODO: move this to shamirs-common
     };
 
     private static final long serialVersionUID = 1L;
@@ -61,6 +61,10 @@ public class Metadata implements Serializable {
     @NotNull
     @Column(name = "status")
     private String state;
+
+    @Size(max = 128)
+    @Column(name = "error_message")
+    private String errorMessage;
 
     @Size(max = 20)
     @NotNull
@@ -107,6 +111,7 @@ public class Metadata implements Serializable {
         this.title = title;
         this.creationTime = LocalDateTime.now();
         this.modificationTime = LocalDateTime.now();
+        this.state = Status.NEW.name();
     }
 
     public String getId() {
@@ -137,8 +142,8 @@ public class Metadata implements Serializable {
         return Enum.valueOf(Status.class, this.state);
     }
 
-    public void setState(Status state) {
-        this.state = state.name();
+    public String getErrorMessage() {
+        return errorMessage;
     }
 
     public String getMediaType() {
@@ -225,11 +230,37 @@ public class Metadata implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Metadata[id=%s, title=%s, state=%s, action=%s, alias=%s, validated=%b, mediaType=%s, creationTime=%s, modificationTime=%s]",
-                this.id, this.title, this.state, this.action, this.alias, this.isValidated(), this.mediaType,
+        return String.format("Metadata[id=%s, title=%s, state=%s, errorMessage=%s, action=%s, alias=%s, validated=%b, mediaType=%s, creationTime=%s, modificationTime=%s]",
+                this.id, this.title, this.state, this.errorMessage, this.action, this.alias, this.isValidated(), this.mediaType,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
         );
+    }
+    
+    public void fault(String errorMessage) {
+        if (this.getState() == Status.PENDING) {
+            final int MAX_LENGTH = 128;
+            this.errorMessage = errorMessage.substring(0, errorMessage.length() <= MAX_LENGTH ? errorMessage.length() : MAX_LENGTH);
+            this.state = Status.ERROR.name();
+        } else {
+            throw new IllegalStateException();
+        }
+    } 
+    
+    public void processed() {
+        if (this.getState() == Status.PENDING) {
+            this.state = Status.PROCESSED.name();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+    
+    public void pending() {
+        if (this.getState() == Status.NEW) {
+            this.state = Status.PENDING.name();
+        } else {
+            throw new IllegalStateException();
+        }
     }
 
     public JsonObject toJson() {
@@ -269,8 +300,11 @@ public class Metadata implements Serializable {
         JsonObjectBuilder representationBuilder = Json.createObjectBuilder()
                 .add("id", this.id)
                 .add("title", this.title)
-                .add("state", this.state)
-                .add("action", this.action);
+                .add("state", this.state);
+        if (this.getState() == Status.ERROR) {
+            representationBuilder.add("errorMessage", this.errorMessage);
+        }
+        representationBuilder.add("action", this.action);
         if (Objects.nonNull(this.validated)) {
             representationBuilder.add("validated", this.isValidated());
         }

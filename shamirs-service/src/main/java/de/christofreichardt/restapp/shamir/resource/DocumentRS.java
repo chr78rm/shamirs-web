@@ -116,7 +116,7 @@ public class DocumentRS extends BaseRS {
                 Metadata metadata = new Metadata(docTitle);
                 String documentId = metadata.getId();
                 metadata.setSession(session.get());
-                metadata.setState(Metadata.Status.PENDING);
+                metadata.pending();
                 metadata.setAction(Enum.valueOf(MetadataAction.class, action));
                 metadata.setAlias(alias);
                 metadata.setMediaType(contentType);

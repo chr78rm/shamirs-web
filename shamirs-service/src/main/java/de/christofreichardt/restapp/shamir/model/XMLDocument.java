@@ -58,10 +58,10 @@ public class XMLDocument extends Document {
             verified = xmlSignatureProcessor.validate(parsedDocument, publicKey);
             this.getMetadata().setValidated(verified);
             this.setModificationTime(LocalDateTime.now());
-            this.getMetadata().setState(Metadata.Status.PROCESSED);
+            this.getMetadata().processed();
             this.getMetadata().setModificationTime(this.getModificationTime());
         } catch (SAXException | IOException ex) {
-            this.getMetadata().setState(Metadata.Status.ERROR);
+            this.getMetadata().fault(ex.getMessage());
         } catch (ParserConfigurationException | MarshalException | XMLSignatureException ex) {
             throw new RuntimeException(this.getMetadata().toString(), ex);
         }
@@ -86,13 +86,13 @@ public class XMLDocument extends Document {
                 transformer.transform(new DOMSource(signedDocument), new StreamResult(byteArrayOutputStream));
                 this.setContent(byteArrayOutputStream.toByteArray());
                 this.setModificationTime(LocalDateTime.now());
-                this.getMetadata().setState(Metadata.Status.PROCESSED);
+                this.getMetadata().processed();
                 this.getMetadata().setModificationTime(this.getModificationTime());
             } else {
-                this.getMetadata().setState(Metadata.Status.ERROR);
+                this.getMetadata().fault("Document is signed already.");
             }
         } catch (SAXException | IOException ex) {
-            this.getMetadata().setState(Metadata.Status.ERROR);
+            this.getMetadata().fault(ex.getMessage());
         } catch (ParserConfigurationException | GeneralSecurityException | MarshalException | XMLSignatureException | TransformerException ex) {
             throw new RuntimeException(this.getMetadata().toString(), ex);
         }
