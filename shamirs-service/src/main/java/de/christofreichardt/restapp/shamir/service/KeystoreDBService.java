@@ -359,15 +359,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                 Iterator<JsonValue> iter = nextPartition.iterator();
                 Set<Slice> nextSlices = databasedKeystore.getSlices().stream()
                         .filter(slice -> Objects.equals(slice.getPartitionId(), databasedKeystore.getCurrentPartitionId()))
-                        .sorted((Slice slice1, Slice slice2) -> {
-                            if (slice1.getSize() < slice2.getSize()) {
-                                return -1;
-                            } else if (slice1.getSize() > slice2.getSize()) {
-                                return 1;
-                            } else {
-                                return 0;
-                            }
-                        })
+                        .sorted()
 //                        .peek(slice -> tracer.out().printfIndentln("slice = %s", slice))
                         .map(slice -> {
                             slice.setProcessingState(Slice.ProcessingState.EXPIRED.name());

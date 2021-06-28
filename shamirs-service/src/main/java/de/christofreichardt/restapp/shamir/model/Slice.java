@@ -38,51 +38,53 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Slice.findById", query = "SELECT s FROM Slice s WHERE s.id = :id"),
     @NamedQuery(name = "Slice.findByProcessingState", query = "SELECT s FROM Slice s WHERE s.processingState = :processingState"),
     @NamedQuery(name = "Slice.findByEffectiveTime", query = "SELECT s FROM Slice s WHERE s.creationTime = :creationTime")})
-public class Slice implements Serializable {
-    
-    public enum ProcessingState {CREATED, FETCHED, POSTED, EXPIRED};
+public class Slice implements Serializable, Comparable<Slice> {
+
+    public enum ProcessingState {
+        CREATED, FETCHED, POSTED, EXPIRED
+    };
 
     private static final long serialVersionUID = 1L;
-    
+
     @Id
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 36)
     @Column(name = "id")
     private String id;
-    
+
     @Lob
     @Column(name = "share")
     private byte[] share;
-    
+
     @Size(max = 20)
     @Column(name = "processing_state")
     private String processingState;
-    
+
     @Basic(optional = false)
     @NotNull
     @Column(name = "creation_time")
     private LocalDateTime creationTime;
-    
+
     @Basic(optional = false)
     @NotNull
     @Column(name = "modification_time")
     private LocalDateTime modificationTime;
-    
+
     @Basic(optional = false)
     @NotNull
     @Column(name = "partition_id")
     private String partitionId;
-    
+
     @Basic(optional = false)
     @NotNull
     @Column(name = "amount")
     private int size;
-    
+
     @JoinColumn(name = "keystore_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
     private DatabasedKeystore keystore;
-    
+
     @JoinColumn(name = "participant_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
     private Participant participant;
@@ -118,10 +120,10 @@ public class Slice implements Serializable {
     public void setShare(byte[] share) {
         this.share = share;
     }
-    
+
     public void setShare(JsonValue share) {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        try (JsonWriter jsonWriter = Json.createWriter(byteArrayOutputStream)) {
+        try ( JsonWriter jsonWriter = Json.createWriter(byteArrayOutputStream)) {
             jsonWriter.write(share);
         }
         setShare(byteArrayOutputStream.toByteArray());
@@ -184,6 +186,17 @@ public class Slice implements Serializable {
     }
 
     @Override
+    public int compareTo(Slice slice) {
+        if (this.size < slice.size) {
+            return -1;
+        } else if (this.size > slice.size) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
     public int hashCode() {
         int hash = 0;
         hash += (id != null ? id.hashCode() : 0);
@@ -205,11 +218,11 @@ public class Slice implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Slice[id=%s, state=%s, keystore=%s, participant=%s, partitionId=%s, size=%d, creationTime=%s, modificationTime=%s]", 
+        return String.format("Slice[id=%s, state=%s, keystore=%s, participant=%s, partitionId=%s, size=%d, creationTime=%s, modificationTime=%s]",
                 this.id, this.processingState, this.keystore.getDescriptiveName(), this.participant.getPreferredName(), this.partitionId, this.size,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
                 this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US))
         );
     }
-    
+
 }
