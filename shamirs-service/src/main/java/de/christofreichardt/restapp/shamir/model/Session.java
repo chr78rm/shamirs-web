@@ -153,10 +153,6 @@ public class Session implements Serializable {
         return expirationTime;
     }
 
-    public void setExpirationTime(LocalDateTime expirationTime) {
-        this.expirationTime = expirationTime;
-    }
-
     public DatabasedKeystore getKeystore() {
         return keystore;
     }
@@ -202,8 +198,11 @@ public class Session implements Serializable {
         );
     }
     
-    public void updateModificationTime() {
+    public void modified() {
         this.modificationTime = LocalDateTime.now();
+        if (this.getPhase() == SessionPhase.ACTIVE) {
+            this.expirationTime = this.modificationTime.plusSeconds(this.idleTime);
+        }
     }
     
     public JsonObject toJson() {

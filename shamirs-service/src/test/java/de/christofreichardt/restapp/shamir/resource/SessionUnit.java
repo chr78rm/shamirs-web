@@ -135,8 +135,7 @@ public class SessionUnit implements Traceable, WithAssertions {
                 Duration duration = Duration.of(IDLE_TIME, ChronoUnit.SECONDS);
                 currentSession.setPhase(SessionPhase.ACTIVE);
                 currentSession.setIdleTime(duration.getSeconds());
-                currentSession.setModificationTime(LocalDateTime.now());
-                currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
+                currentSession.modified();
                 this.sessionService.save(currentSession);
 
                 String selectKeystoreWithSession = 

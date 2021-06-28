@@ -173,8 +173,7 @@ public class SessionRS extends BaseRS {
                 TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
                 Duration duration = Duration.of(idleTime, temporalUnit);
                 currentSession.setIdleTime(duration.getSeconds());
-                currentSession.setModificationTime(LocalDateTime.now());
-                currentSession.setExpirationTime(currentSession.getModificationTime().plusSeconds(duration.getSeconds()));
+                currentSession.modified();
                 this.sessionService.save(currentSession);
                 List<Metadata> pendingDocuments = this.metadataService.findPendingBySession(sessionId);
                 DocumentProcessor documentProcessor = new DocumentProcessor(pendingDocuments, shamirsProtection, keyStore);

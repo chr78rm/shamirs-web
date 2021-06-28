@@ -125,7 +125,7 @@ public class DocumentRS extends BaseRS {
                 document.setMetadata(metadata);
                 metadata.setDocument(document);
                 session.get().getMetadatas().add(metadata);
-                session.get().updateModificationTime();
+                session.get().modified();
                 this.sessionService.save(session.get());
                 Response.Status responseStatus = Response.Status.CREATED;
                 if (session.get().getPhase() == SessionPhase.ACTIVE) {
