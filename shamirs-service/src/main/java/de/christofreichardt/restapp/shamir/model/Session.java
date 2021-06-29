@@ -7,6 +7,7 @@ package de.christofreichardt.restapp.shamir.model;
 
 import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import java.io.Serializable;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
@@ -98,15 +99,7 @@ public class Session implements Serializable {
         this.id = UUID.randomUUID().toString();
         this.creationTime = LocalDateTime.now();
         this.modificationTime = LocalDateTime.now();
-    }
-
-    public Session(String id) {
-        this.id = id;
-    }
-
-    public Session(String id, LocalDateTime effectiveTime) {
-        this.id = id;
-        this.creationTime = effectiveTime;
+        this.phase = SessionPhase.NEW.name();
     }
 
     public String getId() {
@@ -117,11 +110,27 @@ public class Session implements Serializable {
         this.id = id;
     }
 
-    public SessionPhase getPhase() {
+    private SessionPhase getPhase() {
         return Enum.valueOf(SessionPhase.class, this.phase);
     }
+    
+    public boolean isProvisioned() {
+        return this.getPhase() == SessionPhase.PROVISIONED;
+    }
+    
+    public boolean isNew() {
+        return this.getPhase() == SessionPhase.NEW;
+    }
+    
+    public boolean isActive() {
+        return this.getPhase() == SessionPhase.ACTIVE;
+    }
+    
+    public boolean isClosed() {
+        return this.getPhase() == SessionPhase.CLOSED;
+    }
 
-    public void setPhase(SessionPhase phase) {
+    private void setPhase(SessionPhase phase) {
         this.phase = phase.name();
     }
 
@@ -155,10 +164,6 @@ public class Session implements Serializable {
 
     public DatabasedKeystore getKeystore() {
         return keystore;
-    }
-
-    public void setKeystore(DatabasedKeystore keystore) {
-        this.keystore = keystore;
     }
 
     public Collection<Metadata> getMetadatas() {
@@ -198,9 +203,38 @@ public class Session implements Serializable {
         );
     }
     
+    public void provisionedFor(DatabasedKeystore keystore) {
+        if (this.isNew()) {
+            this.setPhase(SessionPhase.PROVISIONED);
+            this.keystore = keystore;
+            modified();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+    
+    public void activated(Duration duration) {
+        if (this.isProvisioned()) {
+            this.setPhase(SessionPhase.ACTIVE);
+            this.idleTime = duration.getSeconds();
+            modified();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+    
+    public void closed() {
+        if (this.isActive()) {
+            this.setPhase(SessionPhase.CLOSED);
+            modified();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+    
     public void modified() {
         this.modificationTime = LocalDateTime.now();
-        if (this.getPhase() == SessionPhase.ACTIVE) {
+        if (this.isActive()) {
             this.expirationTime = this.modificationTime.plusSeconds(this.idleTime);
         }
     }
@@ -225,7 +259,7 @@ public class Session implements Serializable {
         if (inFull) {
             JsonArrayBuilder documentsTypeBuilder = Json.createArrayBuilder()
                     .add("GET");
-            if (this.getPhase() != SessionPhase.CLOSED) {
+            if (this.isProvisioned() || this.isActive()) {
                 documentsTypeBuilder.add("POST");
             }
             JsonArray documentsTypes = documentsTypeBuilder.build();

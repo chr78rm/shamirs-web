@@ -91,8 +91,7 @@ public class KeystoreRS extends BaseRS {
                 keystore.setShares(keystoreGenerator.shares());
                 keystore.setThreshold(keystoreGenerator.threshold());
                 Session session = new Session();
-                session.setPhase(SessionPhase.PROVISIONED);
-                session.setKeystore(keystore);
+                session.provisionedFor(keystore);
                 keystore.getSessions().add(session);
                 this.keystoreService.persist(keystore);
 

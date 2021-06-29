@@ -10,5 +10,5 @@ package de.christofreichardt.restapp.shamir.common;
  * @author Developer
  */
 public enum SessionPhase {
-    PROVISIONED, ACTIVE, CLOSED
+    NEW, PROVISIONED, ACTIVE, CLOSED
 }

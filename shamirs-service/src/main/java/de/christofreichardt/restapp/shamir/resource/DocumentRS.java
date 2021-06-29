@@ -107,8 +107,8 @@ public class DocumentRS extends BaseRS {
             if (session.isEmpty()) {
                 return badRequest(String.format("No such Session[id=%s].", sessionId));
             }
-            if (session.get().getPhase() == SessionPhase.CLOSED) {
-                return badRequest(String.format("Session[id=%s] has been closed already.", sessionId));
+            if (session.get().isClosed() || session.get().isNew()) {
+                return badRequest(String.format("Illegal state for Session[id=%s].", sessionId));
             }
 
             try {
@@ -128,7 +128,7 @@ public class DocumentRS extends BaseRS {
                 session.get().modified();
                 this.sessionService.save(session.get());
                 Response.Status responseStatus = Response.Status.CREATED;
-                if (session.get().getPhase() == SessionPhase.ACTIVE) {
+                if (session.get().isActive()) {
                     Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(session.get().getKeystore().getId()); // TODO: check error conditions
                     ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.get().sharePoints());
                     KeyStore keyStore = dbKeystore.get().keystoreInstance();

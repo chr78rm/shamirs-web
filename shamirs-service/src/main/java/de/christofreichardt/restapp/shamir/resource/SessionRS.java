@@ -167,13 +167,11 @@ public class SessionRS extends BaseRS {
             try {
                 ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.get().sharePoints());
                 KeyStore keyStore = dbKeystore.get().keystoreInstance();
-                currentSession.setPhase(SessionPhase.ACTIVE);
                 JsonObject automaticClose = sessionInstructions.getJsonObject("activation").getJsonObject("automaticClose");
                 int idleTime = automaticClose.getInt("idleTime");
                 TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
                 Duration duration = Duration.of(idleTime, temporalUnit);
-                currentSession.setIdleTime(duration.getSeconds());
-                currentSession.modified();
+                currentSession.activated(duration);
                 this.sessionService.save(currentSession);
                 List<Metadata> pendingDocuments = this.metadataService.findPendingBySession(sessionId);
                 DocumentProcessor documentProcessor = new DocumentProcessor(pendingDocuments, shamirsProtection, keyStore);
@@ -234,7 +232,7 @@ public class SessionRS extends BaseRS {
             if (!Objects.equals(currentSession.getId(), sessionId)) {
                 return badRequest(String.format("No such Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
             }
-            if (SessionPhase.ACTIVE != currentSession.getPhase()) {
+            if (!currentSession.isActive()) {
                 return badRequest(String.format("Session[id=%s] isn't active.", sessionId));
             }
 

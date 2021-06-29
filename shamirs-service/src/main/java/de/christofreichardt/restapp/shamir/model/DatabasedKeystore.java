@@ -318,7 +318,7 @@ public class DatabasedKeystore implements Serializable {
     
     Optional<Session> currentSession() {
         return this.sessions.stream()
-                .filter(session -> SessionPhase.CLOSED != session.getPhase())
+                .filter(session -> session.isActive() || session.isProvisioned())
                 .findFirst();
     }
 

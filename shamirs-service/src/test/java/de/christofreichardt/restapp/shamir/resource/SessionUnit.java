@@ -128,14 +128,12 @@ public class SessionUnit implements Traceable, WithAssertions {
 
                 Session currentSession = databasedKeystore.get().getSessions().iterator().next();
                 tracer.out().printfIndentln("currentSession = %s", currentSession);
-                assertThat(currentSession.getPhase()).isEqualTo(SessionPhase.PROVISIONED);
+                assertThat(currentSession.isProvisioned()).isTrue();
                 assertThat(currentSession.getId()).isEqualTo(SESSION_ID);
                 assertThat(currentSession.getKeystore().getId()).isEqualTo(KEYSTORE_ID);
 
                 Duration duration = Duration.of(IDLE_TIME, ChronoUnit.SECONDS);
-                currentSession.setPhase(SessionPhase.ACTIVE);
-                currentSession.setIdleTime(duration.getSeconds());
-                currentSession.modified();
+                currentSession.activated(duration);
                 this.sessionService.save(currentSession);
 
                 String selectKeystoreWithSession = 
@@ -263,7 +261,7 @@ public class SessionUnit implements Traceable, WithAssertions {
 
                 Session currentSession = databasedKeystore.get().getSessions().iterator().next();
                 tracer.out().printfIndentln("currentSession = %s", currentSession);
-                assertThat(currentSession.getPhase()).isEqualTo(SessionPhase.PROVISIONED);
+                assertThat(currentSession.isProvisioned()).isTrue();
                 
                 KeyStore keyStore = databasedKeystore.get().keystoreInstance();
                 ShamirsProtection shamirsProtection = new ShamirsProtection(databasedKeystore.get().sharePoints());

@@ -431,6 +431,7 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
                 JsonObject metadata = response.readEntity(JsonObject.class);
                 assertThat(metadata.getString("state")).isEqualTo("PROCESSED");
                 assertThat(metadata.getString("action")).isEqualTo(MetadataAction.VERIFY.name());
+                assertThat(metadata.getBoolean("validated")).isTrue();
                 var option = metadata.getJsonArray("links").stream()
                         .map(link -> link.asJsonObject())
                         .filter(link -> Objects.equals(link.getString("rel"), "self"))
