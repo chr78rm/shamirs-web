@@ -35,7 +35,6 @@ import javax.json.JsonObject;
 import javax.json.JsonValue;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
-import javax.persistence.NonUniqueResultException;
 import javax.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -101,72 +100,6 @@ public class KeystoreDBService implements KeystoreService, Traceable {
 
     @Override
     @Transactional(readOnly = true)
-    public DatabasedKeystore findByIdWithCertainSlices(String id, String state) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("DatabasedKeystore", this, "findByIdWithCertainSlices(String id, String state)");
-        try {
-            tracer.out().printfIndentln("id = %s", id);
-            tracer.out().printfIndentln("state = %s", state);
-
-            return this.entityManager
-                    .createNamedQuery("DatabasedKeystore.findByIdWithCertainSlices", DatabasedKeystore.class)
-                    .setParameter("id", id)
-                    .setParameter("state", state)
-                    .getSingleResult();
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public DatabasedKeystore findByIdWithActiveSlices(String id) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("DatabasedKeystore", this, "findByIdWithActiveSlices(String id)");
-        try {
-            tracer.out().printfIndentln("id = %s", id);
-
-            return this.entityManager.createQuery( // TODO: think about the current_partition_id
-                    "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND "
-                    + "s.processingState = '" + Slice.ProcessingState.POSTED.name()
-                    + "' OR s.processingState = '" + Slice.ProcessingState.CREATED.name() + "'",
-                    DatabasedKeystore.class)
-                    .setParameter("id", id)
-                    .getSingleResult();
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public DatabasedKeystore findByIdWithCurrentSlicesAndValidSession(String keystoreId) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("DatabasedKeystore", this, "findByIdWithCurrentSlicesAndValidSession(String keystoreId)");
-        try {
-            tracer.out().printfIndentln("id = %s", keystoreId);
-
-            DatabasedKeystore keystore = this.entityManager
-                    .createQuery("SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :keystoreId AND k.currentPartitionId = s.partitionId", DatabasedKeystore.class)
-                    .setParameter("keystoreId", keystoreId)
-                    .getSingleResult();
-
-            keystore = this.entityManager.createQuery(
-                    "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.sessions s "
-                    + "WHERE k = :keystore "
-                    + "AND s.phase != '" + SessionPhase.CLOSED.name() + "'",
-                    DatabasedKeystore.class)
-                    .setParameter("keystore", keystore)
-                    .getSingleResult();
-
-            return keystore;
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public DatabasedKeystore findByIdAndParticipantWithPostedSlices(String id, String participantId) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("DatabasedKeystore", this, "findByIdWithPostedSlices(String id)");
@@ -193,33 +126,6 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             tracer.out().printfIndentln("keystore = %s", keystore);
 
             return this.keystoreRepository.save(keystore);
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public DatabasedKeystore findByDescriptiveName(String descriptiveName) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("DatabasedKeystore", this, "findByIdWithPostedSlices(String id)");
-        try {
-            tracer.out().printfIndentln("id = %s", descriptiveName);
-
-            DatabasedKeystore databasedKeystore;
-            List<DatabasedKeystore> resultList = this.entityManager
-                    .createNamedQuery("DatabasedKeystore.findByDescriptiveName", DatabasedKeystore.class)
-                    .setParameter("descriptiveName", descriptiveName)
-                    .getResultList();
-            if (resultList.isEmpty()) {
-                databasedKeystore = null;
-            } else if (resultList.size() == 1) {
-                databasedKeystore = resultList.get(0);
-            } else {
-                throw new NonUniqueResultException();
-            }
-
-            return databasedKeystore;
         } finally {
             tracer.wayout();
         }
