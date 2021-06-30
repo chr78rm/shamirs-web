@@ -268,13 +268,10 @@ public class KeystoreDBService implements KeystoreService, Traceable {
                         .sorted()
 //                        .peek(slice -> tracer.out().printfIndentln("slice = %s", slice))
                         .map(slice -> {
-                            slice.setProcessingState(Slice.ProcessingState.EXPIRED.name());
-                            slice.setModificationTime(LocalDateTime.now());
+                            slice.expired();
                             Slice nextSlice = new Slice();
-                            nextSlice.setKeystore(databasedKeystore);
-                            nextSlice.setParticipant(slice.getParticipant());
                             nextSlice.setPartitionId(nextPartitionId);
-                            nextSlice.setProcessingState(Slice.ProcessingState.CREATED.name());
+                            nextSlice.createdFor(databasedKeystore, slice.getParticipant());
                             nextSlice.setSize(slice.getSize());
                             JsonValue share = iter.next();
 //                            jsonTracer.trace(share.asJsonObject());

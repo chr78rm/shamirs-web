@@ -8,7 +8,6 @@ package de.christofreichardt.restapp.shamir.resource;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.json.JsonValueCollector;
-import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Participant;
 import de.christofreichardt.restapp.shamir.model.Session;
@@ -75,12 +74,10 @@ public class KeystoreRS extends BaseRS {
                             Participant participant = this.participantService.findByPreferredName(entry.getKey());
                             tracer.out().printfIndentln("participant = %s", participant);
                             Slice slice = new Slice();
-                            slice.setParticipant(participant);
                             slice.setPartitionId(keystoreGenerator.partitionId());
                             slice.setSize(keystoreGenerator.size(participant.getPreferredName()));
                             slice.setShare(entry.getValue());
-                            slice.setProcessingState("CREATED");
-                            slice.setKeystore(keystore);
+                            slice.createdFor(keystore, participant);
 
                             return slice;
                         })

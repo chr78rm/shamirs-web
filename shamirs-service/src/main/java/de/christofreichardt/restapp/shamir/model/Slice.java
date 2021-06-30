@@ -5,6 +5,7 @@
  */
 package de.christofreichardt.restapp.shamir.model;
 
+import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
 import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -39,10 +40,6 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Slice.findByProcessingState", query = "SELECT s FROM Slice s WHERE s.processingState = :processingState"),
     @NamedQuery(name = "Slice.findByEffectiveTime", query = "SELECT s FROM Slice s WHERE s.creationTime = :creationTime")})
 public class Slice implements Serializable, Comparable<Slice> {
-
-    public enum ProcessingState {
-        CREATED, FETCHED, POSTED, EXPIRED
-    };
 
     private static final long serialVersionUID = 1L;
 
@@ -93,16 +90,7 @@ public class Slice implements Serializable, Comparable<Slice> {
         this.id = UUID.randomUUID().toString();
         this.creationTime = LocalDateTime.now();
         this.modificationTime = LocalDateTime.now();
-    }
-
-    public Slice(String id) {
-        this.id = id;
-    }
-
-    public Slice(String id, LocalDateTime effectiveTime) {
-        this.id = id;
-        this.creationTime = effectiveTime;
-        this.modificationTime = LocalDateTime.now();
+        this.processingState = SliceProcessingState.NEW.name();
     }
 
     public String getId() {
@@ -129,12 +117,28 @@ public class Slice implements Serializable, Comparable<Slice> {
         setShare(byteArrayOutputStream.toByteArray());
     }
 
-    public String getProcessingState() {
-        return processingState;
+    private SliceProcessingState getProcessingState() {
+        return Enum.valueOf(SliceProcessingState.class, this.processingState);
     }
-
-    public void setProcessingState(String processingState) {
-        this.processingState = processingState;
+    
+    public boolean isNew() {
+        return this.getProcessingState() == SliceProcessingState.NEW;
+    }
+    
+    public boolean isCreated() {
+        return this.getProcessingState() == SliceProcessingState.CREATED;
+    }
+    
+    public boolean isFetched() {
+        return this.getProcessingState() == SliceProcessingState.FETCHED;
+    }
+    
+    public boolean isPosted() {
+        return this.getProcessingState() == SliceProcessingState.POSTED;
+    }
+    
+    public boolean isExpired() {
+        return this.getProcessingState() == SliceProcessingState.EXPIRED;
     }
 
     public LocalDateTime getCreationTime() {
@@ -169,20 +173,50 @@ public class Slice implements Serializable, Comparable<Slice> {
         this.size = size;
     }
 
-    public DatabasedKeystore getKeystore() {
-        return keystore;
-    }
-
-    public void setKeystore(DatabasedKeystore keystore) {
-        this.keystore = keystore;
-    }
-
     public Participant getParticipant() {
         return participant;
     }
-
-    public void setParticipant(Participant participant) {
-        this.participant = participant;
+    
+    public void createdFor(DatabasedKeystore keystore, Participant participant) {
+        if (this.isNew()) {
+            this.processingState = SliceProcessingState.CREATED.name();
+            this.keystore = keystore;
+            this.participant = participant;
+            modified();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+    
+    public void fetched() {
+        if (this.isCreated()) {
+            this.processingState = SliceProcessingState.FETCHED.name();
+            modified();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+    
+    public void posted() {
+        if (this.isFetched()) {
+            this.processingState = SliceProcessingState.POSTED.name();
+            modified();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+    
+    public void expired() {
+        if (this.isCreated() || this.isPosted()) {
+            this.processingState = SliceProcessingState.EXPIRED.name();
+            modified();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+    
+    public void modified() {
+        this.modificationTime = LocalDateTime.now();
     }
 
     @Override

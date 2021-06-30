@@ -9,7 +9,6 @@ import de.christofreichardt.jca.shamir.ShamirsLoadParameter;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.json.JsonValueCollector;
-import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -258,7 +257,7 @@ public class DatabasedKeystore implements Serializable {
 
         JsonArray sharePoints = getSlices().stream()
                 .filter(slice -> slice.getPartitionId().equals(this.currentPartitionId))
-                .filter(slice -> Objects.equals(slice.getProcessingState(), Slice.ProcessingState.CREATED.name()) || Objects.equals(slice.getProcessingState(), Slice.ProcessingState.POSTED.name()))
+                .filter(slice -> slice.isCreated() || slice.isPosted())
                 .map(slice -> new ByteArrayInputStream(slice.getShare()))
                 .map(in -> {
                     try (JsonReader jsonReader = Json.createReader(in)) {

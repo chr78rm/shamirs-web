@@ -14,9 +14,9 @@ import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.restapp.shamir.SessionSanitizer;
 import de.christofreichardt.restapp.shamir.ShamirsApp;
 import de.christofreichardt.restapp.shamir.common.SessionPhase;
+import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
-import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
 import de.christofreichardt.restapp.shamir.service.SessionService;
 import java.io.IOException;
@@ -26,7 +26,6 @@ import java.security.Security;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -183,7 +182,7 @@ public class SessionUnit implements Traceable, WithAssertions {
                 tracer.out().flush();
 
                 result = this.jdbcTemplate.query(
-                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, Slice.ProcessingState.POSTED.name()), 
+                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, SliceProcessingState.POSTED.name()), 
                         keystoreWithSlicesRowMapper
                 );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
@@ -210,13 +209,13 @@ public class SessionUnit implements Traceable, WithAssertions {
                 tracer.out().printfIndentln("------------");
 
                 result = this.jdbcTemplate.query(
-                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, Slice.ProcessingState.EXPIRED.name()), 
+                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, SliceProcessingState.EXPIRED.name()), 
                         keystoreWithSlicesRowMapper
                 );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
                 assertThat(result.size()).isEqualTo(7);
                 result = this.jdbcTemplate.query(
-                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, Slice.ProcessingState.CREATED.name()), 
+                        String.format(selectKeystoreWithSlices, KEYSTORE_ID, SliceProcessingState.CREATED.name()), 
                         keystoreWithSlicesRowMapper
                 );
                 result.forEach(row -> tracer.out().printfIndentln("row = %s", row));
