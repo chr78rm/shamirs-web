@@ -5,10 +5,13 @@
  */
 package de.christofreichardt.restapp.shamir.model;
 
+import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.jca.shamir.PasswordGenerator;
 import de.christofreichardt.jca.shamir.ShamirsLoadParameter;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.scala.shamir.SecretSharing;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -20,6 +23,7 @@ import java.security.Security;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.AbstractMap;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
@@ -29,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonArrayBuilder;
@@ -311,6 +316,43 @@ public class DatabasedKeystore implements Serializable {
         }
     }
 
+    public Map.Entry<String, JsonArray> nextPartition() throws GeneralSecurityException {
+
+        class JsonSliceComparator implements Comparator<JsonObject> {
+
+            @Override
+            public int compare(JsonObject slice1, JsonObject slice2) {
+                int size1 = slice1.getJsonArray("SharePoints").size();
+                int size2 = slice2.getJsonArray("SharePoints").size();
+                if (size1 < size2) {
+                    return -1;
+                } else if (size1 > size2) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+        }
+
+        final int DEFAULT_PASSWORD_LENGTH = 32;
+        
+        PasswordGenerator passwordGenerator = new PasswordGenerator(DEFAULT_PASSWORD_LENGTH);
+        CharSequence passwordSequence = passwordGenerator.generate().findFirst().get();
+        SecretSharing secretSharing = new SecretSharing(this.getShares(), this.getThreshold(), passwordSequence);
+        JsonArray nextPartition = secretSharing.partitionAsJson(this.sizes()).stream()
+                .map(slice -> slice.asJsonObject())
+                .sorted(new JsonSliceComparator())
+                .collect(new JsonValueCollector());
+        String nextPartitionId = nextPartition.getJsonObject(0).getString("PartitionId");
+
+        return new AbstractMap.SimpleImmutableEntry<>(nextPartitionId, nextPartition);
+    }
+ 
+    public Stream<Slice> currentSlices() {
+        return this.getSlices().stream()
+                .filter(slice -> Objects.equals(slice.getPartitionId(), this.getCurrentPartitionId()));
+    }
+
     public JsonObject toJson() {
         return toJson(false);
     }
@@ -319,6 +361,18 @@ public class DatabasedKeystore implements Serializable {
         return this.sessions.stream()
                 .filter(session -> session.isActive() || session.isProvisioned())
                 .findFirst();
+    }
+    
+    public void trace(AbstractTracer tracer, boolean inFull) {
+        tracer.entry("void", this, "trace(AbstractTracer tracer, boolean inFull)");
+        try {
+            tracer.out().printfIndentln("inFull = %b", inFull);
+            tracer.out().printfIndentln("keystore = %s", this);
+            this.slices.forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
+            this.sessions.forEach(session -> tracer.out().printfIndentln("session = %s", session));
+        } finally {
+            tracer.wayout();
+        }
     }
 
     public JsonObject toJson(boolean inFull) {

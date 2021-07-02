@@ -9,15 +9,12 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
-import de.christofreichardt.jca.shamir.PasswordGenerator;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
-import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Session;
 import de.christofreichardt.restapp.shamir.model.Slice;
-import de.christofreichardt.scala.shamir.SecretSharing;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
@@ -26,7 +23,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -242,45 +239,29 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             }
         };
         
-        tracer.out().printfIndentln("keystore = %s", databasedKeystore);
-        databasedKeystore.getSessions().forEach(session -> tracer.out().printfIndentln("session = %s", session));
-        databasedKeystore.getSlices().forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
+        databasedKeystore.trace(tracer, true);
 
         try {
-            final int DEFAULT_PASSWORD_LENGTH = 32;
             try {
-                PasswordGenerator passwordGenerator = new PasswordGenerator(DEFAULT_PASSWORD_LENGTH);
-                CharSequence passwordSequence = passwordGenerator.generate().findFirst().get();
-                SecretSharing secretSharing = new SecretSharing(databasedKeystore.getShares(), databasedKeystore.getThreshold(), passwordSequence);
-                JsonArray nextPartition = secretSharing.partitionAsJson(databasedKeystore.sizes()).stream()
-                        .map(slice -> slice.asJsonObject())
-                        .sorted(new JsonSliceComparator())
-                        .collect(new JsonValueCollector());
+                Map.Entry<String, JsonArray> nextPartition = databasedKeystore.nextPartition();
 
-                jsonTracer.trace(nextPartition);
+                jsonTracer.trace(nextPartition.getValue());
 
-                ShamirsProtection nextProtection = new ShamirsProtection(nextPartition);
+                ShamirsProtection nextProtection = new ShamirsProtection(nextPartition.getValue());
                 byte[] nextKeystoreBytes = databasedKeystore.nextKeystoreInstance(nextProtection);
-                String nextPartitionId = nextPartition.getJsonObject(0).getString("PartitionId");
-                Iterator<JsonValue> iter = nextPartition.iterator();
-                Set<Slice> nextSlices = databasedKeystore.getSlices().stream()
-                        .filter(slice -> Objects.equals(slice.getPartitionId(), databasedKeystore.getCurrentPartitionId()))
+                Iterator<JsonValue> iter = nextPartition.getValue().iterator();
+                Set<Slice> nextSlices = databasedKeystore.currentSlices()
                         .sorted()
-//                        .peek(slice -> tracer.out().printfIndentln("slice = %s", slice))
                         .map(slice -> {
                             slice.expired();
-                            Slice nextSlice = new Slice();
-                            nextSlice.setPartitionId(nextPartitionId);
-                            nextSlice.createdFor(databasedKeystore, slice.getParticipant());
-                            nextSlice.setSize(slice.getSize());
                             JsonValue share = iter.next();
-//                            jsonTracer.trace(share.asJsonObject());
-                            nextSlice.setShare(share);
+                            Slice nextSlice = new Slice(nextPartition.getKey(), slice.getSize(), share);
+                            nextSlice.createdFor(databasedKeystore, slice.getParticipant());
                             return nextSlice;
                         })
                         .collect(Collectors.toSet());
                 databasedKeystore.getSlices().addAll(nextSlices);
-                databasedKeystore.setCurrentPartitionId(nextPartitionId);
+                databasedKeystore.setCurrentPartitionId(nextPartition.getKey());
                 databasedKeystore.getSessions().stream()
                         .filter(session -> session.isActive())
                         .forEach(session -> session.closed());

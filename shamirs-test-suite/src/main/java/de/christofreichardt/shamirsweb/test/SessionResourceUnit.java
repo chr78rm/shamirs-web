@@ -559,6 +559,19 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 JsonObject session = response.readEntity(JsonObject.class);
                 assertThat(session.getString("phase")).isEqualTo(SessionPhase.CLOSED.name());
             }
+            
+            // retrieve keystore view to check if the key entries are loadable
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject keystoreView = response.readEntity(JsonObject.class);
+                assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.ARRAY).isTrue();
+            }
         } finally {
             tracer.wayout();
         }

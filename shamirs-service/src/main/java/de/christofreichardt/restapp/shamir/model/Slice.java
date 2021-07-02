@@ -92,6 +92,17 @@ public class Slice implements Serializable, Comparable<Slice> {
         this.modificationTime = LocalDateTime.now();
         this.processingState = SliceProcessingState.NEW.name();
     }
+    
+    public Slice(String partitionId, int size, JsonValue share) {
+        this();
+        this.partitionId = partitionId;
+        this.size = size;
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        try ( JsonWriter jsonWriter = Json.createWriter(byteArrayOutputStream)) {
+            jsonWriter.write(share);
+        }
+        this.share = byteArrayOutputStream.toByteArray();
+    }
 
     public String getId() {
         return id;

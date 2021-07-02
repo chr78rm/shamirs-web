@@ -181,7 +181,7 @@ public class KeystoreRS extends BaseRS {
                     return errorResponse.build();
                 }
                 
-                tracer.out().printfIndentln("keystore = %s, keystore.getSlices() = %s, keystore.getSessions() = %s", keystore.get(), keystore.get().getSlices(), keystore.get().getSessions());
+                keystore.get().trace(tracer, true);
                 
                 JsonObject jsonKeystore = keystore.get().toJson(true);
                 response = Response.status(Response.Status.OK)
