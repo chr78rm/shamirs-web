@@ -9,27 +9,18 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
-import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
-import de.christofreichardt.restapp.shamir.model.Session;
-import de.christofreichardt.restapp.shamir.model.Slice;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.json.JsonValue;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
@@ -189,22 +180,6 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             tracer.wayout();
         }
     }
-    
-    class JsonSliceComparator implements Comparator<JsonObject> {
-
-        @Override
-        public int compare(JsonObject slice1, JsonObject slice2) {
-            int size1 = slice1.getJsonArray("SharePoints").size();
-            int size2 = slice2.getJsonArray("SharePoints").size();
-            if (size1 < size2) {
-                return -1;
-            } else if (size1 > size2) {
-                return 1;
-            } else {
-                return 0;
-            }
-        }
-    }
 
     @Override
     @Transactional
@@ -216,7 +191,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             List<DatabasedKeystore> databasedKeystores = findKeystoresWithCurrentSlicesAndIdleSessions();
             databasedKeystores.forEach(databasedKeystore -> {
                 try {
-                    rollOver(databasedKeystore);
+                    rollOver(databasedKeystore); // TODO: ensure that this works as expected if some keystores cannot rolled over
                 } catch (Throwable ex) {
                     tracer.logException(LogLevel.ERROR, ex, getClass(), "rollOver()");
                 }
@@ -244,32 +219,8 @@ public class KeystoreDBService implements KeystoreService, Traceable {
         try {
             try {
                 Map.Entry<String, JsonArray> nextPartition = databasedKeystore.nextPartition();
-
                 jsonTracer.trace(nextPartition.getValue());
-
-                ShamirsProtection nextProtection = new ShamirsProtection(nextPartition.getValue());
-                byte[] nextKeystoreBytes = databasedKeystore.nextKeystoreInstance(nextProtection);
-                Iterator<JsonValue> iter = nextPartition.getValue().iterator();
-                Set<Slice> nextSlices = databasedKeystore.currentSlices()
-                        .sorted()
-                        .map(slice -> {
-                            slice.expired();
-                            JsonValue share = iter.next();
-                            Slice nextSlice = new Slice(nextPartition.getKey(), slice.getSize(), share);
-                            nextSlice.createdFor(databasedKeystore, slice.getParticipant());
-                            return nextSlice;
-                        })
-                        .collect(Collectors.toSet());
-                databasedKeystore.getSlices().addAll(nextSlices);
-                databasedKeystore.setCurrentPartitionId(nextPartition.getKey());
-                databasedKeystore.getSessions().stream()
-                        .filter(session -> session.isActive())
-                        .forEach(session -> session.closed());
-                Session session = new Session();
-                session.provisionedFor(databasedKeystore);
-                databasedKeystore.getSessions().add(session);
-                databasedKeystore.setStore(nextKeystoreBytes);
-                databasedKeystore.setMofificationTime(LocalDateTime.now());
+                databasedKeystore.rollover(nextPartition); // TODO: ensure that the keystore remains loadable if an error occures
                 this.entityManager.merge(databasedKeystore);
             } catch (GeneralSecurityException | IOException ex) {
                 throw new RuntimeException(ex);

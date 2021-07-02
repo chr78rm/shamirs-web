@@ -40,6 +40,7 @@ import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
+import javax.json.JsonValue;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -118,7 +119,7 @@ public class DatabasedKeystore implements Serializable {
     @Basic(optional = false)
     @NotNull
     @Column(name = "modification_time")
-    private LocalDateTime mofificationTime;
+    private LocalDateTime modificationTime;
     
     @Version
     @Basic(optional = false)
@@ -135,7 +136,7 @@ public class DatabasedKeystore implements Serializable {
     public DatabasedKeystore() {
         this.id = UUID.randomUUID().toString();
         this.creationTime = LocalDateTime.now();
-        this.mofificationTime = LocalDateTime.now();
+        this.modificationTime = LocalDateTime.now();
     }
 
     public DatabasedKeystore(String id) {
@@ -203,12 +204,12 @@ public class DatabasedKeystore implements Serializable {
         this.creationTime = creationTime;
     }
 
-    public LocalDateTime getMofificationTime() {
-        return mofificationTime;
+    public LocalDateTime getModificationTime() {
+        return modificationTime;
     }
 
-    public void setMofificationTime(LocalDateTime mofificationTime) {
-        this.mofificationTime = mofificationTime;
+    public void setModificationTime(LocalDateTime modificationTime) {
+        this.modificationTime = modificationTime;
     }
 
     public Set<Slice> getSlices() {
@@ -252,7 +253,7 @@ public class DatabasedKeystore implements Serializable {
         return String.format("DatabasedKeystore[id=%s, descriptiveName=%s, currentPartitionId=%s, shares=%d, threshold=%d, creationTime=%s, mofificationTime=%s]",
                 this.id, this.descriptiveName, this.currentPartitionId, this.shares, this.threshold,
                 this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)),
-                this.mofificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
+                this.modificationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
 
     public JsonArray sharePoints() {
@@ -353,6 +354,60 @@ public class DatabasedKeystore implements Serializable {
                 .filter(slice -> Objects.equals(slice.getPartitionId(), this.getCurrentPartitionId()));
     }
 
+    void addNextSlices(Map.Entry<String, JsonArray> nextPartition) {
+        Iterator<JsonValue> iter = nextPartition.getValue().iterator();
+        Set<Slice> nextSlices = this.currentSlices()
+                .sorted()
+                .map(slice -> {
+                    slice.expired();
+                    JsonValue share = iter.next();
+                    Slice nextSlice = new Slice(nextPartition.getKey(), slice.getSize(), share);
+                    nextSlice.createdFor(this, slice.getParticipant());
+                    return nextSlice;
+                })
+                .collect(Collectors.toSet());
+        this.slices.addAll(nextSlices);
+    }
+
+    void allocateNextSession() {
+        this.sessions.stream()
+                .filter(session -> session.isActive())
+                .forEach(session -> session.closed());
+        Session nextSession = new Session();
+        nextSession.provisionedFor(this);
+        this.sessions.add(nextSession);
+    }
+    
+    public void modificated() {
+        this.modificationTime = LocalDateTime.now();
+    }
+    
+    void computeNextKeystoreInstance(ShamirsProtection nextProtection) throws GeneralSecurityException, IOException {
+        KeyStore nextKeyStore = KeyStore.getInstance("ShamirsKeystore", Security.getProvider(ShamirsProvider.NAME));
+        nextKeyStore.load(null, null);
+        KeyStore currentKeyStore = keystoreInstance();
+        ShamirsProtection currentProtection = new ShamirsProtection(sharePoints());
+        Iterator<String> aliasIter = currentKeyStore.aliases().asIterator();
+        while (aliasIter.hasNext()) {
+            String alias = aliasIter.next();
+            KeyStore.Entry entry = currentKeyStore.getEntry(alias, currentProtection);
+            nextKeyStore.setEntry(alias, entry, nextProtection);
+        }
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ShamirsLoadParameter shamirsLoadParameter = new ShamirsLoadParameter(byteArrayOutputStream, nextProtection);
+        nextKeyStore.store(shamirsLoadParameter);
+        this.store = byteArrayOutputStream.toByteArray();
+    }
+
+    public void rollover(Map.Entry<String, JsonArray> nextPartition) throws GeneralSecurityException, IOException {
+        ShamirsProtection nextProtection = new ShamirsProtection(nextPartition.getValue());
+        this.computeNextKeystoreInstance(nextProtection);
+        this.addNextSlices(nextPartition);
+        this.currentPartitionId = nextPartition.getKey();
+        this.allocateNextSession();
+        this.modificated();
+    }
+
     public JsonObject toJson() {
         return toJson(false);
     }
@@ -385,7 +440,7 @@ public class DatabasedKeystore implements Serializable {
                 .add("shares", this.shares)
                 .add("threshold", this.threshold)
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-                .add("mofificationTime", this.mofificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                .add("mofificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         linkEntriesBuilder
                 .add(Json.createObjectBuilder()
                         .add("rel", "self")
