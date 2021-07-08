@@ -10,7 +10,6 @@ import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.common.MetadataAction;
-import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Document;
 import de.christofreichardt.restapp.shamir.model.Metadata;

@@ -27,6 +27,8 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
 import static org.assertj.core.api.Assertions.assertThat;
+import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
+import org.glassfish.jersey.client.ClientConfig;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
@@ -88,6 +90,7 @@ public class ShamirsBaseUnit implements Traceable {
             trustStore.load(inputStream, "changeit".toCharArray());
             this.client = ClientBuilder
                     .newBuilder()
+                    .withConfig(new ClientConfig().connectorProvider(new ApacheConnectorProvider()))
                     .register(MyClientRequestFilter.class)
                     .register(MyClientResponseFilter.class)
                     .trustStore(trustStore)

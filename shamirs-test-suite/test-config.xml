@@ -8,6 +8,7 @@
                 <class simpleName="KeystoreResourceUnit" enabled="true"/>
                 <class simpleName="SessionResourceUnit" enabled="true"/>
                 <class simpleName="DocumentResourceUnit" enabled="true"/>
+                <class simpleName="SliceResourceUnit" enabled="true"/>
                 <!--
                     <class simpleName="SecondDummy" enabled="false"/>
                 -->

@@ -8,6 +8,7 @@ package de.christofreichardt.restapp.shamir;
 import de.christofreichardt.restapp.shamir.resource.DocumentRS;
 import de.christofreichardt.restapp.shamir.resource.KeystoreRS;
 import de.christofreichardt.restapp.shamir.resource.SessionRS;
+import de.christofreichardt.restapp.shamir.resource.SliceRS;
 import javax.ws.rs.ApplicationPath;
 import org.glassfish.jersey.jsonp.JsonProcessingFeature;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -26,6 +27,7 @@ public class MyJerseyConfig extends ResourceConfig {
         register(KeystoreRS.class);
         register(SessionRS.class);
         register(DocumentRS.class);
+        register(SliceRS.class);
         register(JsonProcessingFeature.class);
         register(MyContainerRequestFilter.class);
     }
