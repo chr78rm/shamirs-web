@@ -6,4 +6,4 @@ pki/*.pem
 pki/*.p12
 pki/*.p10
 shamirs-service/xml/out/*.xml
-json
+json/*.json
