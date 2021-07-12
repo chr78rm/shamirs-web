@@ -202,4 +202,27 @@ public class KeystoreRS extends BaseRS {
         }
     }
 
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("keystores/{id}/participants")
+    public Response participantsByKeystore(@PathParam("id") String id) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "participantsByKeystore(String id)");
+
+        try {
+            tracer.out().printfIndentln("id = %s", id);
+            
+            JsonArray participants = this.participantService.findByKeystore(id).stream()
+                    .map(participant -> participant.toJson())
+                    .collect(new JsonValueCollector());
+            
+            JsonObject participantsInfo = Json.createObjectBuilder()
+                    .add("participants", participants)
+                    .build();
+
+            return ok(participantsInfo);
+        } finally {
+            tracer.wayout();
+        }
+    }
 }

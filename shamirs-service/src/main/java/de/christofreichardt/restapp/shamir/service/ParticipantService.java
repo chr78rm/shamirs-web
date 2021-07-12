@@ -6,6 +6,7 @@
 package de.christofreichardt.restapp.shamir.service;
 
 import de.christofreichardt.restapp.shamir.model.Participant;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,4 +16,5 @@ import org.springframework.stereotype.Component;
 @Component
 public interface ParticipantService {
     Participant findByPreferredName(String preferredName);
+    List<Participant> findByKeystore(String keystoreId);
 }

@@ -149,6 +149,7 @@
                         <include>de/christofreichardt/restapp/shamir/resource/KeystoreGeneratorUnit.java</include>
                         <include>de/christofreichardt/restapp/shamir/resource/SessionUnit.java</include>
                         <include>de/christofreichardt/restapp/shamir/service/XMLSignatureUnit.java</include>
+                        <include>de/christofreichardt/restapp/shamir/resource/ParticipantUnit.java</include>
                     </includes>
                     <argLine>-Dfile.encoding=${project.build.sourceEncoding}</argLine>
                     <systemPropertyVariables>

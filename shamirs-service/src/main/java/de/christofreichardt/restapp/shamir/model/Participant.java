@@ -10,6 +10,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Locale;
+import java.util.UUID;
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -33,7 +37,9 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Participant.findAll", query = "SELECT p FROM Participant p"),
     @NamedQuery(name = "Participant.findById", query = "SELECT p FROM Participant p WHERE p.id = :id"),
     @NamedQuery(name = "Participant.findByPreferredName", query = "SELECT p FROM Participant p WHERE p.preferredName = :preferredName"),
-    @NamedQuery(name = "Participant.findByEffectiveTime", query = "SELECT p FROM Participant p WHERE p.effectiveTime = :effectiveTime")})
+    @NamedQuery(name = "Participant.findByEffectiveTime", query = "SELECT p FROM Participant p WHERE p.creationTime = :creationTime"),
+    @NamedQuery(name = "Participant.findByKeystore", query = "SELECT p FROM Participant p JOIN p.slices s WHERE s.keystore.id = :keystoreId"),
+})
 public class Participant implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -53,55 +59,24 @@ public class Participant implements Serializable {
     
     @Basic(optional = false)
     @NotNull
-    @Column(name = "effective_time")
-    private LocalDateTime effectiveTime;
+    @Column(name = "creation_time")
+    private LocalDateTime creationTime;
     
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "participant")
-    private Collection<Slice> sliceCollection;
+    private Collection<Slice> slices;
 
     public Participant() {
+        this.id = UUID.randomUUID().toString();
+        this.creationTime = LocalDateTime.now();
     }
 
-    public Participant(String id) {
-        this.id = id;
-    }
-
-    public Participant(String id, String preferredName, LocalDateTime effectiveTime) {
-        this.id = id;
+    public Participant(String preferredName) {
+        this();
         this.preferredName = preferredName;
-        this.effectiveTime = effectiveTime;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 
     public String getPreferredName() {
         return preferredName;
-    }
-
-    public void setPreferredName(String preferredName) {
-        this.preferredName = preferredName;
-    }
-
-    public LocalDateTime getEffectiveTime() {
-        return effectiveTime;
-    }
-
-    public void setEffectiveTime(LocalDateTime effectiveTime) {
-        this.effectiveTime = effectiveTime;
-    }
-
-    public Collection<Slice> getSliceCollection() {
-        return sliceCollection;
-    }
-
-    public void setSliceCollection(Collection<Slice> sliceCollection) {
-        this.sliceCollection = sliceCollection;
     }
 
     @Override
@@ -126,8 +101,15 @@ public class Participant implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Participant[id=%s, preferredName=%s, effectiveTime=%s]",
-                this.id, this.preferredName, this.effectiveTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
+        return String.format("Participant[id=%s, preferredName=%s, creationTime=%s]",
+                this.id, this.preferredName, this.creationTime.format(DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm:ss").withLocale(Locale.US)));
     }
     
+    public JsonObject toJson() {
+        return Json.createObjectBuilder()
+                .add("id", this.id)
+                .add("descriptiveName", this.preferredName)
+                .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .build();
+    }
 }

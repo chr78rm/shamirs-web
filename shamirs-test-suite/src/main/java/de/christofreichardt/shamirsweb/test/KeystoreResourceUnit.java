@@ -270,4 +270,24 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
         }
     }
 
+    @Test
+    void participantsByKeystore() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "participantsByKeystore()");
+
+        try {
+            final String MY_FIRST_KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            
+            Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(MY_FIRST_KEYSTORE_ID)
+                    .path("participants")
+                    .request()
+                    .get();
+
+            tracer.out().printfIndentln("response = %s", response);
+        } finally {
+            tracer.wayout();
+        }
+    }
 }

@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS keystore;
 CREATE TABLE participant (
     id CHAR(36) PRIMARY KEY,
     preferred_name VARCHAR(100) NOT NULL,
-    effective_time DATETIME NOT NULL,
+    creation_time DATETIME NOT NULL,
     UNIQUE KEY (preferred_name)
 );
 

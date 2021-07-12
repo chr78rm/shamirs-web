@@ -66,43 +66,43 @@ VALUES (
 --
 -- setup participant
 --
-INSERT INTO participant (id, preferred_name, effective_time)
+INSERT INTO participant (id, preferred_name, creation_time)
 VALUES (
     '8844dd34-c836-4060-ba73-c6d86ad1275d',
     'christof',
     CURRENT_TIMESTAMP
 );
-INSERT INTO participant (id, preferred_name, effective_time)
+INSERT INTO participant (id, preferred_name, creation_time)
 VALUES (
     'f6cdb2e5-ea3e-405f-ad0a-14c034497e23',
     'test-user-1',
     CURRENT_TIMESTAMP
 );
-INSERT INTO participant (id, preferred_name, effective_time)
+INSERT INTO participant (id, preferred_name, creation_time)
 VALUES (
     '337dd2bd-508d-423d-84ca-81770d8ac30d',
     'test-user-2',
     CURRENT_TIMESTAMP
 );
-INSERT INTO participant (id, preferred_name, effective_time)
+INSERT INTO participant (id, preferred_name, creation_time)
 VALUES (
     '48ef6c98-0e04-49bc-9f7f-01f2cec3ccac',
     'test-user-3',
     CURRENT_TIMESTAMP
 );
-INSERT INTO participant (id, preferred_name, effective_time)
+INSERT INTO participant (id, preferred_name, creation_time)
 VALUES (
     '222185fb-6cbc-45e6-90d1-e5390fb2f9f9',
     'test-user-4',
     CURRENT_TIMESTAMP
 );
-INSERT INTO participant (id, preferred_name, effective_time)
+INSERT INTO participant (id, preferred_name, creation_time)
 VALUES (
     'b78d63a0-e365-4934-93e4-ec1ea713cba8',
     'test-user-5',
     CURRENT_TIMESTAMP
 );
-INSERT INTO participant (id, preferred_name, effective_time)
+INSERT INTO participant (id, preferred_name, creation_time)
 VALUES (
     '54ce43ce-c335-47a2-98b8-1bd1fc4f93a4',
     'test-user-6',

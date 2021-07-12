@@ -196,7 +196,7 @@ public class Scenario implements Traceable {
                     new Object[]{"54ce43ce-c335-47a2-98b8-1bd1fc4f93a4", "test-user-6"}
             );
 
-            String sql = "INSERT INTO participant (id, preferred_name, effective_time)\n"
+            String sql = "INSERT INTO participant (id, preferred_name, creation_time)\n"
                     + "VALUES (\n"
                     + "    ?,\n"
                     + "    ?,\n"

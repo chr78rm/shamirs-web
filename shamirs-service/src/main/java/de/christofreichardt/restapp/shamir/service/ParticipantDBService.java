@@ -9,6 +9,7 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.restapp.shamir.model.Participant;
+import java.util.List;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,19 @@ public class ParticipantDBService implements ParticipantService, Traceable {
                     .createNamedQuery("Participant.findByPreferredName", Participant.class)
                     .setParameter("preferredName", preferredName)
                     .getSingleResult();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
+    public List<Participant> findByKeystore(String keystoreId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("List<Participant>", this, "findByKeystore(String keystoreId)");
+        try {
+            return this.entityManager.createNamedQuery("Participant.findByKeystore", Participant.class)
+                    .setParameter("keystoreId", keystoreId)
+                    .getResultList();
         } finally {
             tracer.wayout();
         }
