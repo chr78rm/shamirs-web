@@ -13,6 +13,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.UUID;
 import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonPointer;
 import javax.json.JsonValue;
 import javax.json.JsonWriter;
 import javax.persistence.Basic;
@@ -38,7 +40,10 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Slice.findAll", query = "SELECT s FROM Slice s"),
     @NamedQuery(name = "Slice.findById", query = "SELECT s FROM Slice s WHERE s.id = :id"),
     @NamedQuery(name = "Slice.findByProcessingState", query = "SELECT s FROM Slice s WHERE s.processingState = :processingState"),
-    @NamedQuery(name = "Slice.findByEffectiveTime", query = "SELECT s FROM Slice s WHERE s.creationTime = :creationTime")})
+    @NamedQuery(name = "Slice.findByCreationTime", query = "SELECT s FROM Slice s WHERE s.creationTime = :creationTime"),
+    @NamedQuery(name = "Slice.findByKeystoreId", query = "SELECT s FROM Slice s WHERE s.keystore.id = :keystoreId"),
+    @NamedQuery(name = "Slice.findByParticipantId", query = "SELECT s FROM Slice s WHERE s.participant.id = :participantId"),
+    @NamedQuery(name = "Slice.findByKeystoreIdAndParticipantId", query = "SELECT s FROM Slice s WHERE s.keystore.id = :keystoreId AND s.participant.id = :participantId"),})
 public class Slice implements Serializable, Comparable<Slice> {
 
     private static final long serialVersionUID = 1L;
@@ -92,7 +97,7 @@ public class Slice implements Serializable, Comparable<Slice> {
         this.modificationTime = LocalDateTime.now();
         this.processingState = SliceProcessingState.NEW.name();
     }
-    
+
     public Slice(String partitionId, int size, JsonValue share) {
         this();
         this.partitionId = partitionId;
@@ -131,23 +136,23 @@ public class Slice implements Serializable, Comparable<Slice> {
     private SliceProcessingState getProcessingState() {
         return Enum.valueOf(SliceProcessingState.class, this.processingState);
     }
-    
+
     public boolean isNew() {
         return this.getProcessingState() == SliceProcessingState.NEW;
     }
-    
+
     public boolean isCreated() {
         return this.getProcessingState() == SliceProcessingState.CREATED;
     }
-    
+
     public boolean isFetched() {
         return this.getProcessingState() == SliceProcessingState.FETCHED;
     }
-    
+
     public boolean isPosted() {
         return this.getProcessingState() == SliceProcessingState.POSTED;
     }
-    
+
     public boolean isExpired() {
         return this.getProcessingState() == SliceProcessingState.EXPIRED;
     }
@@ -187,7 +192,7 @@ public class Slice implements Serializable, Comparable<Slice> {
     public Participant getParticipant() {
         return participant;
     }
-    
+
     public void createdFor(DatabasedKeystore keystore, Participant participant) {
         if (this.isNew()) {
             this.processingState = SliceProcessingState.CREATED.name();
@@ -198,7 +203,7 @@ public class Slice implements Serializable, Comparable<Slice> {
             throw new IllegalStateException();
         }
     }
-    
+
     public void fetched() {
         if (this.isCreated()) {
             this.processingState = SliceProcessingState.FETCHED.name();
@@ -207,7 +212,7 @@ public class Slice implements Serializable, Comparable<Slice> {
             throw new IllegalStateException();
         }
     }
-    
+
     public void posted() {
         if (this.isFetched()) {
             this.processingState = SliceProcessingState.POSTED.name();
@@ -216,7 +221,7 @@ public class Slice implements Serializable, Comparable<Slice> {
             throw new IllegalStateException();
         }
     }
-    
+
     public void expired() {
         if (this.isCreated() || this.isPosted()) {
             this.processingState = SliceProcessingState.EXPIRED.name();
@@ -225,7 +230,7 @@ public class Slice implements Serializable, Comparable<Slice> {
             throw new IllegalStateException();
         }
     }
-    
+
     public void modified() {
         this.modificationTime = LocalDateTime.now();
     }
@@ -270,4 +275,38 @@ public class Slice implements Serializable, Comparable<Slice> {
         );
     }
 
+    public JsonObject toJson() {
+        return toJson(false);
+    }
+
+    public JsonObject toJson(boolean inFull) {
+        JsonObject slice = Json.createObjectBuilder()
+                .add("id", this.id)
+                .add("partitionId", this.partitionId)
+                .add("state", this.processingState)
+                .add("size", this.size)
+                .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .add("links", Json.createArrayBuilder()
+                        .add(Json.createObjectBuilder()
+                                .add("rel", "self")
+                                .add("href", String.format("/slices/%s", this.id))
+                                .add("type", Json.createArrayBuilder()
+                                        .add("GET")
+                                )
+                        )
+                )
+                .build();
+        if (this.isCreated() || this.isPosted() || this.isFetched()) {
+            JsonPointer jsonPointer = Json.createPointer("/links/0/type");
+            slice = jsonPointer.add(slice,
+                    Json.createArrayBuilder()
+                            .add("GET")
+                            .add("PATCH")
+                            .build()
+            );
+        }
+
+        return slice;
+    }
 }
