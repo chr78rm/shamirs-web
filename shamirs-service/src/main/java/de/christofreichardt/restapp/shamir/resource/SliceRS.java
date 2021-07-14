@@ -12,7 +12,6 @@ import de.christofreichardt.restapp.shamir.service.SliceService;
 import java.util.List;
 import java.util.Objects;
 import javax.json.Json;
-import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
@@ -32,7 +31,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Path("")
 public class SliceRS extends BaseRS {
-    
+
     @Autowired
     SliceService sliceService;
 
@@ -56,18 +55,18 @@ public class SliceRS extends BaseRS {
             tracer.wayout();
         }
     }
-    
+
     @GET
     @Path("/slices")
     @Produces(MediaType.APPLICATION_JSON)
     public Response allSlices(@QueryParam("keystoreId") String keystoreId, @QueryParam("participantId") String participantId) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "updateSlice(String id, JsonObject jsonObject)");
+        tracer.entry("Response", this, "allSlices(String keystoreId, String participantId)");
 
         try {
             tracer.out().printfIndentln("keystoreId = %s", keystoreId);
             tracer.out().printfIndentln("participantId = %s", participantId);
-            
+
             List<Slice> slices;
             if (Objects.isNull(keystoreId) && Objects.isNull(participantId)) {
                 slices = this.sliceService.findAll();
@@ -78,9 +77,11 @@ public class SliceRS extends BaseRS {
             } else {
                 slices = this.sliceService.findByKeystoreIdAndParticipantId(keystoreId, participantId);
             }
-            JsonArray slicesInfo = slices.stream()
-                    .map(slice -> slice.toJson())
-                    .collect(new JsonValueCollector());
+            JsonObject slicesInfo = Json.createObjectBuilder()
+                    .add("slices", slices.stream()
+                            .map(slice -> slice.toJson())
+                            .collect(new JsonValueCollector()))
+                    .build();
 
             return ok(slicesInfo);
         } finally {
