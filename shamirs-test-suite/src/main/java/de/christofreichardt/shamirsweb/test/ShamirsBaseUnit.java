@@ -47,6 +47,7 @@ public class ShamirsBaseUnit implements Traceable {
     final boolean externalService;
     final int maxTrials;
     final int pause;
+    final String dbClassName;
 
     Client client;
     Process process;
@@ -57,11 +58,12 @@ public class ShamirsBaseUnit implements Traceable {
         this.externalService = Boolean.parseBoolean(config.getOrDefault("de.christofreichardt.shamirsweb.test.externalService", "false"));
         this.maxTrials = Integer.parseInt(config.getOrDefault("de.christofreichardt.shamirsweb.test.maxTrials", "10"));
         this.pause = Integer.parseInt(config.getOrDefault("de.christofreichardt.shamirsweb.test.pause", "1"));
+        this.dbClassName = config.getOrDefault("de.christofreichardt.shamirsweb.test.dbClassName", "de.christofreichardt.shamirsweb.test.NativeMariaDB");
     }
     
 
     @BeforeAll
-    void init() throws InterruptedException, GeneralSecurityException, IOException {
+    void init() throws InterruptedException, GeneralSecurityException, IOException, ClassNotFoundException, NoSuchMethodException, ReflectiveOperationException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "init()");
 
@@ -71,7 +73,7 @@ public class ShamirsBaseUnit implements Traceable {
             Path baseDir = Path.of(System.getProperty("de.christofreichardt.shamirsweb.test.baseDir"));
             
             File batch = baseDir.resolve(Path.of("..", "sql", "mariadb", "setup-scenario.sql")).toFile();
-            Database database = new Database();
+            Database database = (Database) Class.forName(this.dbClassName).getDeclaredConstructor().newInstance();
             database.execute(batch);
 
             if (!this.externalService) {

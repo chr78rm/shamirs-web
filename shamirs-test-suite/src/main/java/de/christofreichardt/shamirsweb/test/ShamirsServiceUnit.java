@@ -66,7 +66,7 @@ public class ShamirsServiceUnit implements Traceable {
             this.config.entrySet().forEach(entry -> tracer.out().printfIndentln("%s = %s", entry.getKey(), entry.getValue()));
             
             File batch = Path.of("..", "sql", "mariadb", "setup-scenario.sql").toFile();
-            Database database = new Database();
+            Database database = new NativeMariaDB();
             database.execute(batch);
 
             if (!this.externalService) {
