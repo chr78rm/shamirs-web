@@ -77,7 +77,7 @@ public class ShamirsBaseUnit implements Traceable {
             database.execute(batch);
 
             if (!this.externalService) {
-                ProcessBuilder processBuilder = new ProcessBuilder("java", "-jar", "target/shamirs-service.jar");
+                ProcessBuilder processBuilder = new ProcessBuilder("java", "-Djava.security.egd=file:/dev/urandom", "-jar", "target/shamirs-service.jar");
                 File workingDir = baseDir.resolve(Path.of("..", "shamirs-service")).toFile();
                 File logFile = baseDir.resolve(this.config.getOrDefault("de.christofreichardt.shamirsweb.test.spring.log", "log/spring-boot.log")).toFile();
                 this.process = processBuilder.directory(workingDir)
