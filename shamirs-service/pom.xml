@@ -154,6 +154,7 @@
                     <argLine>-Dfile.encoding=${project.build.sourceEncoding}</argLine>
                     <systemPropertyVariables>
                         <de.christofreichardt.junit5.traceConfig>de/christofreichardt/restapp/shamir/trace-config.xml</de.christofreichardt.junit5.traceConfig>
+                        <java.security.egd>file:/dev/urandom</java.security.egd>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
