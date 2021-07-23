@@ -16,6 +16,8 @@ do
 		ROOT_PW=${ARG:18}
 	fi
 done
+
+# print parameter
 echo ROOT_PW=$ROOT_PW
 echo PROJECT_DIR=$HOME/$PROJECT_DIR
 echo DATA_DIR=$HOME/$DATA_DIR
@@ -27,8 +29,9 @@ then
 	exit
 fi
 
-docker run --publish 127.0.0.1:3306:3306 --name docker-mariadb --env MARIADB_ROOT_PASSWORD="$ROOT_PW" --detach --rm --mount type=bind,src=$HOME/$DATA_DIR,dst=/var/lib/mysql \
---health-cmd='mysqladmin --password="$MARIADB_ROOT_PASSWORD" ping' --health-interval=5s --health-retries=6 mariadb:10.6.3-focal
+HEALTH_CMD="mysqladmin --user=root --password=$ROOT_PW --silent ping"
+docker run --publish 127.0.0.1:3306:3306 --name docker-mariadb --env MARIADB_ROOT_PASSWORD="$ROOT_PW" --env TZ=Europe/Berlin --detach --rm --mount type=bind,src=$HOME/$DATA_DIR,dst=/var/lib/mysql \
+--health-cmd='$HEALTH_CMD' --health-interval=5s --health-retries=6 mariadb:10.6.3-focal
 
 while [ $(docker inspect --format={{.State.Health.Status}} docker-mariadb) != "healthy" ]
 do
