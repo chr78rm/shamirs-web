@@ -182,4 +182,77 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
         }
     }
 
+    @Test
+    void slicesByParticipant() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "slicesByParticipant()");
+
+        try {
+            final String PARTICIPANT_ID = "8844dd34-c836-4060-ba73-c6d86ad1275d"; // christof
+            
+            // retrieve the slice views for the participant
+            JsonArray slices;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .queryParam("participantId", PARTICIPANT_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("GET")) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                slices = response.readEntity(JsonObject.class).getJsonArray("slices");
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void slicesByKeystoreAndParticipant() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "slicesByKeystoreAndParticipant()");
+
+        try {
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            final String PARTICIPANT_ID = "8844dd34-c836-4060-ba73-c6d86ad1275d"; // christof
+            
+            // retrieve the slice views for keystore and participant
+            JsonArray slices;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .queryParam("participantId", PARTICIPANT_ID)
+                    .queryParam("keystoreId", KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("GET")) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                slices = response.readEntity(JsonObject.class).getJsonArray("slices");
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void allSlices() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "slicesByKeystoreAndParticipant()");
+
+        try {
+            // retrieve all slice views
+            JsonArray slices;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                   .request(MediaType.APPLICATION_JSON)
+                    .method("GET")) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                slices = response.readEntity(JsonObject.class).getJsonArray("slices");
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
 }

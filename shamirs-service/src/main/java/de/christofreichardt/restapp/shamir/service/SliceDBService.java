@@ -65,9 +65,9 @@ public class SliceDBService implements SliceService, Traceable {
     @Override
     public List<Slice> findByKeystoreIdAndParticipantId(String keystoreId, String participantId) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("List<Slice>", this, "findByParticipantId(String participantId)");
+        tracer.entry("List<Slice>", this, "findByKeystoreIdAndParticipantId(String keystoreId, String participantId)");
         try {
-            return this.entityManager.createNamedQuery("Slice.findByParticipantId", Slice.class)
+            return this.entityManager.createNamedQuery("Slice.findByKeystoreIdAndParticipantId", Slice.class)
                     .setParameter("keystoreId", keystoreId)
                     .setParameter("participantId", participantId)
                     .getResultList();

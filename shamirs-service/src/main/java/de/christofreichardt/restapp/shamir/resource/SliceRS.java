@@ -59,9 +59,9 @@ public class SliceRS extends BaseRS {
     @GET
     @Path("/slices")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response allSlices(@QueryParam("keystoreId") String keystoreId, @QueryParam("participantId") String participantId) {
+    public Response querySlices(@QueryParam("keystoreId") String keystoreId, @QueryParam("participantId") String participantId) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "allSlices(String keystoreId, String participantId)");
+        tracer.entry("Response", this, "querySlices(String keystoreId, String participantId)");
 
         try {
             tracer.out().printfIndentln("keystoreId = %s", keystoreId);
