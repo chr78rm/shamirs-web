@@ -6,6 +6,7 @@
 package de.christofreichardt.restapp.shamir.model;
 
 import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonPointer;
+import javax.json.JsonReader;
 import javax.json.JsonValue;
 import javax.json.JsonWriter;
 import javax.persistence.Basic;
@@ -119,6 +121,13 @@ public class Slice implements Serializable, Comparable<Slice> {
 
     public byte[] getShare() {
         return share;
+    }
+
+    public JsonObject sharePoints() {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(this.share);
+        try ( JsonReader jsonReader = Json.createReader(inputStream)) {
+            return jsonReader.read().asJsonObject();
+        }
     }
 
     public void setShare(byte[] share) {
@@ -305,6 +314,10 @@ public class Slice implements Serializable, Comparable<Slice> {
                             .add("PATCH")
                             .build()
             );
+        }
+        if (inFull) {
+            JsonPointer jsonPointer = Json.createPointer("/share");
+            slice = jsonPointer.add(slice, sharePoints());
         }
 
         return slice;

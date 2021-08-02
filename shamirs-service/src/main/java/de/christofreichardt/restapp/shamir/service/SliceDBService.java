@@ -10,8 +10,10 @@ import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.restapp.shamir.model.Slice;
 import java.util.List;
+import java.util.Optional;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,6 +25,9 @@ public class SliceDBService implements SliceService, Traceable {
 
     @PersistenceContext
     EntityManager entityManager;
+    
+    @Autowired
+    SliceRepository sliceRepository;
 
     @Override
     public List<Slice> findAll() {
@@ -71,6 +76,19 @@ public class SliceDBService implements SliceService, Traceable {
                     .setParameter("keystoreId", keystoreId)
                     .setParameter("participantId", participantId)
                     .getResultList();
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Override
+    public Optional<Slice> findById(String sliceId) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Optional<Slice>", this, "findById(String sliceId)");
+        try {
+            tracer.out().printfIndentln("sliceId = %s", sliceId);
+            
+            return this.sliceRepository.findById(sliceId);
         } finally {
             tracer.wayout();
         }

@@ -75,6 +75,13 @@ abstract public class BaseRS implements Traceable {
                 .encoding("UTF-8")
                 .build();
     }
+    
+    Response notFound(String message) {
+        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+        String methodName = stackTraceElements.length >= 3 ? stackTraceElements[2].getMethodName() : "-";
+        
+        return makeErrorResponse(message, methodName, Response.Status.NOT_FOUND);
+    }
 
     @Override
     public AbstractTracer getCurrentTracer() {

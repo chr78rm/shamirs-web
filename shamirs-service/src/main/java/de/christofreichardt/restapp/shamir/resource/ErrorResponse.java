@@ -43,7 +43,7 @@ public class ErrorResponse {
             jsonObjectBuilder.add("hint", this.hint);
         }
         JsonObject error = jsonObjectBuilder.build();
-        return Response.status(Response.Status.BAD_REQUEST)
+        return Response.status(this.status.getStatusCode())
                             .entity(error)
                             .type(MediaType.APPLICATION_JSON)
                             .encoding("UTF-8")

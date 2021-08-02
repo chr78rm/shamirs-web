@@ -11,6 +11,7 @@ import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.restapp.shamir.service.SliceService;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.ws.rs.GET;
@@ -84,6 +85,27 @@ public class SliceRS extends BaseRS {
                     .build();
 
             return ok(slicesInfo);
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @GET
+    @Path("/slices/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response singleSlice(@PathParam("id") String id) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "singleSlice(String id)");
+
+        try {
+            tracer.out().printfIndentln("id = %s", id);
+            
+            Optional<Slice> slice = this.sliceService.findById(id);
+            if (slice.isEmpty()) {
+                return notFound(String.format("No such Slice[id=%s].", id));
+            }
+
+            return ok(slice.get().toJson(true));
         } finally {
             tracer.wayout();
         }

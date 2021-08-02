@@ -7,6 +7,7 @@ package de.christofreichardt.restapp.shamir.service;
 
 import de.christofreichardt.restapp.shamir.model.Slice;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,4 +20,5 @@ public interface SliceService {
     List<Slice> findByKeystoreId(String keystoreId);
     List<Slice> findByParticipantId(String participantId);
     List<Slice> findByKeystoreIdAndParticipantId(String keystoreId, String participantId);
+    Optional<Slice> findById(String sliceId);
 }
