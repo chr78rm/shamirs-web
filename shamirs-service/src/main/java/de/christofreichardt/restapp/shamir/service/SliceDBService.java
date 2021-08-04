@@ -95,6 +95,19 @@ public class SliceDBService implements SliceService, Traceable {
     }
 
     @Override
+    public Slice save(Slice slice) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Slice", this, "save(Slice slice)");
+        try {
+            tracer.out().printfIndentln("slice = %s", slice);
+            
+            return this.sliceRepository.save(slice);
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Override
     public AbstractTracer getCurrentTracer() {
         return TracerFactory.getInstance().getCurrentQueueTracer();
     }

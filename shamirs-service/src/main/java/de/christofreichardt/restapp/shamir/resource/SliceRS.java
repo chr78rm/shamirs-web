@@ -7,6 +7,7 @@ package de.christofreichardt.restapp.shamir.resource;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
 import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.restapp.shamir.service.SliceService;
 import java.util.List;
@@ -14,6 +15,8 @@ import java.util.Objects;
 import java.util.Optional;
 import javax.json.Json;
 import javax.json.JsonObject;
+import javax.json.JsonPointer;
+import javax.json.JsonValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
 import javax.ws.rs.Path;
@@ -39,19 +42,47 @@ public class SliceRS extends BaseRS {
     @PATCH
     @Path("/slices/{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response updateSlice(@PathParam("id") String id, JsonObject jsonObject) {
+    public Response updateSlice(@PathParam("id") String id, JsonObject instructions) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "updateSlice(String id, JsonObject jsonObject)");
+        tracer.entry("Response", this, "updateSlice(String id, JsonObject instructions)");
 
         try {
             tracer.out().printfIndentln("id = %s", id);
-            tracer.out().printfIndentln("jsonObject = %s", jsonObject);
+            
+            Optional<Slice> slice = this.sliceService.findById(id);
+            if (slice.isEmpty()) {
+                return notFound(String.format("No such Slice[id=%s].", id));
+            }
+            
+            JsonPointer statePointer = Json.createPointer("/state");
+            if (statePointer.containsValue(instructions) && statePointer.getValue(instructions).getValueType() == JsonValue.ValueType.STRING) {
+                if (!SliceProcessingState.isValid(instructions.getString("state"))) {
+                    return badRequest(String.format("Unknown state '%s'.", instructions.getString("state")));
+                }
+                if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
+                    return fetchSlice(slice.get());
+                }
+            }
 
-            JsonObject slice = Json.createObjectBuilder()
-                    .add("state", "FETCHED")
-                    .build();
+            return noContent();
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    Response fetchSlice(Slice slice) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "fetchSlice(Slice slice)");
 
-            return ok(slice);
+        try {
+            if (!(slice.isCreated() || slice.isPosted())) {
+                return badRequest(String.format("The requested slice is neither '%s' nor '%s'.", SliceProcessingState.CREATED.name(), SliceProcessingState.POSTED.name()));
+            }
+            
+            slice.fetched();
+            this.sliceService.save(slice);
+            
+            return ok(slice.toJson(true));
         } finally {
             tracer.wayout();
         }

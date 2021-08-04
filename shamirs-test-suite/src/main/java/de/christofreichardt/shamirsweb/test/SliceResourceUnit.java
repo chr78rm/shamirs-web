@@ -11,22 +11,28 @@ import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.json.JsonValue;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.assertj.core.api.WithAssertions;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 /**
  *
  * @author Developer
  */
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions {
 
     public SliceResourceUnit(@PropertiesExtension.Config Map<String, String> config) {
@@ -54,15 +60,16 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             tracer.wayout();
         }
     }
-    
+
     @Test
+    @Order(1)
     void slicesByKeystore() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "slicesByKeystore()");
 
         try {
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
-            final String SESSION_ID = "8bff8ac6-fc31-40de-bd6a-eca4348171c5";
+            final String SESSION_ID = "8bff8ac6-fc31-40de-bd6a-eca4348171c5"; // provisioned session for my-first-keystore
             final int IDLE_TIME = 1;
 
             // session should be in phase 'PROVISIONED'
@@ -171,12 +178,19 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                 slices = response.readEntity(JsonObject.class).getJsonArray("slices");
             }
 
-            // assert that the previous fetched slices are now expired
+            // assert that the previous fetched slices are now expired and the type array of the self link contains only GET
             allMatched = slices.stream()
                     .map((slice -> slice.asJsonObject()))
                     .filter(slice -> sliceIds.contains(slice.getString("id")))
                     .map(slice -> Enum.valueOf(SliceProcessingState.class, slice.getString("state")))
                     .allMatch(state -> state == SliceProcessingState.EXPIRED);
+            assertThat(allMatched).isTrue();
+            allMatched = slices.stream()
+                    .map((slice -> slice.asJsonObject()))
+                    .filter(slice -> sliceIds.contains(slice.getString("id")))
+                    .map(slice -> Json.createPointer("/links/0/type").getValue(slice))
+                    .map(type -> type.asJsonArray())
+                    .allMatch(type -> type.contains(Json.createValue("GET")) && !type.contains(Json.createValue("PATCH")));
             assertThat(allMatched).isTrue();
         } finally {
             tracer.wayout();
@@ -238,7 +252,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
     @Test
     void allSlices() {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "slicesByKeystoreAndParticipant()");
+        tracer.entry("void", this, "allSlices()");
 
         try {
             // retrieve all slice views
@@ -258,14 +272,15 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
     }
 
     @Test
+    @Order(2)
     void querySingleSlice() {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "querySingleSlice()");
 
         try {
             final String SLICE_ID = "9a83d398-35d6-4959-aea2-1c930a936b43"; // christofs slice from 'my-first-keystore'
-            
-            // retrieve all slice views
+
+            // retrieve particular slice views
             JsonObject slice;
             try ( Response response = this.client.target(this.baseUrl)
                     .path("slices")
@@ -284,7 +299,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             tracer.wayout();
         }
     }
-    
+
     @Test
     void queryNotExistingSlice() {
         AbstractTracer tracer = getCurrentTracer();
@@ -292,8 +307,8 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
 
         try {
             final String SLICE_ID = UUID.randomUUID().toString(); // with virtual certainty a not existing slice id
-            
-            // retrieve all slice views
+
+            // retrieve particular slice views
             try ( Response response = this.client.target(this.baseUrl)
                     .path("slices")
                     .path(SLICE_ID)
@@ -309,27 +324,66 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
         }
     }
 
-//    @Test
-//    void fetchSlice() {
-//        AbstractTracer tracer = getCurrentTracer();
-//        tracer.entry("void", this, "fetchSlice()");
-//
-//        try {
-//            JsonObject instruction = Json.createObjectBuilder()
-//                    .add("slice", Json.createObjectBuilder()
-//                            .add("retrieval", JsonValue.EMPTY_JSON_OBJECT)
-//                    )
-//                    .build();
-//            
-//            try ( Response response = this.client.target(this.baseUrl)
-//                    .path("slices")
-//                    .path("5ae7570d-3f3b-43b5-94e6-b23f24d60093")
-//                    .request(MediaType.APPLICATION_JSON)
-//                    .method("PATCH", Entity.json(slice))) {
-//                tracer.out().printfIndentln("response = %s", response);
-//            }
-//        } finally {
-//            tracer.wayout();
-//        }
-//    }
+    @Test
+    @Order(3)
+    void fetchSlice() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "fetchSlice()");
+
+        try {
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+            final String PARTICIPANT_ID = "8844dd34-c836-4060-ba73-c6d86ad1275d"; // christof
+            
+            // retrieve a created slice views for keystore and participant
+            JsonArray slices;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .queryParam("participantId", PARTICIPANT_ID)
+                    .queryParam("keystoreId", KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("GET")) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                slices = response.readEntity(JsonObject.class).getJsonArray("slices");
+            }
+            JsonObject createdSlice = slices.stream()
+                    .map(slice -> slice.asJsonObject())
+                    .filter(slice -> Objects.equals(slice.getString("state"), SliceProcessingState.CREATED.name()))
+                    .findFirst()
+                    .orElseThrow();
+            
+            // change the state to FETCHED
+            JsonObject instruction = Json.createObjectBuilder()
+                    .add("state", Json.createValue(SliceProcessingState.FETCHED.name())
+                    )
+                    .build();
+            JsonObject fetchedSlice;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .path(createdSlice.getString("id"))
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("PATCH", Entity.json(instruction))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                fetchedSlice = response.readEntity(JsonObject.class);
+            }
+            assertThat(fetchedSlice.getString("state")).isEqualTo(SliceProcessingState.FETCHED.name());
+            assertThat(fetchedSlice.getJsonObject("share")).isEqualTo(JsonValue.EMPTY_JSON_OBJECT);
+            
+            // try to change the state again to FETCHED
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .path(fetchedSlice.getString("id"))
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("PATCH", Entity.json(instruction))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                assertThat(response.hasEntity()).isTrue();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
 }

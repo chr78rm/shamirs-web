@@ -10,5 +10,15 @@ package de.christofreichardt.restapp.shamir.common;
  * @author Developer
  */
 public enum SliceProcessingState {
-    NEW, CREATED, FETCHED, POSTED, EXPIRED
+    NEW, CREATED, FETCHED, POSTED, EXPIRED;
+    
+    static public boolean isValid(String state) {
+        boolean valid = true;
+        try {
+            valueOf(state);
+        } catch (Exception e) {
+            valid = false;
+        }
+        return valid;
+    }
 }

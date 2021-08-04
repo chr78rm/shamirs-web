@@ -12,10 +12,13 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import javax.json.Json;
+import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
-import javax.json.JsonPointer;
+import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
 import javax.json.JsonValue;
 import javax.json.JsonWriter;
@@ -123,10 +126,14 @@ public class Slice implements Serializable, Comparable<Slice> {
         return share;
     }
 
-    public JsonObject sharePoints() {
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(this.share);
-        try ( JsonReader jsonReader = Json.createReader(inputStream)) {
-            return jsonReader.read().asJsonObject();
+    public Optional<JsonObject> sharePoints() {
+        if (Objects.nonNull(this.share)) {
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(this.share);
+            try ( JsonReader jsonReader = Json.createReader(inputStream)) {
+                return Optional.of(jsonReader.read().asJsonObject());
+            }
+        } else {
+            return Optional.empty();
         }
     }
 
@@ -214,8 +221,9 @@ public class Slice implements Serializable, Comparable<Slice> {
     }
 
     public void fetched() {
-        if (this.isCreated()) {
+        if (this.isCreated() || this.isPosted()) {
             this.processingState = SliceProcessingState.FETCHED.name();
+            this.share = null;
             modified();
         } else {
             throw new IllegalStateException();
@@ -289,36 +297,31 @@ public class Slice implements Serializable, Comparable<Slice> {
     }
 
     public JsonObject toJson(boolean inFull) {
-        JsonObject slice = Json.createObjectBuilder()
+        JsonObjectBuilder jsonObjectBuilder = Json.createObjectBuilder()
                 .add("id", this.id)
                 .add("partitionId", this.partitionId)
                 .add("state", this.processingState)
-                .add("size", this.size)
+                .add("size", this.size);
+        if (inFull) {
+            JsonObject sharePoints = sharePoints().orElse(JsonObject.EMPTY_JSON_OBJECT);
+            jsonObjectBuilder.add("share", sharePoints);
+        }
+        JsonArrayBuilder typesBuilder = Json.createArrayBuilder();
+        typesBuilder.add("GET");
+        if (this.isCreated() || this.isPosted() || this.isFetched()) {
+            typesBuilder.add("PATCH");
+        }
+        JsonObject slice = jsonObjectBuilder
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("links", Json.createArrayBuilder()
                         .add(Json.createObjectBuilder()
                                 .add("rel", "self")
                                 .add("href", String.format("/slices/%s", this.id))
-                                .add("type", Json.createArrayBuilder()
-                                        .add("GET")
-                                )
+                                .add("type", typesBuilder)
                         )
                 )
                 .build();
-        if (this.isCreated() || this.isPosted() || this.isFetched()) {
-            JsonPointer jsonPointer = Json.createPointer("/links/0/type");
-            slice = jsonPointer.add(slice,
-                    Json.createArrayBuilder()
-                            .add("GET")
-                            .add("PATCH")
-                            .build()
-            );
-        }
-        if (inFull) {
-            JsonPointer jsonPointer = Json.createPointer("/share");
-            slice = jsonPointer.add(slice, sharePoints());
-        }
 
         return slice;
     }

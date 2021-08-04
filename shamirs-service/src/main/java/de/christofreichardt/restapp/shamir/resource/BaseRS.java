@@ -82,6 +82,10 @@ abstract public class BaseRS implements Traceable {
         
         return makeErrorResponse(message, methodName, Response.Status.NOT_FOUND);
     }
+    
+    Response noContent() {
+        return Response.noContent().build();
+    }
 
     @Override
     public AbstractTracer getCurrentTracer() {

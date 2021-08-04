@@ -21,4 +21,5 @@ public interface SliceService {
     List<Slice> findByParticipantId(String participantId);
     List<Slice> findByKeystoreIdAndParticipantId(String keystoreId, String participantId);
     Optional<Slice> findById(String sliceId);
+    Slice save(Slice slice);
 }
