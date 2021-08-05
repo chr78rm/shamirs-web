@@ -230,9 +230,10 @@ public class Slice implements Serializable, Comparable<Slice> {
         }
     }
 
-    public void posted() {
+    public void posted(JsonObject share) {
         if (this.isFetched()) {
             this.processingState = SliceProcessingState.POSTED.name();
+            setShare(share);
             modified();
         } else {
             throw new IllegalStateException();

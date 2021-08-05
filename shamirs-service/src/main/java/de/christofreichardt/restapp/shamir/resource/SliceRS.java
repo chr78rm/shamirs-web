@@ -61,6 +61,11 @@ public class SliceRS extends BaseRS {
                 }
                 if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
                     return fetchSlice(slice.get());
+                } else if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.POSTED) {
+                    JsonPointer sharePointer = Json.createPointer("/share");
+                    if (sharePointer.containsValue(instructions) && sharePointer.getValue(instructions).getValueType() == JsonValue.ValueType.OBJECT) {
+                        return postSlice(slice.get(), instructions.getJsonObject("share"));
+                    }
                 }
             }
 
@@ -80,7 +85,25 @@ public class SliceRS extends BaseRS {
             }
             
             slice.fetched();
-            this.sliceService.save(slice);
+            slice = this.sliceService.save(slice);
+            
+            return ok(slice.toJson(true));
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    Response postSlice(Slice slice, JsonObject share) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "postSlice(Slice slice, JsonObject share)");
+
+        try {
+            if (!slice.isFetched()) {
+                return badRequest(String.format("The requested slice is not '%s'.", SliceProcessingState.FETCHED.name()));
+            }
+            
+            slice.posted(share);
+            slice = this.sliceService.save(slice);
             
             return ok(slice.toJson(true));
         } finally {
