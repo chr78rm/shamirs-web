@@ -68,7 +68,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
     }
 
     @Test
-    @Order(1)
+    @Order(2)
     void slicesByKeystore() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "slicesByKeystore()");
@@ -278,7 +278,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
     }
 
     @Test
-    @Order(2)
+    @Order(1)
     void querySingleSlice() {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "querySingleSlice()");

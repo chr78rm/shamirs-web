@@ -328,7 +328,7 @@ public class Slice implements Serializable, Comparable<Slice> {
                     ).add(Json.createObjectBuilder()
                             .add("rel", "keystore")
                             .add("href", String.format("/keystore/%s", this.keystore.getId()))
-                            .add("type", JsonValue.EMPTY_JSON_ARRAY) // TODO: fill in the current types
+                            .add("type", this.keystore.selfLinkTypes())
                     );
         }
         JsonObject slice = jsonObjectBuilder

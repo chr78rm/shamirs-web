@@ -8,6 +8,7 @@ package de.christofreichardt.shamirsweb.test;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -228,6 +229,11 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
                 assertThat(session.getString("phase")).isEqualTo(SessionPhase.PROVISIONED.name());
+                assertThat(Json.createPointer("/links/0/type").containsValue(session)).isTrue();
+                assertThat(
+                        session.getJsonArray("links").getJsonObject(0).getJsonArray("type")
+                                .containsAll(List.of(Json.createValue("GET"), Json.createValue("GET")))
+                ).isTrue();
             }
  
             JsonObject sessionInstructions = Json.createObjectBuilder()
@@ -255,6 +261,11 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 JsonObject session = response.readEntity(JsonObject.class);
                 assertThat(session.getString("phase")).isEqualTo(SessionPhase.ACTIVE.name());
                 assertThat(session.getInt("idleTime")).isEqualTo(IDLE_TIME);
+                assertThat(Json.createPointer("/links/0/type").containsValue(session)).isTrue();
+                assertThat(
+                        session.getJsonArray("links").getJsonObject(0).getJsonArray("type")
+                                .containsAll(List.of(Json.createValue("GET"), Json.createValue("GET")))
+                ).isTrue();
             }
             
             // session should provide a link where to post documents
@@ -293,6 +304,13 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject session = response.readEntity(JsonObject.class);
                 assertThat(session.getString("phase")).isEqualTo(SessionPhase.CLOSED.name());
+                assertThat(Json.createPointer("/links/0/type").containsValue(session)).isTrue();
+                assertThat(
+                        session.getJsonArray("links").getJsonObject(0).getJsonArray("type")
+                                .contains(Json.createValue("GET"))  &&
+                        !session.getJsonArray("links").getJsonObject(0).getJsonArray("type")
+                                .contains(Json.createValue("PUT"))
+                ).isTrue();
             }
             
             // check that the rolled over keystore is loadable

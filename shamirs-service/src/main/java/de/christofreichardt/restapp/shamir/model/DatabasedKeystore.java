@@ -429,6 +429,12 @@ public class DatabasedKeystore implements Serializable {
             tracer.wayout();
         }
     }
+    
+    JsonArray selfLinkTypes() {
+        return Json.createArrayBuilder()
+                .add("GET")
+                .build();
+    }
 
     public JsonObject toJson(boolean inFull) {
         JsonObject jsonKeystore;
@@ -445,8 +451,7 @@ public class DatabasedKeystore implements Serializable {
                 .add(Json.createObjectBuilder()
                         .add("rel", "self")
                         .add("href", String.format("/keystores/%s", this.id))
-                        .add("type", Json.createArrayBuilder()
-                                    .add("GET")
+                        .add("type", selfLinkTypes()
                         )
                 );
         if (inFull) {

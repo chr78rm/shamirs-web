@@ -239,22 +239,25 @@ public class Session implements Serializable {
         }
     }
     
+    JsonArray selfLinkTypes() {
+        JsonArrayBuilder linkTypesBuilder = Json.createArrayBuilder()
+                .add("GET");
+        if (!this.isClosed()) {
+            linkTypesBuilder.add("PUT");
+        }
+        return linkTypesBuilder.build();
+    }
+    
     public JsonObject toJson() {
         return toJson(false);
     }
     
     public JsonObject toJson(boolean inFull) {
-        JsonArrayBuilder selfTypeBuilder = Json.createArrayBuilder()
-                .add("GET");
-        if (!Objects.equals(this.phase, SessionPhase.CLOSED.name())) {
-            selfTypeBuilder.add("PUT");
-        }
-        JsonArray selfTypes = selfTypeBuilder.build();
         JsonArrayBuilder linksBuilder = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
                         .add("rel", "self")
                         .add("href", String.format("/keystores/%s/sessions/%s", this.keystore.getId(), this.id))
-                        .add("type", selfTypes)
+                        .add("type", selfLinkTypes())
                 );
         if (inFull) {
             JsonArrayBuilder documentsTypeBuilder = Json.createArrayBuilder()
