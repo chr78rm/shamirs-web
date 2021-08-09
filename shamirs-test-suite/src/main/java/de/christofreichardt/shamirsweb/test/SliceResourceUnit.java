@@ -6,9 +6,13 @@
 package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
 import java.time.temporal.ChronoUnit;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,7 +38,7 @@ import org.junit.jupiter.api.TestMethodOrder;
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions {
-    
+
     JsonObject passwordShares;
 
     public SliceResourceUnit(@PropertiesExtension.Config Map<String, String> config) {
@@ -335,7 +339,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
         try {
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
             final String PARTICIPANT_ID = "8844dd34-c836-4060-ba73-c6d86ad1275d"; // christof
-            
+
             // retrieve a created slice view for keystore and participant
             JsonArray slices;
             try ( Response response = this.client.target(this.baseUrl)
@@ -354,7 +358,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .filter(slice -> Objects.equals(slice.getString("state"), SliceProcessingState.CREATED.name()))
                     .findFirst()
                     .orElseThrow();
-            
+
             // fetch the password shares
             try ( Response response = this.client.target(this.baseUrl)
                     .path("slices")
@@ -368,7 +372,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             }
             assertThat(createdSlice.getJsonObject("share")).isNotEmpty();
             this.passwordShares = createdSlice.getJsonObject("share");
-            
+
             // change the state to FETCHED
             JsonObject instruction = Json.createObjectBuilder()
                     .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
@@ -386,7 +390,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             }
             assertThat(fetchedSlice.getString("state")).isEqualTo(SliceProcessingState.FETCHED.name());
             assertThat(fetchedSlice.getJsonObject("share")).isEqualTo(JsonValue.EMPTY_JSON_OBJECT);
-            
+
             // try to change the state again to FETCHED
             try ( Response response = this.client.target(this.baseUrl)
                     .path("slices")
@@ -401,7 +405,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             tracer.wayout();
         }
     }
-    
+
     @Test
     @Order(4)
     void postSlice() {
@@ -411,7 +415,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
         try {
             final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
             final String PARTICIPANT_ID = "8844dd34-c836-4060-ba73-c6d86ad1275d"; // christof
-            
+
             // retrieve a fetched slice view for keystore and participant
             JsonArray slices;
             try ( Response response = this.client.target(this.baseUrl)
@@ -419,7 +423,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .queryParam("participantId", PARTICIPANT_ID)
                     .queryParam("keystoreId", KEYSTORE_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .method("GET")) {
+                    .get()) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
@@ -430,7 +434,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .filter(slice -> Objects.equals(slice.getString("state"), SliceProcessingState.FETCHED.name()))
                     .findFirst()
                     .orElseThrow();
-            
+
             // retransmit the shares
             JsonObject instruction = Json.createObjectBuilder()
                     .add("state", Json.createValue(SliceProcessingState.POSTED.name()))
@@ -449,6 +453,193 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             }
             assertThat(postedSlice.getString("state")).isEqualTo(SliceProcessingState.POSTED.name());
             assertThat(postedSlice.getJsonObject("share")).isNotEmpty();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Test
+    @Order(5)
+    void threshold() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "threshold()");
+
+        try {
+            final String KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
+
+            // assert that the keystore is loadable
+            int threshold, shares;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject keystoreView = response.readEntity(JsonObject.class);
+                assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.ARRAY);
+                threshold = keystoreView.getInt("threshold");
+                shares = keystoreView.getInt("shares");
+            };
+            tracer.out().printfIndentln("shares = %d", shares);
+            tracer.out().printfIndentln("threshold = %d", threshold);
+
+            // retrieve the slice views for the keystore
+            JsonArray slices;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .queryParam("keystoreId", KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                slices = response.readEntity(JsonObject.class).getJsonArray("slices");
+            }
+
+            // filter for slices which are CREATED or POSTED
+            List<JsonObject> currentSlices = slices.stream()
+                    .map(slice -> slice.asJsonObject())
+                    .filter(slice -> {
+                        SliceProcessingState processingState = SliceProcessingState.valueOf(slice.getString("state"));
+                        return processingState == SliceProcessingState.CREATED || processingState == SliceProcessingState.POSTED;
+                    })
+                    .collect(Collectors.toList());
+            tracer.out().printfIndentln("currentSlices.size() = %d", currentSlices.size());
+            JsonTracer jsonTracer = new JsonTracer() {
+                @Override
+                public AbstractTracer getCurrentTracer() {
+                    return SliceResourceUnit.this.getCurrentTracer();
+                }
+            };
+            tracer.out().println();
+            tracer.out().printfIndentln("--- currentSlices ---");
+            tracer.out().println();
+            currentSlices.forEach(slice -> jsonTracer.trace(slice));
+
+            // collect a subset of slices such that the remaining slices fall below the threshold
+            int sum = 0;
+            List<JsonObject> selectedSlices = new ArrayList<>();
+            {
+                Iterator<JsonObject> iter = currentSlices.iterator();
+                while (sum <= (shares - threshold) && iter.hasNext()) {
+                    JsonObject currentSlice = iter.next();
+                    sum += currentSlice.getInt("size");
+                    selectedSlices.add(currentSlice);
+                }
+            }
+            tracer.out().printfIndentln("sum = %d", sum);
+            assertThat(shares - sum).isLessThan(threshold);
+            tracer.out().println();
+            tracer.out().printfIndentln("--- selectedSlices ---");
+            tracer.out().println();
+            selectedSlices.forEach(slice -> jsonTracer.trace(slice));
+
+            // fetch the shares from the selected slices
+            Map<String, JsonObject> fetchedShares = selectedSlices.stream()
+                    .map(selectedSlice -> selectedSlice.asJsonObject())
+                    .map(selectedSlice -> {
+                        JsonObject fetchedShare;
+                        try ( Response response = this.client.target(this.baseUrl)
+                                .path("slices")
+                                .path(selectedSlice.getString("id"))
+                                .request(MediaType.APPLICATION_JSON)
+                                .method("GET")) {
+                            tracer.out().printfIndentln("response = %s", response);
+                            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                            assertThat(response.hasEntity()).isTrue();
+                            fetchedShare = response.readEntity(JsonObject.class).getJsonObject("share");
+                        }
+                        return new SimpleImmutableEntry<>(selectedSlice.getString("id"), fetchedShare);
+                    })
+                    .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+            tracer.out().println();
+            tracer.out().printfIndentln("--- fetchedShares ---");
+            tracer.out().println();
+            fetchedShares.forEach((id, share) -> {
+                tracer.out().printfIndentln("id = %s", id);
+                jsonTracer.trace(share);
+                tracer.out().println();
+            });
+
+            // change the state to FETCHED
+            final JsonObject fetchInstruction = Json.createObjectBuilder()
+                    .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
+                    .build();
+            Map<String, JsonObject> fetchedSlices = selectedSlices.stream()
+                    .map(selectedSlice -> selectedSlice.asJsonObject())
+                    .map(selectedSlice -> {
+                        JsonObject fetchedSlice;
+                        try ( Response response = this.client.target(this.baseUrl)
+                                .path("slices")
+                                .path(selectedSlice.getString("id"))
+                                .request(MediaType.APPLICATION_JSON)
+                                .method("PATCH", Entity.json(fetchInstruction))) {
+                            tracer.out().printfIndentln("response = %s", response);
+                            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                            assertThat(response.hasEntity()).isTrue();
+                            fetchedSlice = response.readEntity(JsonObject.class);
+                        }
+                        return new SimpleImmutableEntry<>(fetchedSlice.getString("id"), fetchedSlice);
+                    })
+                    .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+            tracer.out().println();
+            tracer.out().printfIndentln("--- fetchedSlices ---");
+            tracer.out().println();
+            fetchedSlices.forEach((id, fetchedSlice) -> {
+                tracer.out().printfIndentln("id = %s", id);
+                jsonTracer.trace(fetchedSlice);
+                tracer.out().println();
+            });
+
+            // assert that the keystore is unloadable
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject keystoreView = response.readEntity(JsonObject.class);
+                assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.STRING);
+            }
+
+            // retransmit shares until the threshold is exceeded
+            {
+                Iterator<Map.Entry<String, JsonObject>> iter = fetchedShares.entrySet().iterator();
+                while (sum > (shares - threshold) && iter.hasNext()) {
+                    Map.Entry<String, JsonObject> fetchedShare = iter.next();
+                    JsonObject postInstruction = Json.createObjectBuilder()
+                            .add("state", Json.createValue(SliceProcessingState.POSTED.name()))
+                            .add("share", fetchedShare.getValue())
+                            .build();
+                    try ( Response response = this.client.target(this.baseUrl)
+                            .path("slices")
+                            .path(fetchedShare.getKey())
+                            .request(MediaType.APPLICATION_JSON)
+                            .method("PATCH", Entity.json(postInstruction))) {
+                        tracer.out().printfIndentln("response = %s", response);
+                        assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                        assertThat(response.hasEntity()).isTrue();
+                    }
+                    sum -= fetchedShare.getValue().getJsonArray("SharePoints").size();
+                }
+            }
+
+            // assert that the keystore is loadable again
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(KEYSTORE_ID)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject keystoreView = response.readEntity(JsonObject.class);
+                assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.ARRAY);
+            }
         } finally {
             tracer.wayout();
         }

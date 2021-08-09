@@ -307,21 +307,34 @@ public class Slice implements Serializable, Comparable<Slice> {
             JsonObject sharePoints = sharePoints().orElse(JsonObject.EMPTY_JSON_OBJECT);
             jsonObjectBuilder.add("share", sharePoints);
         }
-        JsonArrayBuilder typesBuilder = Json.createArrayBuilder();
-        typesBuilder.add("GET");
+        JsonArrayBuilder selfLinkTypesBuilder = Json.createArrayBuilder();
+        selfLinkTypesBuilder.add("GET");
         if (this.isCreated() || this.isPosted() || this.isFetched()) {
-            typesBuilder.add("PATCH");
+            selfLinkTypesBuilder.add("PATCH");
+        }
+        JsonArrayBuilder linksBuilder = Json.createArrayBuilder();
+        linksBuilder
+                .add(Json.createObjectBuilder()
+                        .add("rel", "self")
+                        .add("href", String.format("/slices/%s", this.id))
+                        .add("type", selfLinkTypesBuilder)
+                );
+        if (inFull) {
+            linksBuilder
+                    .add(Json.createObjectBuilder()
+                            .add("rel", "participant")
+                            .add("href", String.format("/participant/%s", this.participant.getId()))
+                            .add("type", JsonValue.EMPTY_JSON_ARRAY) // TODO: fill in the current types
+                    ).add(Json.createObjectBuilder()
+                            .add("rel", "keystore")
+                            .add("href", String.format("/keystore/%s", this.keystore.getId()))
+                            .add("type", JsonValue.EMPTY_JSON_ARRAY) // TODO: fill in the current types
+                    );
         }
         JsonObject slice = jsonObjectBuilder
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .add("modificationTime", this.modificationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-                .add("links", Json.createArrayBuilder()
-                        .add(Json.createObjectBuilder()
-                                .add("rel", "self")
-                                .add("href", String.format("/slices/%s", this.id))
-                                .add("type", typesBuilder)
-                        )
-                )
+                .add("links", linksBuilder)
                 .build();
 
         return slice;

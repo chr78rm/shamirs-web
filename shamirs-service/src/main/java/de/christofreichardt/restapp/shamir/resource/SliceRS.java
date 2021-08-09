@@ -54,6 +54,8 @@ public class SliceRS extends BaseRS {
                 return notFound(String.format("No such Slice[id=%s].", id));
             }
             
+            tracer.out().printfIndentln("slice = %s", slice.get());
+            
             JsonPointer statePointer = Json.createPointer("/state");
             if (statePointer.containsValue(instructions) && statePointer.getValue(instructions).getValueType() == JsonValue.ValueType.STRING) {
                 if (!SliceProcessingState.isValid(instructions.getString("state"))) {
@@ -100,6 +102,9 @@ public class SliceRS extends BaseRS {
         try {
             if (!slice.isFetched()) {
                 return badRequest(String.format("The requested slice is not '%s'.", SliceProcessingState.FETCHED.name()));
+            }
+            if (!Objects.equals(share.getString("PartitionId"), slice.getPartitionId())) {
+                return badRequest(String.format("Unmatched partitionId '%s'.", slice.getPartitionId()));
             }
             
             slice.posted(share);

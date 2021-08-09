@@ -13,7 +13,6 @@ import java.util.Locale;
 import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonObjectBuilder;
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -77,6 +76,10 @@ public class Participant implements Serializable {
 
     public String getPreferredName() {
         return preferredName;
+    }
+
+    public String getId() {
+        return id;
     }
 
     @Override
