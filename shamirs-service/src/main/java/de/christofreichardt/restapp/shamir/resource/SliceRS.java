@@ -56,12 +56,29 @@ public class SliceRS extends BaseRS {
             
             tracer.out().printfIndentln("slice = %s", slice.get());
             
+            JsonPointer idPointer = Json.createPointer("/id");
+            if (idPointer.containsValue(instructions)) {
+                if (idPointer.getValue(instructions).getValueType() == JsonValue.ValueType.STRING) {
+                    if (!Objects.equals(id, instructions.getString("id"))) {
+                        badRequest(String.format("The transmitted id=%s, doesn't match the id of the resource [id=%s].", instructions.getString("id"), id));
+                    }
+                } else {
+                    badRequest("Wrongtyped 'id'.");
+                }
+            }
+            
             JsonPointer statePointer = Json.createPointer("/state");
             if (statePointer.containsValue(instructions) && statePointer.getValue(instructions).getValueType() == JsonValue.ValueType.STRING) {
                 if (!SliceProcessingState.isValid(instructions.getString("state"))) {
                     return badRequest(String.format("Unknown state '%s'.", instructions.getString("state")));
                 }
                 if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
+                    JsonPointer sharePointer = Json.createPointer("/share");
+                    if (sharePointer.containsValue(instructions)) {
+                        if (sharePointer.getValue(instructions).getValueType() != JsonValue.ValueType.OBJECT || !instructions.getJsonObject("share").entrySet().isEmpty()) {
+                            return badRequest(String.format("Bad value for 'share'."));
+                        }
+                    }
                     return fetchSlice(slice.get());
                 } else if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.POSTED) {
                     JsonPointer sharePointer = Json.createPointer("/share");
@@ -69,6 +86,8 @@ public class SliceRS extends BaseRS {
                         return postSlice(slice.get(), instructions.getJsonObject("share"));
                     }
                 }
+            } else {
+                badRequest("Malformed patch.");
             }
 
             return noContent();

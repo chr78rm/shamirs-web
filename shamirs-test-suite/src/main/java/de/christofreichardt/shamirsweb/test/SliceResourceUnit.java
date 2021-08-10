@@ -347,7 +347,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .queryParam("participantId", PARTICIPANT_ID)
                     .queryParam("keystoreId", KEYSTORE_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .method("GET")) {
+                    .get()) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
@@ -364,7 +364,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .path("slices")
                     .path(createdSlice.getString("id"))
                     .request(MediaType.APPLICATION_JSON)
-                    .method("GET")) {
+                    .get()) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
@@ -375,7 +375,9 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
 
             // change the state to FETCHED
             JsonObject instruction = Json.createObjectBuilder()
+                    .add("id", createdSlice.getString("id"))
                     .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
+                    .add("share", JsonValue.EMPTY_JSON_OBJECT)
                     .build();
             JsonObject fetchedSlice;
             try ( Response response = this.client.target(this.baseUrl)
@@ -391,7 +393,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             assertThat(fetchedSlice.getString("state")).isEqualTo(SliceProcessingState.FETCHED.name());
             assertThat(fetchedSlice.getJsonObject("share")).isEqualTo(JsonValue.EMPTY_JSON_OBJECT);
 
-            // try to change the state again to FETCHED
+            // try to change the state again to FETCHED, this should give a bad request
             try ( Response response = this.client.target(this.baseUrl)
                     .path("slices")
                     .path(fetchedSlice.getString("id"))
@@ -437,6 +439,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
 
             // retransmit the shares
             JsonObject instruction = Json.createObjectBuilder()
+                    .add("id", fetchedSlice.getString("id"))
                     .add("state", Json.createValue(SliceProcessingState.POSTED.name()))
                     .add("share", this.passwordShares)
                     .build();
