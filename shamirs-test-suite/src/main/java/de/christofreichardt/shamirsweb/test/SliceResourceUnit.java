@@ -46,28 +46,6 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
     }
 
     @Test
-    void dummy() {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "dummy()");
-
-        try {
-            JsonObject slice = Json.createObjectBuilder()
-                    .add("state", "FETCHED")
-                    .build();
-
-            try ( Response response = this.client.target(this.baseUrl)
-                    .path("slices")
-                    .path("5ae7570d-3f3b-43b5-94e6-b23f24d60093")
-                    .request(MediaType.APPLICATION_JSON)
-                    .method("PATCH", Entity.json(slice))) {
-                tracer.out().printfIndentln("response = %s", response);
-            }
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Test
     @Order(2)
     void slicesByKeystore() throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
@@ -372,19 +350,32 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             }
             assertThat(createdSlice.getJsonObject("share")).isNotEmpty();
             this.passwordShares = createdSlice.getJsonObject("share");
-
-            // change the state to FETCHED
+            
+            // try to change the state to FETCHED (missing id)
             JsonObject instruction = Json.createObjectBuilder()
-                    .add("id", createdSlice.getString("id"))
                     .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
                     .add("share", JsonValue.EMPTY_JSON_OBJECT)
+                    .build();
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .path(createdSlice.getString("id"))
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("PATCH", Entity.json(instruction))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                assertThat(response.hasEntity()).isTrue();
+            }
+
+            // change the state to FETCHED
+            JsonObject instructionWithId = Json.createObjectBuilder(instruction)
+                    .add("id", createdSlice.getString("id"))
                     .build();
             JsonObject fetchedSlice;
             try ( Response response = this.client.target(this.baseUrl)
                     .path("slices")
                     .path(createdSlice.getString("id"))
                     .request(MediaType.APPLICATION_JSON)
-                    .method("PATCH", Entity.json(instruction))) {
+                    .method("PATCH", Entity.json(instructionWithId))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
@@ -398,7 +389,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .path("slices")
                     .path(fetchedSlice.getString("id"))
                     .request(MediaType.APPLICATION_JSON)
-                    .method("PATCH", Entity.json(instruction))) {
+                    .method("PATCH", Entity.json(instructionWithId))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
                 assertThat(response.hasEntity()).isTrue();
@@ -569,16 +560,20 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             // change the state to FETCHED
             final JsonObject fetchInstruction = Json.createObjectBuilder()
                     .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
+                    .add("share", JsonValue.EMPTY_JSON_OBJECT)
                     .build();
             Map<String, JsonObject> fetchedSlices = selectedSlices.stream()
                     .map(selectedSlice -> selectedSlice.asJsonObject())
                     .map(selectedSlice -> {
                         JsonObject fetchedSlice;
+                        JsonObject fetchInstructionWithId = Json.createObjectBuilder(fetchInstruction)
+                                .add("id", selectedSlice.getString("id"))
+                                .build();
                         try ( Response response = this.client.target(this.baseUrl)
                                 .path("slices")
                                 .path(selectedSlice.getString("id"))
                                 .request(MediaType.APPLICATION_JSON)
-                                .method("PATCH", Entity.json(fetchInstruction))) {
+                                .method("PATCH", Entity.json(fetchInstructionWithId))) {
                             tracer.out().printfIndentln("response = %s", response);
                             assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                             assertThat(response.hasEntity()).isTrue();
@@ -615,6 +610,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                 while (sum > (shares - threshold) && iter.hasNext()) {
                     Map.Entry<String, JsonObject> fetchedShare = iter.next();
                     JsonObject postInstruction = Json.createObjectBuilder()
+                            .add("id", fetchedShare.getKey())
                             .add("state", Json.createValue(SliceProcessingState.POSTED.name()))
                             .add("share", fetchedShare.getValue())
                             .build();

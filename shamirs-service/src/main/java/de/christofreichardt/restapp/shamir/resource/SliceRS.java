@@ -48,54 +48,55 @@ public class SliceRS extends BaseRS {
 
         try {
             tracer.out().printfIndentln("id = %s", id);
-            
+
+            // check if slice exists
             Optional<Slice> slice = this.sliceService.findById(id);
             if (slice.isEmpty()) {
                 return notFound(String.format("No such Slice[id=%s].", id));
             }
-            
+
             tracer.out().printfIndentln("slice = %s", slice.get());
-            
-            JsonPointer idPointer = Json.createPointer("/id");
-            if (idPointer.containsValue(instructions)) {
-                if (idPointer.getValue(instructions).getValueType() == JsonValue.ValueType.STRING) {
-                    if (!Objects.equals(id, instructions.getString("id"))) {
-                        badRequest(String.format("The transmitted id=%s, doesn't match the id of the resource [id=%s].", instructions.getString("id"), id));
-                    }
-                } else {
-                    badRequest("Wrongtyped 'id'.");
-                }
+
+            // match the id against the path parameter
+            if (!instructions.containsKey("id")) {
+                return badRequest("Missing 'id'.");
             }
-            
-            JsonPointer statePointer = Json.createPointer("/state");
-            if (statePointer.containsValue(instructions) && statePointer.getValue(instructions).getValueType() == JsonValue.ValueType.STRING) {
-                if (!SliceProcessingState.isValid(instructions.getString("state"))) {
-                    return badRequest(String.format("Unknown state '%s'.", instructions.getString("state")));
-                }
-                if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
-                    JsonPointer sharePointer = Json.createPointer("/share");
-                    if (sharePointer.containsValue(instructions)) {
-                        if (sharePointer.getValue(instructions).getValueType() != JsonValue.ValueType.OBJECT || !instructions.getJsonObject("share").entrySet().isEmpty()) {
-                            return badRequest(String.format("Bad value for 'share'."));
-                        }
-                    }
-                    return fetchSlice(slice.get());
-                } else if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.POSTED) {
-                    JsonPointer sharePointer = Json.createPointer("/share");
-                    if (sharePointer.containsValue(instructions) && sharePointer.getValue(instructions).getValueType() == JsonValue.ValueType.OBJECT) {
-                        return postSlice(slice.get(), instructions.getJsonObject("share"));
-                    }
-                }
-            } else {
-                badRequest("Malformed patch.");
+            if (instructions.get("id").getValueType() != JsonValue.ValueType.STRING) {
+                return badRequest("Wrongtyped 'id'.");
+            }
+            if (!Objects.equals(id, instructions.getString("id"))) {
+                return badRequest(String.format("The transmitted id=%s, doesn't match the id of the resource [id=%s].", instructions.getString("id"), id));
             }
 
-            return noContent();
+            // validate the state
+            if (!instructions.containsKey("state") || instructions.get("state").getValueType() != JsonValue.ValueType.STRING) {
+                return badRequest("Malformed patch.");
+            }
+            if (!SliceProcessingState.isValid(instructions.getString("state"))) {
+                return badRequest(String.format("Unknown state '%s'.", instructions.getString("state")));
+            }
+            
+            // ensure that the share object exists
+            if (!instructions.containsKey("share") || instructions.get("share").getValueType() != JsonValue.ValueType.OBJECT) {
+                return badRequest("Malformed patch.");
+            }
+            
+            // dispatch
+            if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
+                if (!instructions.get("share").asJsonObject().entrySet().isEmpty()) {
+                    return badRequest("Malformed patch.");
+                }
+                return fetchSlice(slice.get());
+            } else if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.POSTED) {
+                return postSlice(slice.get(), instructions.getJsonObject("share")); // TODO: validate the share object
+            }
+
+            return internalServerError("Something went wrong");
         } finally {
             tracer.wayout();
         }
     }
-    
+
     Response fetchSlice(Slice slice) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "fetchSlice(Slice slice)");
@@ -104,16 +105,16 @@ public class SliceRS extends BaseRS {
             if (!(slice.isCreated() || slice.isPosted())) {
                 return badRequest(String.format("The requested slice is neither '%s' nor '%s'.", SliceProcessingState.CREATED.name(), SliceProcessingState.POSTED.name()));
             }
-            
+
             slice.fetched();
             slice = this.sliceService.save(slice);
-            
+
             return ok(slice.toJson(true));
         } finally {
             tracer.wayout();
         }
     }
-    
+
     Response postSlice(Slice slice, JsonObject share) {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "postSlice(Slice slice, JsonObject share)");
@@ -125,10 +126,10 @@ public class SliceRS extends BaseRS {
             if (!Objects.equals(share.getString("PartitionId"), slice.getPartitionId())) {
                 return badRequest(String.format("Unmatched partitionId '%s'.", slice.getPartitionId()));
             }
-            
+
             slice.posted(share);
             slice = this.sliceService.save(slice);
-            
+
             return ok(slice.toJson(true));
         } finally {
             tracer.wayout();
@@ -167,7 +168,7 @@ public class SliceRS extends BaseRS {
             tracer.wayout();
         }
     }
-    
+
     @GET
     @Path("/slices/{id}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -177,7 +178,7 @@ public class SliceRS extends BaseRS {
 
         try {
             tracer.out().printfIndentln("id = %s", id);
-            
+
             Optional<Slice> slice = this.sliceService.findById(id);
             if (slice.isEmpty()) {
                 return notFound(String.format("No such Slice[id=%s].", id));
