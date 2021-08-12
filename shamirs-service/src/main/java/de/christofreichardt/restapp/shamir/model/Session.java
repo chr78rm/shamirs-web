@@ -271,6 +271,10 @@ public class Session implements Serializable {
                             .add("rel", "documents")
                             .add("href", String.format("/sessions/%s/documents", this.id))
                             .add("type", documentsTypes)
+                    ).add(Json.createObjectBuilder()
+                            .add("rel", "keystore")
+                            .add("href", String.format("/keystores/%s", this.keystore.getId()))
+                            .add("type", this.keystore.selfLinkTypes())
                     );
         }
         JsonArray links = linksBuilder.build();

@@ -268,7 +268,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                 ).isTrue();
             }
             
-            // session should provide a link where to post documents
+            // session should provide a link where to post documents and a link to its keystore
             try (Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(KEYSTORE_ID)
@@ -285,6 +285,11 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                         .filter(link -> link.getString("rel").equals("documents"))
                         .findFirst();
                 assertThat(documentLink).isNotEmpty();
+                Optional<JsonObject> keystoreLink = session.getJsonArray("links").stream()
+                        .map(jsonValue -> jsonValue.asJsonObject())
+                        .filter(link -> link.getString("rel").equals("keystore"))
+                        .findFirst();
+                assertThat(keystoreLink).isNotEmpty();
             }
             
             // waiting for autoclosing the session
