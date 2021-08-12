@@ -277,13 +277,6 @@ public class Metadata implements Serializable {
                         .add("type", selfTypes)
                 );
         if (inFull) {
-            JsonArrayBuilder sessionTypeBuilder = Json.createArrayBuilder();
-            if (!this.session.isNew()) {
-                sessionTypeBuilder.add("GET");
-            }
-            if (this.session.isProvisioned() || this.session.isActive()) {
-                sessionTypeBuilder.add("PUT");
-            }
             JsonArrayBuilder documentTypesBuilder = Json.createArrayBuilder()
                     .add("GET");
             linksBuilder
@@ -294,7 +287,7 @@ public class Metadata implements Serializable {
                     ).add(Json.createObjectBuilder()
                             .add("rel", "session")
                             .add("href", String.format("/keystores/%s/sessions/%s", this.session.getKeystore().getId(), this.session.getId()))
-                            .add("type", sessionTypeBuilder)
+                            .add("type", this.session.selfLinkTypes())
                     );
         }
         JsonArray links = linksBuilder.build();

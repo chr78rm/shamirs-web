@@ -16,7 +16,6 @@ import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
-import javax.json.JsonPointer;
 import javax.json.JsonValue;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
@@ -39,9 +38,9 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
     }
 
     @Test
-    void putInstructionsForUnknownKeystore() {
+    void patchInstructionsForUnknownKeystore() {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "putInstructionsForUnknownKeystore()");
+        tracer.entry("void", this, "patchInstructionsForUnknownKeystore()");
 
         try {
             JsonObject sessionInstructions = Json.createObjectBuilder()
@@ -64,7 +63,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path("sessions")
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
+                    .method("PATCH", Entity.json(sessionInstructions))) {
 
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
@@ -94,7 +93,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path("sessions")
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
+                    .method("PATCH", Entity.json(sessionInstructions))) {
 
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
@@ -130,7 +129,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path("sessions")
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
+                    .method("PATCH", Entity.json(sessionInstructions))) {
 
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
@@ -170,9 +169,9 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
 
     @Test
     @Order(4)
-    void putInstructionsForUnknownSession() {
+    void patchInstructionsForUnknownSession() {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "putInstructionsForUnknownSession()");
+        tracer.entry("void", this, "patchInstructionsForUnknownSession()");
 
         try {
             JsonObject sessionInstructions = Json.createObjectBuilder()
@@ -195,7 +194,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path("sessions")
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
+                    .method("PATCH", Entity.json(sessionInstructions))) {
 
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
@@ -254,7 +253,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path("sessions")
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
+                    .method("PATCH", Entity.json(sessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
@@ -420,7 +419,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path("sessions")
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
+                    .method("PATCH", Entity.json(sessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
                 assertThat(response.hasEntity()).isTrue();
@@ -473,7 +472,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
                     .path("sessions")
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
+                    .method("PATCH", Entity.json(sessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
                 assertThat(response.hasEntity()).isTrue();
@@ -542,7 +541,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
             try (Response response = this.client.target(this.baseUrl)
                     .path(href)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(activateSessionInstructions))) {
+                    .method("PATCH", Entity.json(activateSessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
@@ -563,7 +562,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
             try (Response response = this.client.target(this.baseUrl)
                     .path(href)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(closeSessionInstructions))) {
+                    .method("PATCH", Entity.json(closeSessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.NO_CONTENT);
             }
@@ -654,7 +653,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
             try (Response response = this.client.target(this.baseUrl)
                     .path(href)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(closeSessionInstructions))) {
+                    .method("PATCH", Entity.json(closeSessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
                 assertThat(response.hasEntity()).isTrue();
@@ -743,7 +742,7 @@ public class SessionResourceUnit extends ShamirsBaseUnit implements WithAssertio
             try (Response response = this.client.target(this.baseUrl)
                     .path(hrefSession)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(activateSessionInstructions))) {
+                    .method("PATCH", Entity.json(activateSessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();

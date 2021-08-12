@@ -13,7 +13,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -243,7 +242,7 @@ public class Session implements Serializable {
         JsonArrayBuilder linkTypesBuilder = Json.createArrayBuilder()
                 .add("GET");
         if (!this.isClosed()) {
-            linkTypesBuilder.add("PUT");
+            linkTypesBuilder.add("PATCH");
         }
         return linkTypesBuilder.build();
     }

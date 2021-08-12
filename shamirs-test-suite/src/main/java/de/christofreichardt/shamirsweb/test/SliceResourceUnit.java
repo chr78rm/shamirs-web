@@ -122,7 +122,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .path("sessions")
                     .path(SESSION_ID)
                     .request(MediaType.APPLICATION_JSON)
-                    .put(Entity.json(sessionInstructions))) {
+                    .method("PATCH", Entity.json(sessionInstructions))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
