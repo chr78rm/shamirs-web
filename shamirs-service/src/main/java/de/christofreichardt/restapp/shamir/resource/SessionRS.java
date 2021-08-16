@@ -6,11 +6,13 @@
 package de.christofreichardt.restapp.shamir.resource;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Metadata;
 import de.christofreichardt.restapp.shamir.model.Session;
@@ -22,18 +24,19 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
-import javax.json.JsonPointer;
 import javax.json.JsonValue;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -103,90 +106,6 @@ public class SessionRS extends BaseRS {
         }
     }
 
-    @PATCH
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    @Path("keystores/{keystoreId}/sessions/{sessionId}")
-    public Response updateSession(@PathParam("keystoreId") String keystoreId, @PathParam("sessionId") String sessionId, JsonObject sessionInstructions) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "updateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-
-        try {
-            tracer.out().printfIndentln("keystoreId = %s", keystoreId);
-            tracer.out().printfIndentln("sessionId = %s", sessionId);
-
-            JsonPointer sessionPointer = Json.createPointer("/session");
-            JsonPointer activationPointer = Json.createPointer("/session/activation");
-            JsonPointer closurePointer = Json.createPointer("/session/closure");
-            String errorMessage = "Invalid session instructions.";
-
-            if (!sessionPointer.containsValue(sessionInstructions) || sessionPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.OBJECT) {
-                return badRequest(errorMessage);
-            }
-
-            Response response;
-            if (activationPointer.containsValue(sessionInstructions) && activationPointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
-                JsonPointer jsonPointer = Json.createPointer("/session/activation/automaticClose/idleTime");
-                if (!jsonPointer.containsValue(sessionInstructions) || jsonPointer.getValue(sessionInstructions).getValueType() != JsonValue.ValueType.NUMBER) {
-                    response = badRequest(errorMessage);
-                } else {
-                    response = activateSession(keystoreId, sessionId, sessionInstructions.getJsonObject("session"));
-                }
-            } else if (closurePointer.containsValue(sessionInstructions) && closurePointer.getValue(sessionInstructions).getValueType() == JsonValue.ValueType.OBJECT) {
-                response = closeSession(keystoreId, sessionId, sessionInstructions);
-            } else {
-                response = badRequest(errorMessage);
-            }
-
-            return response;
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    Response activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
-
-        try {
-            Response response;
-            Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
-            if (dbKeystore.isEmpty()) {
-                return badRequest(String.format("No such Keystore[id=%s].", keystoreId));
-            }
-            if (dbKeystore.get().getSessions().isEmpty()) {
-                return internalServerError(String.format("Couldn't retrieve a session for Keystore[id=%s].", keystoreId));
-            }
-            Session currentSession = dbKeystore.get().getSessions().iterator().next();
-            if (!Objects.equals(currentSession.getId(), sessionId)) {
-                return badRequest(String.format("No active Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
-            }
-
-            try {
-                ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.get().sharePoints());
-                KeyStore keyStore = dbKeystore.get().keystoreInstance();
-                JsonObject automaticClose = sessionInstructions.getJsonObject("activation").getJsonObject("automaticClose");
-                int idleTime = automaticClose.getInt("idleTime");
-                TemporalUnit temporalUnit = ChronoUnit.valueOf(automaticClose.getString("temporalUnit", "SECONDS"));
-                Duration duration = Duration.of(idleTime, temporalUnit);
-                currentSession.activated(duration);
-                this.sessionService.save(currentSession);
-                List<Metadata> pendingDocuments = this.metadataService.findPendingBySession(sessionId);
-                DocumentProcessor documentProcessor = new DocumentProcessor(pendingDocuments, shamirsProtection, keyStore);
-                CompletableFuture.supplyAsync(() -> documentProcessor.processAll(), this.executorService)
-                        .thenAcceptAsync(metadatas -> this.metadataService.saveAll(metadatas), this.executorService);
-
-                response = ok(currentSession.toJson());
-            } catch (GeneralSecurityException | IOException | IllegalArgumentException ex) {
-                response = badRequest(String.format("Cannot activate session for Keystore[id=%s].", keystoreId), ex);
-            }
-
-            return response;
-        } finally {
-            tracer.wayout();
-        }
-    }
-
     class SessionClosureService implements Runnable, Traceable {
 
         final DatabasedKeystore keystore;
@@ -214,29 +133,108 @@ public class SessionRS extends BaseRS {
 
     }
 
-    Response closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions) {
+    @PATCH
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("keystores/{keystoreId}/sessions/{sessionId}")
+    public Response patchSession(@PathParam("keystoreId") String keystoreId, @PathParam("sessionId") String sessionId, JsonObject sessionInstructions) throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("Response", this, "closeSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+        tracer.entry("Response", this, "patchSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
 
         try {
-            Optional<DatabasedKeystore> databasedKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
-            if (databasedKeystore.isEmpty()) {
-                return badRequest(String.format("No such Keystore[id=%s].", keystoreId));
+            tracer.out().printfIndentln("keystoreId = %s", keystoreId);
+            tracer.out().printfIndentln("sessionId = %s", sessionId);
+            
+            // guard clauses
+            if (!sessionInstructions.containsKey("id") || sessionInstructions.get("id").getValueType() != JsonValue.ValueType.STRING) {
+                return badRequest("Malformed patch.");
             }
-            if (databasedKeystore.get().getSessions().isEmpty()) {
-                return internalServerError(String.format("Couldn't retrieve a session for Keystore[id=%s].", keystoreId));
+            if (!Objects.equals(sessionId, sessionInstructions.getString("id"))) {
+                return badRequest("SessionIds don't match.");
             }
-            Session currentSession = databasedKeystore.get().getSessions().iterator().next();
+            if (!sessionInstructions.containsKey("phase") || sessionInstructions.get("phase").getValueType() != JsonValue.ValueType.STRING) {
+                return badRequest("Malformed patch.");
+            }
+            String phase = sessionInstructions.getString("phase");
+            if (!SessionPhase.isValid(phase)) {
+                return badRequest("Malformed patch.");
+            }
+            Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
+            if (dbKeystore.isEmpty()) {
+                return notFound(String.format("No such Keystore[id=%s].", keystoreId));
+            }
+            Session currentSession = dbKeystore.get().currentSession();
             if (!Objects.equals(currentSession.getId(), sessionId)) {
-                return badRequest(String.format("No such Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
+                return badRequest(String.format("No present Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
             }
+
+            // dispatch
+            if (SessionPhase.valueOf(phase) == SessionPhase.ACTIVE) {
+                return activateSession(dbKeystore.get(), currentSession, sessionInstructions);
+            } else if (SessionPhase.valueOf(phase) == SessionPhase.CLOSED) {
+                return closeSession(dbKeystore.get(), currentSession);
+            }
+
+            return internalServerError("Something went wrong.");
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    private Response activateSession(DatabasedKeystore dbKeystore, Session currentSession, JsonObject sessionInstructions) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
+
+        try {
+            if (!sessionInstructions.containsKey("idleTime") || sessionInstructions.get("idleTime").getValueType() != JsonValue.ValueType.NUMBER) {
+                return badRequest("Malformed patch.");
+            }
+            try {
+                ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.sharePoints()); // TODO: think about checking if enough sharepoints are available beforehand
+                KeyStore keyStore = dbKeystore.keystoreInstance();
+                int idleTime = sessionInstructions.getInt("idleTime");
+                Duration duration = Duration.of(idleTime, ChronoUnit.SECONDS);
+                currentSession.activated(duration);
+                this.sessionService.save(currentSession);
+                List<Metadata> pendingDocuments = this.metadataService.findPendingBySession(currentSession.getId());
+                DocumentProcessor documentProcessor = new DocumentProcessor(pendingDocuments, shamirsProtection, keyStore);
+                CompletableFuture.supplyAsync(() -> documentProcessor.processAll(), this.executorService)
+                        .thenAcceptAsync(metadatas -> this.metadataService.saveAll(metadatas), this.executorService);
+
+                return ok(currentSession.toJson());
+            } catch (GeneralSecurityException | IOException | IllegalArgumentException ex) {
+                return badRequest(String.format("Cannot activate session for Keystore[id=%s].", dbKeystore.getId()), ex);
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    private Response closeSession(DatabasedKeystore dbKeystore, Session currentSession) throws InterruptedException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("Response", this, "closeSession(DatabasedKeystore dbKeystore, Session currentSession)");
+
+        try {
             if (!currentSession.isActive()) {
-                return badRequest(String.format("Session[id=%s] isn't active.", sessionId));
+                return badRequest(String.format("Session[id=%s] isn't active.", currentSession.getId()));
             }
 
-            this.scheduledExecutorService.schedule(new SessionClosureService(databasedKeystore.get()), 0, TimeUnit.SECONDS);
-
-            return Response.noContent().build();
+            ScheduledFuture<?> scheduledFuture = this.scheduledExecutorService.schedule(new SessionClosureService(dbKeystore), 0, TimeUnit.SECONDS);
+            try {
+                scheduledFuture.get(5, TimeUnit.SECONDS);
+                Optional<Session> closedSession = this.sessionService.findByID(currentSession.getId());
+                if (closedSession.isEmpty()) {
+                    return internalServerError("Something went wrong.");
+                }
+                return ok(closedSession.get().toJson());
+            } catch (ExecutionException ex) {
+                return internalServerError("Something went wrong.");
+            } catch (TimeoutException ex) {
+                tracer.logException(LogLevel.WARNING, ex, getClass(), "nextCloseSession(DatabasedKeystore dbKeystore, Session currentSession, JsonObject sessionInstructions)");
+                Response.noContent().build();
+            }
+            
+            return internalServerError("Something went wrong.");
         } finally {
             tracer.wayout();
         }

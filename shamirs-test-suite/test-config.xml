@@ -6,7 +6,8 @@
                 <class simpleName="DummyUnit" enabled="true"/>
                 <class simpleName="ShamirsServiceUnit" enabled="false"/>
                 <class simpleName="KeystoreResourceUnit" enabled="true"/>
-                <class simpleName="SessionResourceUnit" enabled="true"/>
+                <class simpleName="SessionResourceUnit" enabled="false"/>
+                <class simpleName="NextSessionResourceUnit" enabled="true"/>
                 <class simpleName="DocumentResourceUnit" enabled="true"/>
                 <class simpleName="SliceResourceUnit" enabled="true"/>
                 <!--

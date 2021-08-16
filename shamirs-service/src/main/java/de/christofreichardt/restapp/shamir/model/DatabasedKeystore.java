@@ -26,10 +26,10 @@ import java.util.AbstractMap;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -407,15 +407,22 @@ public class DatabasedKeystore implements Serializable {
         this.allocateNextSession();
         this.modificated();
     }
+    
+    public Session currentSession() {
+        List<Session> activeSessions = this.sessions.stream()
+                .filter(session -> session.isActive() || session.isProvisioned())
+                .collect(Collectors.toList());
+        if (activeSessions.isEmpty()) {
+            throw new IllegalStateException("No session found.");
+        } else if (activeSessions.size() > 1) {
+            throw new IllegalStateException("Non unique current session.");
+        } else {
+            return activeSessions.get(0);
+        }
+    }
 
     public JsonObject toJson() {
         return toJson(false);
-    }
-    
-    Optional<Session> currentSession() {
-        return this.sessions.stream()
-                .filter(session -> session.isActive() || session.isProvisioned())
-                .findFirst();
     }
     
     public void trace(AbstractTracer tracer, boolean inFull) {
@@ -463,17 +470,15 @@ public class DatabasedKeystore implements Serializable {
                                     .add("GET")
                             )
                     );
-            currentSession().ifPresent(session -> {
-                linkEntriesBuilder
+            linkEntriesBuilder
                         .add(Json.createObjectBuilder()
                                 .add("rel", "currentSession")
-                                .add("href", String.format("/keystores/%s/sessions/%s", this.id, session.getId()))
+                                .add("href", String.format("/keystores/%s/sessions/%s", this.id, currentSession().getId()))
                                 .add("type", Json.createArrayBuilder()
                                         .add("GET")
                                         .add("PUT")
                                 )
                         );
-            });
             try {
                 ShamirsProtection shamirsProtection = new ShamirsProtection(sharePoints());
                 KeyStore shamirsKeystore = keystoreInstance();

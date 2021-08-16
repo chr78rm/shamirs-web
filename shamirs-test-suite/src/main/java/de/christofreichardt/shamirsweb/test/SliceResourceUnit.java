@@ -9,7 +9,6 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
-import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -103,16 +102,11 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .map(slice -> slice.getString("id"))
                     .collect(Collectors.toSet());
 
-            // activate the session and wait for the automatic closure
+            // session instructions for activation
             JsonObject sessionInstructions = Json.createObjectBuilder()
-                    .add("session", Json.createObjectBuilder()
-                            .add("activation", Json.createObjectBuilder()
-                                    .add("automaticClose", Json.createObjectBuilder()
-                                            .add("idleTime", IDLE_TIME)
-                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
-                                    )
-                            )
-                    )
+                    .add("id", SESSION_ID)
+                    .add("phase", SessionPhase.ACTIVE.name())
+                    .add("idleTime", IDLE_TIME)
                     .build();
 
             // activate the provisioned session

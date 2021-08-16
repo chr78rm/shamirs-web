@@ -10,5 +10,15 @@ package de.christofreichardt.restapp.shamir.common;
  * @author Developer
  */
 public enum SessionPhase {
-    NEW, PROVISIONED, ACTIVE, CLOSED
+    NEW, PROVISIONED, ACTIVE, CLOSED;
+    
+    static public boolean isValid(String phase) {
+        boolean valid = true;
+        try {
+            valueOf(phase);
+        } catch (Exception e) {
+            valid = false;
+        }
+        return valid;
+    }
 }

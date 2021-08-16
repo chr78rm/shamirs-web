@@ -14,7 +14,6 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -176,14 +175,9 @@ public class DocumentResourceUnit extends ShamirsBaseUnit implements WithAsserti
             // activate the provisioned session
             final int IDLE_TIME = 10;
             JsonObject sessionInstructions = Json.createObjectBuilder()
-                    .add("session", Json.createObjectBuilder()
-                            .add("activation", Json.createObjectBuilder()
-                                    .add("automaticClose", Json.createObjectBuilder()
-                                            .add("idleTime", IDLE_TIME)
-                                            .add("temporalUnit", ChronoUnit.SECONDS.name())
-                                    )
-                            )
-                    )
+                    .add("id", SESSION_ID)
+                    .add("phase", SessionPhase.ACTIVE.name())
+                    .add("idleTime", IDLE_TIME)
                     .build();
             try ( Response response = this.client.target(this.baseUrl)
                     .path("keystores")

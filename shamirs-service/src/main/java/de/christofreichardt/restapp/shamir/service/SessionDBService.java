@@ -125,7 +125,7 @@ public class SessionDBService implements SessionService, Traceable {
 
     @Override
     public Optional<Session> findByID(String sessionId) {
-        AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
+        AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Optional<Session>", this, "findByID(String sessionId)");
         try {
             tracer.out().printfIndentln("sessionId = %s", sessionId);
