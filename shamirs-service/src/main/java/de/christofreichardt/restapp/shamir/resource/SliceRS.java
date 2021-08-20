@@ -126,6 +126,9 @@ public class SliceRS extends BaseRS {
             if (!Objects.equals(share.getString("PartitionId"), slice.getPartitionId())) {
                 return badRequest(String.format("Unmatched partitionId '%s'.", slice.getPartitionId()));
             }
+            if (slice.getSize() != share.getJsonArray("SharePoints").size()) {
+                return badRequest(String.format("Expected %d sharepoints but got %d.", slice.getSize(), share.getJsonArray("SharePoints").size()));
+            }
 
             slice.posted(share);
             slice = this.sliceService.save(slice);
