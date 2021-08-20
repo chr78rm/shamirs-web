@@ -4,7 +4,7 @@ set -o errexit # terminate on error
 ARGS=$* # all parameter
 
 # evaluate parameter
-ALIAS_REGEX="^--alias=[a-z-]{1,25}$"
+ALIAS_REGEX="^--alias=[a-z0-9-]{1,25}$"
 ENDUSER_KEYSTORE_REGEX="^--keystore=[A-Za-z]+[A-Za-z0-9-]{1,50}$"
 for ARG in ${ARGS} 
 do
