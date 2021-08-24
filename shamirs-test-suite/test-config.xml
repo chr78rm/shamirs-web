@@ -10,6 +10,7 @@
                 <class simpleName="NextSessionResourceUnit" enabled="true"/>
                 <class simpleName="DocumentResourceUnit" enabled="true"/>
                 <class simpleName="SliceResourceUnit" enabled="true"/>
+                <class simpleName="X509AuthenticationFilterUnit" enabled="true"/>
                 <!--
                     <class simpleName="SecondDummy" enabled="false"/>
                 -->

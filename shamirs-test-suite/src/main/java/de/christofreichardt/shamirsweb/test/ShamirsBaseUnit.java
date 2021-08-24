@@ -90,12 +90,19 @@ public class ShamirsBaseUnit implements Traceable {
             Objects.requireNonNull(inputStream, "No InputStream for truststore.");
             KeyStore trustStore = KeyStore.getInstance("pkcs12");
             trustStore.load(inputStream, "changeit".toCharArray());
+            
+            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/test-user-0-id.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for keystore.");
+            KeyStore keystore = KeyStore.getInstance("pkcs12");
+            keystore.load(inputStream, "changeit".toCharArray());
+            
             this.client = ClientBuilder
                     .newBuilder()
                     .withConfig(new ClientConfig().connectorProvider(new ApacheConnectorProvider()))
                     .register(MyClientRequestFilter.class)
                     .register(MyClientResponseFilter.class)
                     .trustStore(trustStore)
+                    .keyStore(keystore, "changeit".toCharArray())
                     .build();
 
             ping();
@@ -111,6 +118,7 @@ public class ShamirsBaseUnit implements Traceable {
         try {
             String response = null;
             int trials = 0;
+            boolean abort = false;
             do {
                 try {
                     response = this.client.target(this.baseUrl)
@@ -123,22 +131,27 @@ public class ShamirsBaseUnit implements Traceable {
                 } catch (ProcessingException ex) {
                     trials++;
 
-                    tracer.out().printfIndentln("%d: ex.getCause() = %s", trials, ex.getCause());
+                    tracer.out().printfIndentln("%d. Connection attempt failed: ex.getCause() = %s", trials, ex.getCause());
 
                     if (ex.getCause() != null && (ex.getCause() instanceof ConnectException)) {
                         if (trials >= this.maxTrials) {
+                            abort = true;
                             break;
                         } else {
                             tracer.out().printfIndentln("Waiting %d second(s) ...", this.pause);
                             Thread.sleep(TimeUnit.SECONDS.toMillis(this.pause));
                         }
+                    } else if (ex.getCause() != null && (ex.getCause() instanceof IOException)) {
+                        abort = true;
+                        break;
                     } else {
+                        tracer.logMessage(LogLevel.WARNING, String.format("Something went wrong. Check pid=%d", this.process.pid()), getClass(), "ping()");
                         break;
                     }
                 }
             } while (true);
             
-            if (trials >= this.maxTrials) {
+            if (abort) {
                 tracer.logMessage(LogLevel.SEVERE, "Cannot establish connection to the service. Aborting ...", getClass(), "ping()");
                 this.process.destroy();
                 boolean terminated = this.process.waitFor(5, TimeUnit.SECONDS);

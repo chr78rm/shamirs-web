@@ -10,8 +10,6 @@ import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
 
 /**
  *

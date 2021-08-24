@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -26,6 +27,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
@@ -37,12 +39,27 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 @EnableJpaRepositories("de.christofreichardt.restapp.shamir.service")
 public class ShamirsApp {
 
+    @Autowired
+    Environment environment;
+
     @Bean
     @Order(0)
     FilterRegistrationBean<MyTraceFilter> tracingFilter() {
         FilterRegistrationBean<MyTraceFilter> filterRegistrationBean = new FilterRegistrationBean<>();
         filterRegistrationBean.setFilter(new MyTraceFilter());
         filterRegistrationBean.setInitParameters(Map.of("blacklist", "/test", "key2", "value2"));
+        filterRegistrationBean.setUrlPatterns(List.of("/shamir/v1/*"));
+
+        return filterRegistrationBean;
+    }
+
+    @Bean
+    @Order(1)
+    FilterRegistrationBean<X509AuthenticationFilter> x509AuthenticationFilter() {
+        FilterRegistrationBean<X509AuthenticationFilter> filterRegistrationBean = new FilterRegistrationBean<>();
+        filterRegistrationBean.setFilter(new X509AuthenticationFilter());
+        boolean x509AuthFilterEnabled = Boolean.parseBoolean(this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthFilterEnabled", "false"));
+        filterRegistrationBean.setEnabled(x509AuthFilterEnabled);
         filterRegistrationBean.setUrlPatterns(List.of("/shamir/v1/*"));
 
         return filterRegistrationBean;
