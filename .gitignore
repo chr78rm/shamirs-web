@@ -5,6 +5,9 @@ nbactions.xml
 pki/*.pem
 pki/*.p12
 pki/*.p10
+!pki/root-ca.pem
+!pki/test-user-0-id.pem
+!pki/test-user-0-id-pk.pem
 shamirs-service/xml/out/*.xml
 json/*.json
 nb-configuration.xml
