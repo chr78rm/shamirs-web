@@ -476,7 +476,7 @@ public class DatabasedKeystore implements Serializable {
                                 .add("href", String.format("/keystores/%s/sessions/%s", this.id, currentSession().getId()))
                                 .add("type", Json.createArrayBuilder()
                                         .add("GET")
-                                        .add("PUT")
+                                        .add("PATCH")
                                 )
                         );
             try {
