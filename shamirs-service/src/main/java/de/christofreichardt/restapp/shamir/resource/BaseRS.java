@@ -67,6 +67,16 @@ abstract public class BaseRS implements Traceable {
         
         return makeErrorResponse(message, methodName, Response.Status.INTERNAL_SERVER_ERROR);
     }
+    
+    Response internalServerError(String message, Exception ex) {
+        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+        String methodName = stackTraceElements.length >= 3 ? stackTraceElements[2].getMethodName() : "-";
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.logException(LogLevel.ERROR, ex, getClass(), methodName);
+        ErrorResponse errorResponse = new ErrorResponse(Response.Status.INTERNAL_SERVER_ERROR, message, ex.getMessage());
+        
+        return errorResponse.build();
+    }
 
     Response ok(JsonStructure jsonStructure) {
         return Response.status(Response.Status.OK)

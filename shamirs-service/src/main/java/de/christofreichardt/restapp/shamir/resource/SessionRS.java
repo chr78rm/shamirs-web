@@ -219,18 +219,21 @@ public class SessionRS extends BaseRS {
                 return badRequest(String.format("Session[id=%s] isn't active.", currentSession.getId()));
             }
 
+            final long TIMEOUT = 5;
             ScheduledFuture<?> scheduledFuture = this.scheduledExecutorService.schedule(new SessionClosureService(dbKeystore), 0, TimeUnit.SECONDS);
             try {
-                scheduledFuture.get(5, TimeUnit.SECONDS);
+                scheduledFuture.get(TIMEOUT, TimeUnit.SECONDS);
                 Optional<Session> closedSession = this.sessionService.findByID(currentSession.getId());
                 if (closedSession.isEmpty()) {
                     return internalServerError("Something went wrong.");
+                } else if (!closedSession.get().isClosed()) {
+                    return internalServerError("Session couldn't be closed.");
                 }
                 return ok(closedSession.get().toJson());
             } catch (ExecutionException ex) {
-                return internalServerError("Something went wrong.");
+                return internalServerError("Something went wrong.", ex);
             } catch (TimeoutException ex) {
-                tracer.logException(LogLevel.WARNING, ex, getClass(), "nextCloseSession(DatabasedKeystore dbKeystore, Session currentSession, JsonObject sessionInstructions)");
+                tracer.logException(LogLevel.WARNING, ex, getClass(), "closeSession(DatabasedKeystore dbKeystore, Session currentSession, JsonObject sessionInstructions)");
                 Response.noContent().build();
             }
             

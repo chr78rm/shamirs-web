@@ -241,7 +241,7 @@ public class Slice implements Serializable, Comparable<Slice> {
     }
 
     public void expired() {
-        if (this.isCreated() || this.isPosted()) {
+        if (this.isCreated() || this.isPosted() || isFetched()) {
             this.processingState = SliceProcessingState.EXPIRED.name();
             modified();
         } else {
