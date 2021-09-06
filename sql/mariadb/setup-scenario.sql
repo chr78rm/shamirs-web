@@ -74,6 +74,12 @@ VALUES (
 );
 INSERT INTO participant (id, preferred_name, creation_time)
 VALUES (
+    '7a8a75d9-e4ac-4f88-9bbd-75d6582c4577',
+    'test-user-0',
+    CURRENT_TIMESTAMP
+);
+INSERT INTO participant (id, preferred_name, creation_time)
+VALUES (
     'f6cdb2e5-ea3e-405f-ad0a-14c034497e23',
     'test-user-1',
     CURRENT_TIMESTAMP
