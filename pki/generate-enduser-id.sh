@@ -6,6 +6,7 @@ ARGS=$* # all parameter
 # evaluate parameter
 ALIAS_REGEX="^--alias=[a-z0-9-]{1,25}$"
 ENDUSER_KEYSTORE_REGEX="^--keystore=[A-Za-z]+[A-Za-z0-9-]{1,50}$"
+CERTIFICATE_VALIDITY_REGEX="^--cert-validity=[0-9]{2,4}$"
 for ARG in ${ARGS} 
 do
 	if [[ ${ARG} =~ ${ALIAS_REGEX} ]]
@@ -16,9 +17,14 @@ do
 	then
 		KEYSTORE_ARG=${ARG:11}
 	fi
+	if [[ ${ARG} =~ ${CERTIFICATE_VALIDITY_REGEX} ]]
+	then
+		CERTIFICATION_VALIDITY_ARG=${ARG:16}
+	fi
 done
 echo alias=${ALIAS_ARG}
 echo keystore=${KEYSTORE_ARG}
+echo certification-validity=${CERTIFICATION_VALIDITY_ARG}
 
 # constants
 IM_KEYSTORE_FILE=my-intermediate-ca.p12
@@ -37,7 +43,7 @@ keytool -certreq -alias ${ALIAS_ARG} -sigalg SHA256withRSA -file certreq.p10 -ke
 -storepass ${ENDUSER_PASSWORD} -storetype pkcs12
 
 # process pkcs10 certification request for enduser id
-keytool -gencert -rfc -infile certreq.p10 -outfile ${KEYSTORE_ARG}.pem -alias intermediate-ca -sigalg SHA256withRSA -validity 365 \
+keytool -gencert -rfc -infile certreq.p10 -outfile ${KEYSTORE_ARG}.pem -alias intermediate-ca -sigalg SHA256withRSA -validity ${CERTIFICATION_VALIDITY_ARG} -startdate +0d \
 -keypass ${IM_PASSWORD} -storepass ${IM_PASSWORD} -storetype pkcs12 -keystore ${IM_KEYSTORE_FILE}
 
 # import root certificate
