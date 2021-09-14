@@ -13,7 +13,7 @@
     
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring.version>2.5.3</spring.version>
+        <spring.version>2.5.4</spring.version>
         <app.main.class>de.christofreichardt.restapp.shamir.ShamirsApp</app.main.class>
     </properties>
     
@@ -135,11 +135,6 @@
                         </goals>
                     </execution>
                 </executions>       
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.1.2</version>
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
