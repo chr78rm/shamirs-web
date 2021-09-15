@@ -7,6 +7,7 @@ package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import java.io.IOException;
+import java.util.AbstractMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -278,14 +279,155 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
         try {
             final String MY_FIRST_KEYSTORE_ID = "5adab38c-702c-4559-8a5f-b792c14b9a43"; // my-first-keystore
             
-            Response response = this.client.target(this.baseUrl)
+            try (Response response = this.client.target(this.baseUrl)
                     .path("keystores")
                     .path(MY_FIRST_KEYSTORE_ID)
                     .path("participants")
                     .request()
-                    .get();
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void keystoreInstructions() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "keystoreInstructions()");
 
-            tracer.out().printfIndentln("response = %s", response);
+        try {
+            final String MY_SECRET_KEY_ALIAS = "my-secret-key", MY_PRIVATE_EC_KEY_ALIAS = "my-private-ec-key";
+            
+            // some instructions with unordered sizes
+            JsonObject keystoreInstructions = Json.createObjectBuilder()
+                    .add("shares", 12)
+                    .add("threshold", 4)
+                    .add("descriptiveName", "my-posted-keystore")
+                    .add("keyinfos", Json.createArrayBuilder()
+                            .add(Json.createObjectBuilder()
+                                    .add("alias", MY_SECRET_KEY_ALIAS)
+                                    .add("algorithm", "AES")
+                                    .add("keySize", 256)
+                                    .add("type", "secret-key")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("alias", MY_PRIVATE_EC_KEY_ALIAS)
+                                    .add("algorithm", "EC")
+                                    .add("type", "private-key")
+                                    .add("x509", Json.createObjectBuilder()
+                                            .add("validity", 100)
+                                            .add("commonName", "Donald Duck")
+                                            .add("locality", "Entenhausen")
+                                            .add("state", "Bayern")
+                                            .add("country", "Deutschland")
+                                    )
+                            )
+                    )
+                    .add("sizes", Json.createArrayBuilder()
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 1)
+                                    .add("participant", "test-user-5")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 2)
+                                    .add("participant", "test-user-1")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 1)
+                                    .add("participant", "test-user-3")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 4)
+                                    .add("participant", "test-user-0")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 1)
+                                    .add("participant", "test-user-4")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 2)
+                                    .add("participant", "test-user-2")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 1)
+                                    .add("participant", "test-user-6")
+                            )
+                    )
+                    .build();
+            
+            // post the instructions
+            JsonObject keystoreView;
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.json(keystoreInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
+                assertThat(response.hasEntity()).isTrue();
+                keystoreView = response.readEntity(JsonObject.class);
+            }
+            
+            // retrieve the participants for the created keystore
+            JsonArray participantsView;
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(keystoreView.getString("id"))
+                    .path("participants")
+                    .request()
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                participantsView = response.readEntity(JsonObject.class).getJsonArray("participants");
+            }
+            
+            boolean allMatched = participantsView.stream()
+                    .map(participant -> participant.asJsonObject())
+                    .map(participant -> {
+                        
+                        // retrieve the slice for the given participant
+                        JsonObject slice;
+                        try ( Response response = this.client.target(this.baseUrl)
+                                .path("slices")
+                                .queryParam("participantId", participant.getString("id"))
+                                .queryParam("keystoreId", keystoreView.getString("id"))
+                                .request(MediaType.APPLICATION_JSON)
+                                .method("GET")) {
+                            tracer.out().printfIndentln("response = %s", response);
+                            assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                            assertThat(response.hasEntity()).isTrue();
+                            JsonArray slices = response.readEntity(JsonObject.class).getJsonArray("slices");
+                            assertThat(slices).hasSize(1);
+                            slice = slices.getJsonObject(0);
+                        }
+                        return new AbstractMap.SimpleImmutableEntry<>(participant.getString("id"), slice);
+                        
+                    })
+                    .allMatch(entry -> {
+                        
+                        // find the user name from the id
+                        String preferredName = participantsView.stream()
+                                .map(participant -> participant.asJsonObject())
+                                .filter(participant -> Objects.equals(participant.getString("id"), entry.getKey()))
+                                .findFirst()
+                                .orElseThrow()
+                                .getString("descriptiveName");
+                        
+                        // find the size for the user name
+                        int requestedSize = keystoreInstructions.getJsonArray("sizes").stream()
+                                .map(size -> size.asJsonObject())
+                                .filter(size -> Objects.equals(size.getString("participant"), preferredName))
+                                .findFirst()
+                                .orElseThrow()
+                                .getInt("size");
+                        
+                        return requestedSize == entry.getValue().getInt("size");
+                    });
+            assertThat(allMatched).isTrue();
         } finally {
             tracer.wayout();
         }
