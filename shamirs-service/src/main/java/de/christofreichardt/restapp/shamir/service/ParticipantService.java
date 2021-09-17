@@ -7,6 +7,8 @@ package de.christofreichardt.restapp.shamir.service;
 
 import de.christofreichardt.restapp.shamir.model.Participant;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,6 +17,17 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public interface ParticipantService {
+
+    static class ParticipantNotFoundException extends java.lang.Exception {
+
+        private static final long serialVersionUID = 1L;
+
+        public ParticipantNotFoundException(String message) {
+            super(message);
+        }
+    }
+    
     Participant findByPreferredName(String preferredName);
     List<Participant> findByKeystore(String keystoreId);
+    Map<String, Participant> findByPreferredNames(Set<String> preferredNames) throws ParticipantNotFoundException;
 }

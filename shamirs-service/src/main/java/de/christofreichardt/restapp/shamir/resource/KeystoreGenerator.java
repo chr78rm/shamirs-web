@@ -14,6 +14,10 @@ import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
+import de.christofreichardt.restapp.shamir.model.Participant;
+import de.christofreichardt.restapp.shamir.model.Session;
+import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.scala.shamir.SecretSharing;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -40,6 +44,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.json.Json;
@@ -77,6 +83,8 @@ public class KeystoreGenerator implements Traceable {
     final JsonArray requestedSizes;
     final int shares;
     final int threshold;
+    final String descriptiveName;
+    final Set<String> participantNames;
 
     final JsonTracer jsonTracer = new JsonTracer() {
         @Override
@@ -99,6 +107,11 @@ public class KeystoreGenerator implements Traceable {
         this.partition = computeSharePoints(this.shares, this.threshold, sizes);
         generateSecretKeys(keystoreInstructions.getJsonArray("keyinfos"), "AES");
         generatePrivateKeys(keystoreInstructions.getJsonArray("keyinfos"));
+        this.descriptiveName = keystoreInstructions.getString("descriptiveName");
+        this.participantNames = keystoreInstructions.getJsonArray("sizes").stream() // TODO: sanitize the names of the participants and make sure that they are distinct
+                .map(size -> size.asJsonObject())
+                .map(size -> size.getString("participant"))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     final void validateJSON(JsonObject keystoreInstructions) {
@@ -402,6 +415,48 @@ public class KeystoreGenerator implements Traceable {
             this.keyStore.store(shamirsLoadParameter);
 
             return byteArrayOutputStream.toByteArray();
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    Set<String> participantNames() {
+        return this.participantNames;
+    }
+
+    DatabasedKeystore makeKeystore(Map<String, Participant> participants) throws GeneralSecurityException, IOException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("DatabasedKeystore", this, "makeKeystore(Set<String> preferredNames)");
+
+        try {
+            tracer.out().printfIndentln("participants = %s", participants);
+
+            DatabasedKeystore keystore = new DatabasedKeystore(this.descriptiveName);
+            keystore.setStore(this.keystoreBytes());
+
+            Set<Slice> slices = this.partition().entrySet().stream()
+                    .map(entry -> {
+                        Participant participant = participants.get(entry.getKey());
+                        tracer.out().printfIndentln("participant = %s", participant);
+                        Slice slice = new Slice();
+                        slice.setPartitionId(this.partitionId());
+                        slice.setSize(this.size(participant.getPreferredName()));
+                        slice.setShare(entry.getValue());
+                        slice.createdFor(keystore, participant);
+
+                        return slice;
+                    })
+                    .collect(Collectors.toSet());
+
+            keystore.setSlices(slices);
+            keystore.setCurrentPartitionId(this.partitionId());
+            keystore.setShares(this.shares());
+            keystore.setThreshold(this.threshold());
+            Session session = new Session();
+            session.provisionedFor(keystore);
+            keystore.getSessions().add(session);
+            
+            return keystore;
         } finally {
             tracer.wayout();
         }

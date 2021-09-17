@@ -432,4 +432,83 @@ public class KeystoreResourceUnit extends ShamirsBaseUnit {
             tracer.wayout();
         }
     }
+    
+    @Test
+    void unknownParticipants() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "unknownParticipants()");
+
+        try {
+            final String MY_SECRET_KEY_ALIAS = "my-secret-key", MY_PRIVATE_EC_KEY_ALIAS = "my-private-ec-key";
+            
+            // some instructions with an unknown participant
+            JsonObject keystoreInstructions = Json.createObjectBuilder()
+                    .add("shares", 12)
+                    .add("threshold", 4)
+                    .add("descriptiveName", "my-posted-keystore")
+                    .add("keyinfos", Json.createArrayBuilder()
+                            .add(Json.createObjectBuilder()
+                                    .add("alias", MY_SECRET_KEY_ALIAS)
+                                    .add("algorithm", "AES")
+                                    .add("keySize", 256)
+                                    .add("type", "secret-key")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("alias", MY_PRIVATE_EC_KEY_ALIAS)
+                                    .add("algorithm", "EC")
+                                    .add("type", "private-key")
+                                    .add("x509", Json.createObjectBuilder()
+                                            .add("validity", 100)
+                                            .add("commonName", "Donald Duck")
+                                            .add("locality", "Entenhausen")
+                                            .add("state", "Bayern")
+                                            .add("country", "Deutschland")
+                                    )
+                            )
+                    )
+                    .add("sizes", Json.createArrayBuilder()
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 1)
+                                    .add("participant", "test-user-5")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 2)
+                                    .add("participant", "test-user-1")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 1)
+                                    .add("participant", "test-user-3")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 4)
+                                    .add("participant", "test-user-x0") // <- unknown participant
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 1)
+                                    .add("participant", "test-user-4")
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 2)
+                                    .add("participant", "test-user-x1") // <- unknown participant
+                            )
+                            .add(Json.createObjectBuilder()
+                                    .add("size", 1)
+                                    .add("participant", "test-user-6")
+                            )
+                    )
+                    .build();
+            
+            // post the instructions
+            try (Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.json(keystoreInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                assertThat(response.hasEntity()).isTrue();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
 }

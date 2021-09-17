@@ -7,19 +7,17 @@ package de.christofreichardt.restapp.shamir.resource;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
+import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Participant;
-import de.christofreichardt.restapp.shamir.model.Session;
-import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
 import de.christofreichardt.restapp.shamir.service.ParticipantService;
+import de.christofreichardt.restapp.shamir.service.ParticipantService.ParticipantNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
@@ -59,59 +57,19 @@ public class KeystoreRS extends BaseRS {
         tracer.entry("Response", this, "createKeystore(JsonObject keystoreInstructions)");
 
         try {
-            Response response;
-            String descriptiveName = keystoreInstructions.getString("descriptiveName");
             try {
                 KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
-
-                DatabasedKeystore keystore = new DatabasedKeystore();
-                keystore.setDescriptiveName(descriptiveName);
-                keystore.setStore(keystoreGenerator.keystoreBytes());
-
-                Map<String, byte[]> partition = keystoreGenerator.partition();
-                Set<Slice> slices = partition.entrySet().stream()
-                        .map(entry -> {
-                            Participant participant = this.participantService.findByPreferredName(entry.getKey());
-                            tracer.out().printfIndentln("participant = %s", participant);
-                            Slice slice = new Slice();
-                            slice.setPartitionId(keystoreGenerator.partitionId());
-                            slice.setSize(keystoreGenerator.size(participant.getPreferredName()));
-                            slice.setShare(entry.getValue());
-                            slice.createdFor(keystore, participant);
-
-                            return slice;
-                        })
-                        .collect(Collectors.toSet());
-
-                keystore.setSlices(slices);
-                keystore.setCurrentPartitionId(keystoreGenerator.partitionId());
-                keystore.setShares(keystoreGenerator.shares());
-                keystore.setThreshold(keystoreGenerator.threshold());
-                Session session = new Session();
-                session.provisionedFor(keystore);
-                keystore.getSessions().add(session);
-                this.keystoreService.persist(keystore);
-
-                response = Response.status(Response.Status.CREATED)
-                        .entity(keystore.toJson())
-                        .type(MediaType.APPLICATION_JSON)
-                        .encoding("UTF-8")
-                        .build();
-            } catch (GeneralSecurityException | IOException ex) {
-                JsonObject hint = Json.createObjectBuilder()
-                        .add("status", 500)
-                        .add("reason", "Internal Server Error")
-                        .add("message", ex.getMessage())
-                        .build();
-
-                response = Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                        .entity(hint)
-                        .type(MediaType.APPLICATION_JSON)
-                        .encoding("UTF-8")
-                        .build();
+                
+                Map<String, Participant> participants = this.participantService.findByPreferredNames(keystoreGenerator.participantNames());
+                DatabasedKeystore keystore = keystoreGenerator.makeKeystore(participants);
+                keystore = this.keystoreService.persist(keystore);
+                
+                return created(keystore.toJson());
+            } catch (GeneralSecurityException | IOException | RuntimeException ex) {
+                return internalServerError("Something went wrong.", ex);
+            } catch(ParticipantNotFoundException ex) {
+                return badRequest("Unknown participants.", ex);
             }
-
-            return response;
         } finally {
             tracer.wayout();
         }
@@ -180,16 +138,16 @@ public class KeystoreRS extends BaseRS {
                     ErrorResponse errorResponse = new ErrorResponse(Response.Status.BAD_REQUEST, message);
                     return errorResponse.build();
                 }
-                
+
                 keystore.get().trace(tracer, true);
-                
+
                 JsonObject jsonKeystore = keystore.get().toJson(true);
                 response = Response.status(Response.Status.OK)
                         .entity(jsonKeystore)
                         .type(MediaType.APPLICATION_JSON)
                         .encoding("UTF-8")
                         .build();
-            }  catch (PersistenceException ex) {
+            } catch (PersistenceException ex) {
                 tracer.logException(LogLevel.ERROR, ex, getClass(), "keystore(@PathParam(\"id\") String id)");
                 ErrorResponse errorResponse = new ErrorResponse(Response.Status.INTERNAL_SERVER_ERROR, ex.getMessage());
                 response = errorResponse.build();
@@ -211,11 +169,11 @@ public class KeystoreRS extends BaseRS {
 
         try {
             tracer.out().printfIndentln("id = %s", id);
-            
+
             JsonArray participants = this.participantService.findByKeystore(id).stream()
                     .map(participant -> participant.toJson())
                     .collect(new JsonValueCollector());
-            
+
             JsonObject participantsInfo = Json.createObjectBuilder()
                     .add("participants", participants)
                     .build();

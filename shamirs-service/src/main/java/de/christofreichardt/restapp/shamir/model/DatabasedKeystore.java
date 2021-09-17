@@ -139,13 +139,9 @@ public class DatabasedKeystore implements Serializable {
         this.modificationTime = LocalDateTime.now();
     }
 
-    public DatabasedKeystore(String id) {
-        this.id = id;
-    }
-
-    public DatabasedKeystore(String id, LocalDateTime creationTime) {
-        this.id = id;
-        this.creationTime = creationTime;
+    public DatabasedKeystore(String descriptiveName) {
+        this();
+        this.descriptiveName = descriptiveName;
     }
 
     public String getId() {

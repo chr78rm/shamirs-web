@@ -111,7 +111,7 @@ public class Participant implements Serializable {
     public JsonObject toJson() {
         return Json.createObjectBuilder()
                 .add("id", this.id)
-                .add("descriptiveName", this.preferredName)
+                .add("descriptiveName", this.preferredName) // TODO: change name from "descriptiveName" to "preferredName"
                 .add("creationTime", this.creationTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .build();
     }

@@ -86,6 +86,14 @@ abstract public class BaseRS implements Traceable {
                 .build();
     }
     
+    Response created(JsonStructure jsonStructure) {
+        return Response.status(Response.Status.CREATED)
+                .entity(jsonStructure)
+                .type(MediaType.APPLICATION_JSON)
+                .encoding("UTF-8")
+                .build();
+    }
+    
     Response notFound(String message) {
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
         String methodName = stackTraceElements.length >= 3 ? stackTraceElements[2].getMethodName() : "-";
