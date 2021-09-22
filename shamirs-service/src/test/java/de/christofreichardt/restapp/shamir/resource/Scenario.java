@@ -188,6 +188,7 @@ public class Scenario implements Traceable {
         try {
             List<Object[]> batchArgs = List.of(
                     new Object[]{"8844dd34-c836-4060-ba73-c6d86ad1275d", "christof"},
+                    new Object[]{"7a8a75d9-e4ac-4f88-9bbd-75d6582c4577", "test-user-0"},
                     new Object[]{"f6cdb2e5-ea3e-405f-ad0a-14c034497e23", "test-user-1"},
                     new Object[]{"337dd2bd-508d-423d-84ca-81770d8ac30d", "test-user-2"},
                     new Object[]{"48ef6c98-0e04-49bc-9f7f-01f2cec3ccac", "test-user-3"},

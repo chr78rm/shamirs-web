@@ -61,7 +61,7 @@ public class KeystoreRS extends BaseRS {
                 KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
                 
                 Map<String, Participant> participants = this.participantService.findByPreferredNames(keystoreGenerator.participantNames());
-                DatabasedKeystore keystore = keystoreGenerator.makeKeystore(participants);
+                DatabasedKeystore keystore = keystoreGenerator.makeDBKeystore(participants);
                 keystore = this.keystoreService.persist(keystore);
                 
                 return created(keystore.toJson());

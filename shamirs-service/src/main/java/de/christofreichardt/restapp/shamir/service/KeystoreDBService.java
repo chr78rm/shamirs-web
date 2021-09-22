@@ -25,7 +25,9 @@ import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -33,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
  * @author Developer
  */
 @Service
+@Primary
 public class KeystoreDBService implements KeystoreService, Traceable {
 
     @PersistenceContext
@@ -176,26 +179,6 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             keystores.forEach(keystore -> tracer.out().printfIndentln("keystore = %s", keystore));
             
             return keystores;
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    @Override
-    @Transactional
-    public void rollOver() {
-        AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
-        tracer.entry("void", this, "rollOver()");
-        
-        try {
-            List<DatabasedKeystore> databasedKeystores = findKeystoresWithCurrentSlicesAndIdleSessions();
-            databasedKeystores.forEach(databasedKeystore -> {
-                try {
-                    rollOver(databasedKeystore); // TODO: ensure that this works as expected if some keystores cannot rolled over
-                } catch (Throwable ex) {
-                    tracer.logException(LogLevel.ERROR, ex, getClass(), "rollOver()");
-                }
-            });
         } finally {
             tracer.wayout();
         }

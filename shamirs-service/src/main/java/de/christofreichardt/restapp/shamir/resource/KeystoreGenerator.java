@@ -424,7 +424,7 @@ public class KeystoreGenerator implements Traceable {
         return this.participantNames;
     }
 
-    DatabasedKeystore makeKeystore(Map<String, Participant> participants) throws GeneralSecurityException, IOException {
+    DatabasedKeystore makeDBKeystore(Map<String, Participant> participants) throws GeneralSecurityException, IOException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("DatabasedKeystore", this, "makeKeystore(Set<String> preferredNames)");
 
