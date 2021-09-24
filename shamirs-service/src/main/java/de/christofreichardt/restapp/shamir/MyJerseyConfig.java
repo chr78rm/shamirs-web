@@ -7,6 +7,7 @@ package de.christofreichardt.restapp.shamir;
 
 import de.christofreichardt.restapp.shamir.resource.DocumentRS;
 import de.christofreichardt.restapp.shamir.resource.KeystoreRS;
+import de.christofreichardt.restapp.shamir.resource.PingRS;
 import de.christofreichardt.restapp.shamir.resource.SessionRS;
 import de.christofreichardt.restapp.shamir.resource.SliceRS;
 import javax.ws.rs.ApplicationPath;
@@ -23,7 +24,7 @@ import org.springframework.stereotype.Component;
 public class MyJerseyConfig extends ResourceConfig {
 
     public MyJerseyConfig() {
-        register(ShamirsRS.class);
+        register(PingRS.class);
         register(KeystoreRS.class);
         register(SessionRS.class);
         register(DocumentRS.class);

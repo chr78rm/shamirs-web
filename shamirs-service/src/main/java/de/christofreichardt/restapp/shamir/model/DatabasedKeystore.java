@@ -425,9 +425,12 @@ public class DatabasedKeystore implements Serializable {
         tracer.entry("void", this, "trace(AbstractTracer tracer, boolean inFull)");
         try {
             tracer.out().printfIndentln("inFull = %b", inFull);
+            
             tracer.out().printfIndentln("keystore = %s", this);
-            this.slices.forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
-            this.sessions.forEach(session -> tracer.out().printfIndentln("session = %s", session));
+            if (inFull) {
+                this.slices.forEach(slice -> tracer.out().printfIndentln("slice = %s", slice));
+                this.sessions.forEach(session -> tracer.out().printfIndentln("session = %s", session));
+            }
         } finally {
             tracer.wayout();
         }
