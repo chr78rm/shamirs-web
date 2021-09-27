@@ -203,7 +203,7 @@ public class KeystoreDBService implements KeystoreService, Traceable {
             try {
                 Map.Entry<String, JsonArray> nextPartition = databasedKeystore.nextPartition();
                 jsonTracer.trace(nextPartition.getValue());
-                databasedKeystore.rollover(nextPartition); // TODO: ensure that the keystore remains loadable if an error occures
+                databasedKeystore.rollover(nextPartition); 
                 this.entityManager.merge(databasedKeystore);
             } catch (GeneralSecurityException | IOException ex) {
                 throw new RuntimeException(ex);
