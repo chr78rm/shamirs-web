@@ -18,6 +18,7 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
 import org.assertj.core.api.WithAssertions;
 import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
@@ -127,6 +128,44 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                         .hasCauseInstanceOf(SSLHandshakeException.class);
             } finally {
                 invalidClient.close();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Test
+    void makeUnauthorizedCallToActuator() throws GeneralSecurityException, IOException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "makeUnauthorizedCallToActuator()");
+
+        try {
+            InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for truststore.");
+            KeyStore trustStore = KeyStore.getInstance("pkcs12");
+            trustStore.load(inputStream, "changeit".toCharArray());
+
+            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/test-user-1-id.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for keystore.");
+            KeyStore keystore = KeyStore.getInstance("pkcs12");
+            keystore.load(inputStream, "changeit".toCharArray());
+
+            Client unauthorizedClient = ClientBuilder
+                    .newBuilder()
+                    .withConfig(new ClientConfig().connectorProvider(new ApacheConnectorProvider()))
+                    .register(MyClientRequestFilter.class)
+                    .register(MyClientResponseFilter.class)
+                    .trustStore(trustStore)
+                    .keyStore(keystore, "changeit".toCharArray())
+                    .build();
+
+            try ( Response response = unauthorizedClient.target(this.baseUrl)
+                    .path("actuator")
+                    .path("shutdown")
+                    .request()
+                    .post(Entity.text(""))) {
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.FORBIDDEN);
+                assertThat(response.hasEntity()).isTrue();
             }
         } finally {
             tracer.wayout();

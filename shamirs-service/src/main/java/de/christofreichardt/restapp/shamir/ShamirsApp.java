@@ -61,6 +61,8 @@ public class ShamirsApp {
         boolean x509AuthFilterEnabled = Boolean.parseBoolean(this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthFilterEnabled", "false"));
         filterRegistrationBean.setEnabled(x509AuthFilterEnabled);
         filterRegistrationBean.setUrlPatterns(List.of("/shamir/v1/*"));
+        String adminUserDN = this.environment.getProperty("de.christofreichardt.restapp.shamir.adminUserDN", "CN=test-user-0,L=Rodgau,ST=Hessen,C=DE");
+        filterRegistrationBean.setInitParameters(Map.of("adminUserDN", adminUserDN));
 
         return filterRegistrationBean;
     }

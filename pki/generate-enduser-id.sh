@@ -7,6 +7,11 @@ ARGS=$* # all parameter
 ALIAS_REGEX="^--alias=[a-z0-9-]{1,25}$"
 ENDUSER_KEYSTORE_REGEX="^--keystore=[A-Za-z]+[A-Za-z0-9-]{1,50}$"
 CERTIFICATE_VALIDITY_REGEX="^--cert-validity=[0-9]{2,4}$"
+COMMON_NAME_REGEX="^--common-name=[A-Za-z0-9-]{1,50}$"
+
+# defaults
+COMMON_NAME_ARG=localhost
+
 for ARG in ${ARGS} 
 do
 	if [[ ${ARG} =~ ${ALIAS_REGEX} ]]
@@ -21,10 +26,15 @@ do
 	then
 		CERTIFICATION_VALIDITY_ARG=${ARG:16}
 	fi
+	if [[ ${ARG} =~ ${COMMON_NAME_REGEX} ]]
+	then
+		COMMON_NAME_ARG=${ARG:14}
+	fi
 done
 echo alias=${ALIAS_ARG}
 echo keystore=${KEYSTORE_ARG}
 echo certification-validity=${CERTIFICATION_VALIDITY_ARG}
+echo common-name=${COMMON_NAME_ARG}
 
 # constants
 IM_KEYSTORE_FILE=my-intermediate-ca.p12
@@ -32,7 +42,7 @@ IM_PASSWORD=Rqu4u0rmgbp0fsO1LHSAoV2Be
 ENDUSER_KEYSTORE_FILE=${KEYSTORE_ARG}.p12
 ENDUSER_PASSWORD=changeit
 ENDUSER_TRUSTSTORE_FILE=${KEYSTORE_ARG}-trust.p12
-DNAME="CN=localhost, L=Rodgau, ST=Hessen, C=DE"
+DNAME="CN=${COMMON_NAME_ARG}, L=Rodgau, ST=Hessen, C=DE"
 
 # generate key pair
 keytool -genkeypair -alias ${ALIAS_ARG} -keyalg RSA -keysize 2048 -sigalg SHA256withRSA -dname "${DNAME}" \
