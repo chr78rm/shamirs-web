@@ -5,9 +5,6 @@
  */
 package de.christofreichardt.restapp.shamir;
 
-import de.christofreichardt.diagnosis.TracerFactory;
-import java.io.IOException;
-import java.io.InputStream;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import org.slf4j.Logger;
@@ -24,35 +21,11 @@ public class MyContextListener implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent servletContextEvent) {
         LOGGER.info(String.format("%d: contextInitialized(ServletContextEvent servletContextEvent) ...", System.identityHashCode(this)));
-        
-        InputStream resourceAsStream = MyContextListener.class.getClassLoader().getResourceAsStream("de/christofreichardt/restapp/shamir/trace-config.xml");
-        if (resourceAsStream != null) {
-            try {
-                try {
-                    TracerFactory.getInstance().reset();
-                    TracerFactory.getInstance().readConfiguration(resourceAsStream);
-                    TracerFactory.getInstance().openQueueTracer();
-                    TracerFactory.getInstance().openPoolTracer();
-                } catch (TracerFactory.Exception ex) {
-                    LOGGER.warn(String.format("Problems when evaluating the configuration resource: %s", ex.getMessage()));
-                }
-            } finally {
-                try {
-                    resourceAsStream.close();
-                } catch (IOException ex) {
-                }
-            }
-        } else {
-            LOGGER.warn(String.format("No tracer configuration found."));
-        }
     }
 
     @Override
     public void contextDestroyed(ServletContextEvent servletContextEvent) {
         LOGGER.info(String.format("%d: contextDestroyed(ServletContextEvent servletContextEvent) ...", System.identityHashCode(this)));
-        
-        TracerFactory.getInstance().closeQueueTracer();
-        TracerFactory.getInstance().closePoolTracer();
     }
     
 }

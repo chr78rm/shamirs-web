@@ -5,10 +5,18 @@
  */
 package de.christofreichardt.restapp.shamir;
 
+import de.christofreichardt.diagnosis.AbstractTracer;
+import de.christofreichardt.diagnosis.Traceable;
+import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.Security;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -16,18 +24,25 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.MutablePropertySources;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
@@ -38,6 +53,19 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 @SpringBootApplication
 @EnableJpaRepositories("de.christofreichardt.restapp.shamir.service")
 public class ShamirsApp {
+
+    @PostConstruct
+    void init() {
+        System.out.printf("%s: ShamirsApp has been constructed ...\n", Thread.currentThread().getName());
+    }
+
+    @PreDestroy
+    void exit() {
+        System.out.printf("%s: ShamirsApp is shutting down ...\n", Thread.currentThread().getName());
+
+        TracerFactory.getInstance().closeQueueTracer();
+        TracerFactory.getInstance().closePoolTracer();
+    }
 
     @Autowired
     Environment environment;
@@ -117,7 +145,7 @@ public class ShamirsApp {
     Lock lock() {
         return new ReentrantLock();
     }
-    
+
     @Bean("singleThreadExecutor")
     ExecutorService singleThreadExecutor() {
         ThreadFactory myThreadFactory = new ThreadFactory() {
@@ -132,13 +160,81 @@ public class ShamirsApp {
 
         return Executors.newSingleThreadExecutor(myThreadFactory);
     }
-    
+
+    static class MyEnvironmentListener implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Traceable {
+
+        @Override
+        public void onApplicationEvent(ApplicationEnvironmentPreparedEvent applicationEnvironmentPreparedEvent) {
+            AbstractTracer tracer = getCurrentTracer();
+            tracer.entry("void", this, "onApplicationEvent(ApplicationEnvironmentPreparedEvent applicationEnvironmentPreparedEvent)");
+
+            try {
+                ConfigurableEnvironment configurableEnvironment = applicationEnvironmentPreparedEvent.getEnvironment();
+                MutablePropertySources mutablePropertySources = configurableEnvironment.getPropertySources();
+                mutablePropertySources.stream()
+                        .filter(propertySource -> propertySource instanceof EnumerablePropertySource)
+                        .peek(propertySource -> tracer.out().printfIndentln("---> propertySource = %s", propertySource))
+                        .map(propertySource -> (EnumerablePropertySource) propertySource)
+                        .forEach(propertySource -> {
+                            String[] propertyNames = propertySource.getPropertyNames();
+                            Arrays.sort(propertyNames);
+                            for(String propertyName : propertyNames) {
+                                String resolvedProperty = configurableEnvironment.getProperty(propertyName);
+                                String property = propertySource.getProperty(propertyName).toString();
+                                if (Objects.equals(resolvedProperty, property)) {
+                                    tracer.out().printfIndentln("%s = %s", propertyName, resolvedProperty);
+                                } else {
+                                    tracer.out().printfIndentln("%1$s = %2$s => %1$s = %3$s", propertyName, property, resolvedProperty);
+                                }
+                            }
+                        });
+            } finally {
+                tracer.wayout();
+            }
+        }
+
+        @Override
+        public AbstractTracer getCurrentTracer() {
+            return TracerFactory.getInstance().getCurrentPoolTracer();
+        }
+
+    }
+
     /**
      * @param args the command line arguments
+     * @throws java.io.FileNotFoundException
+     * @throws de.christofreichardt.diagnosis.TracerFactory.Exception
      */
-    public static void main(String[] args) {
-        Security.addProvider(new ShamirsProvider());
-        SpringApplication.run(ShamirsApp.class);
+    public static void main(String[] args) throws FileNotFoundException, TracerFactory.Exception {
+        InputStream resourceAsStream = MyContextListener.class.getClassLoader().getResourceAsStream("de/christofreichardt/restapp/shamir/trace-config.xml");
+        if (resourceAsStream == null) {
+            throw new FileNotFoundException("Missing tracer configuration.");
+        }
+
+        try {
+            TracerFactory.getInstance().reset();
+            TracerFactory.getInstance().readConfiguration(resourceAsStream);
+            TracerFactory.getInstance().openQueueTracer();
+            TracerFactory.getInstance().openPoolTracer();
+        } finally {
+            try {
+                resourceAsStream.close();
+            } catch (IOException ex) {
+            }
+        }
+
+        AbstractTracer tracer = TracerFactory.getInstance().getCurrentPoolTracer();
+        tracer.initCurrentTracingContext();
+        tracer.entry("void", ShamirsApp.class, "main(String[] args)");
+
+        try {
+            Security.addProvider(new ShamirsProvider());
+            SpringApplication springApplication = new SpringApplication(ShamirsApp.class);
+            springApplication.addListeners(new MyEnvironmentListener());
+            springApplication.run();
+        } finally {
+            tracer.wayout();
+        }
     }
 
 }

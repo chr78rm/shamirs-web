@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <TraceConfig xmlns="http://www.christofreichardt.de/java/tracer">
     <Pool>
-        <TraceLogger name="SpringApp" class="de.christofreichardt.diagnosis.file.FileTracer">
+        <TraceLogger name="TestTracer" class="de.christofreichardt.diagnosis.file.FileTracer">
             <LogDir>./log/</LogDir>
             <AutoFlush>true</AutoFlush>
             <BufSize>1024</BufSize>
@@ -41,7 +41,7 @@
     <Map>
         <Threads>
             <Thread name="main">
-                <TraceLogger ref="SpringApp" />
+                <TraceLogger ref="TestTracer" />
             </Thread>
             <Thread name="scheduling-1">
                 <TraceLogger ref="SessionSanitizer" />
