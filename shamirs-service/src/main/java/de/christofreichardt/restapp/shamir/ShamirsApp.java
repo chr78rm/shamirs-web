@@ -90,7 +90,8 @@ public class ShamirsApp {
         filterRegistrationBean.setEnabled(x509AuthFilterEnabled);
         filterRegistrationBean.setUrlPatterns(List.of("/shamir/v1/*"));
         String adminUserDN = this.environment.getProperty("de.christofreichardt.restapp.shamir.adminUserDN", "CN=test-user-0,L=Rodgau,ST=Hessen,C=DE");
-        filterRegistrationBean.setInitParameters(Map.of("adminUserDN", adminUserDN));
+        String excludeDNs = this.environment.getProperty("de.christofreichardt.restapp.shamir.excludeDNs", "");
+        filterRegistrationBean.setInitParameters(Map.of("adminUserDN", adminUserDN, "excludeDNs", excludeDNs));
 
         return filterRegistrationBean;
     }

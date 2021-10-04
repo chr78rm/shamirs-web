@@ -15,9 +15,12 @@ import java.security.cert.X509Certificate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.json.Json;
@@ -43,6 +46,7 @@ public class X509AuthenticationFilter implements Filter, Traceable {
 
     static final Logger LOGGER = LoggerFactory.getLogger(X509AuthenticationFilter.class);
     Map<String, String> config;
+    final List<String> excludeDNs = new ArrayList<>();
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -54,10 +58,18 @@ public class X509AuthenticationFilter implements Filter, Traceable {
             temp.put(parameterName, parameterValue);
         }
         this.config = Collections.unmodifiableMap(temp);
+
+        LOGGER.info(String.format("%d: config = %s ...", System.identityHashCode(this), this.config));
         
-        LOGGER.info(String.format("%d: init(FilterConfig filterConfig = %s) ...", System.identityHashCode(this), this.config));
+        this.excludeDNs.addAll(
+                Arrays.stream(this.config.get("excludeDNs").split(";"))
+                .map(distinguishedName -> distinguishedName.strip())
+                .toList()
+        );
+
+        LOGGER.info(String.format("%d: excludeDNs = %s ...", System.identityHashCode(this), this.excludeDNs.stream().map(dn -> "'" + dn + "'").toList()));
     }
-    
+
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
         AbstractTracer tracer = getCurrentTracer();
@@ -69,30 +81,40 @@ public class X509AuthenticationFilter implements Filter, Traceable {
                 final String msg = "Client certificate missing.";
                 tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
                 error(servletResponse, Response.Status.FORBIDDEN, msg);
-            } else {
-                tracer.out().printfIndentln("certChain.length = %d", certChain.length);
-                for (int i = 0; i < certChain.length; i++) {
-                    X509Certificate certificate = certChain[i];
-                    certificate.getNotBefore().toInstant();
-                    ZonedDateTime notBefore = ZonedDateTime.ofInstant(certificate.getNotBefore().toInstant(), ZoneId.systemDefault());
-                    ZonedDateTime notAfter = ZonedDateTime.ofInstant(certificate.getNotAfter().toInstant(), ZoneId.systemDefault());
-                    tracer.out().printfIndentln("(%d) serialNr=%d, subject=%s, issuer=%s, from=%s, until=%s", i,
-                            certificate.getSerialNumber(), certificate.getSubjectX500Principal(), certificate.getIssuerX500Principal(),
-                            notBefore.format(DateTimeFormatter.ISO_ZONED_DATE_TIME), notAfter.format(DateTimeFormatter.ISO_ZONED_DATE_TIME));
-                }
-                
-                String subjectPrincipal = certChain[0].getSubjectX500Principal().getName();
-                tracer.out().printfIndentln("subjectPrincipal = %s", subjectPrincipal);
-                HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
-                if (httpServletRequest.getRequestURI().startsWith("/shamir/v1/actuator") && 
-                        !Objects.equals(this.config.getOrDefault("adminUserDN", "CN=test-user-0,L=Rodgau,ST=Hessen,C=DE"), subjectPrincipal)) {
-                    final String msg = "Unauthorized call to actuator endpoint.";
-                    tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
-                    error(servletResponse, Response.Status.FORBIDDEN, msg);
-                } else {
-                    filterChain.doFilter(servletRequest, servletResponse);
-                }
+                return;
             }
+
+            tracer.out().printfIndentln("certChain.length = %d", certChain.length);
+            for (int i = 0; i < certChain.length; i++) {
+                X509Certificate certificate = certChain[i];
+                certificate.getNotBefore().toInstant();
+                ZonedDateTime notBefore = ZonedDateTime.ofInstant(certificate.getNotBefore().toInstant(), ZoneId.systemDefault());
+                ZonedDateTime notAfter = ZonedDateTime.ofInstant(certificate.getNotAfter().toInstant(), ZoneId.systemDefault());
+                tracer.out().printfIndentln("(%d) serialNr=%d, subject=%s, issuer=%s, from=%s, until=%s", i,
+                        certificate.getSerialNumber(), certificate.getSubjectX500Principal(), certificate.getIssuerX500Principal(),
+                        notBefore.format(DateTimeFormatter.ISO_ZONED_DATE_TIME), notAfter.format(DateTimeFormatter.ISO_ZONED_DATE_TIME));
+            }
+
+            String subjectPrincipal = certChain[0].getSubjectX500Principal().getName();
+            tracer.out().printfIndentln("subjectPrincipal = %s", subjectPrincipal);
+            
+            if (this.excludeDNs.contains(subjectPrincipal)) {
+                final String msg = String.format("User[%s] has been banned.", subjectPrincipal);
+                tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
+                error(servletResponse, Response.Status.FORBIDDEN, msg);
+                return;
+            }
+            
+            HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
+            if (httpServletRequest.getRequestURI().startsWith("/shamir/v1/actuator")
+                    && !Objects.equals(this.config.getOrDefault("adminUserDN", "CN=test-user-0,L=Rodgau,ST=Hessen,C=DE"), subjectPrincipal)) {
+                final String msg = "Unauthorized call to actuator endpoint.";
+                tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
+                error(servletResponse, Response.Status.FORBIDDEN, msg);
+                return;
+            }
+            
+            filterChain.doFilter(servletRequest, servletResponse);
         } finally {
             tracer.wayout();
         }

@@ -159,13 +159,59 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                     .keyStore(keystore, "changeit".toCharArray())
                     .build();
 
-            try ( Response response = unauthorizedClient.target(this.baseUrl)
-                    .path("actuator")
-                    .path("shutdown")
-                    .request()
-                    .post(Entity.text(""))) {
-                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.FORBIDDEN);
-                assertThat(response.hasEntity()).isTrue();
+            try {
+                try ( Response response = unauthorizedClient.target(this.baseUrl)
+                        .path("actuator")
+                        .path("shutdown")
+                        .request()
+                        .post(Entity.text(""))) {
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.FORBIDDEN);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+            } finally {
+                unauthorizedClient.close();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void bannedUser() throws GeneralSecurityException, IOException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "bannedUser()");
+
+        try {
+            InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for truststore.");
+            KeyStore trustStore = KeyStore.getInstance("pkcs12");
+            trustStore.load(inputStream, "changeit".toCharArray());
+
+            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/banned-user-0-id.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for keystore.");
+            KeyStore keystore = KeyStore.getInstance("pkcs12");
+            keystore.load(inputStream, "changeit".toCharArray());
+
+            Client bannedClient = ClientBuilder
+                    .newBuilder()
+                    .withConfig(new ClientConfig().connectorProvider(new ApacheConnectorProvider()))
+                    .register(MyClientRequestFilter.class)
+                    .register(MyClientResponseFilter.class)
+                    .trustStore(trustStore)
+                    .keyStore(keystore, "changeit".toCharArray())
+                    .build();
+            
+            try {
+                try ( Response response = bannedClient.target(this.baseUrl)
+                        .path("ping")
+                        .request()
+                        .get()) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.FORBIDDEN);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+            } finally {
+                bannedClient.close();
             }
         } finally {
             tracer.wayout();
