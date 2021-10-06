@@ -21,9 +21,9 @@ import org.springframework.stereotype.Component;
  * @author Developer
  */
 @Component
-public class AppConfig {
+public class SanitizationScheduler {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AppConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SanitizationScheduler.class);
 
     @Autowired
     SessionSanitizer sessionSanitizer;
@@ -36,11 +36,11 @@ public class AppConfig {
     
     @PostConstruct
     void init() {
-        boolean scheduleSanitizer = Boolean.valueOf(this.environment.getProperty("de.christofreichardt.restapp.shamir.scheduleSanitizer", "true"));
-        if (scheduleSanitizer) {
-            long initialDelay = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.initialDelay"));
-            long period = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.period"));
-            TimeUnit timeUnit = TimeUnit.of(ChronoUnit.valueOf(this.environment.getProperty("de.christofreichardt.restapp.shamir.temporalUnit")));
+        boolean enabled = Boolean.valueOf(this.environment.getProperty("de.christofreichardt.restapp.shamir.sessionSanitizer.enabled", "true"));
+        if (enabled) {
+            long initialDelay = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.sessionSanitizer.initialDelay"));
+            long period = Long.parseLong(this.environment.getProperty("de.christofreichardt.restapp.shamir.sessionSanitizer.period"));
+            TimeUnit timeUnit = TimeUnit.of(ChronoUnit.valueOf(this.environment.getProperty("de.christofreichardt.restapp.shamir.sessionSanitizer.temporalUnit")));
 
             LOGGER.info(String.format("Scheduling sanitizer service [initialDelay=%d, period=%d, timeUnit=%s] ...", initialDelay, period, timeUnit));
 
