@@ -23,12 +23,16 @@ import javax.ws.rs.core.Response;
 import org.assertj.core.api.WithAssertions;
 import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
 import org.glassfish.jersey.client.ClientConfig;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 /**
  *
  * @author Developer
  */
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements WithAssertions {
 
     public X509AuthenticationFilterUnit(@PropertiesExtension.Config Map<String, String> config) {
@@ -212,6 +216,136 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                 }
             } finally {
                 bannedClient.close();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    @Order(2)
+    void throttlingByMinimumTimeInterval() throws GeneralSecurityException, IOException, InterruptedException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "throttlingByMinimumTimeInterval()");
+
+        try {
+            InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for truststore.");
+            KeyStore trustStore = KeyStore.getInstance("pkcs12");
+            trustStore.load(inputStream, "changeit".toCharArray());
+
+            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/test-user-1-id.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for keystore.");
+            KeyStore keystore = KeyStore.getInstance("pkcs12");
+            keystore.load(inputStream, "changeit".toCharArray());
+            
+            Client suspendedClient = ClientBuilder
+                    .newBuilder()
+                    .withConfig(new ClientConfig().connectorProvider(new ApacheConnectorProvider()))
+                    .register(MyClientRequestFilter.class)
+                    .register(MyClientResponseFilter.class)
+                    .trustStore(trustStore)
+                    .keyStore(keystore, "changeit".toCharArray())
+                    .build();
+            
+            final long MINIMUM_INTERVAL = 1000, REFERENCE_FRAME = 10000; // millis
+            
+            try {
+                Thread.sleep(REFERENCE_FRAME);
+                try ( Response response = suspendedClient.target(this.baseUrl)
+                        .path("ping")
+                        .request()
+                        .get()) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+                try ( Response response = suspendedClient.target(this.baseUrl)
+                        .path("ping")
+                        .request()
+                        .get()) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.PAYMENT_REQUIRED);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+                Thread.sleep(MINIMUM_INTERVAL);
+                try ( Response response = suspendedClient.target(this.baseUrl)
+                        .path("ping")
+                        .request()
+                        .get()) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+            } finally {
+                suspendedClient.close();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    @Order(1)
+    void throttlingByReferenceFrame() throws GeneralSecurityException, IOException, InterruptedException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "throttlingByReferenceFrame()");
+
+        try {
+            InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for truststore.");
+            KeyStore trustStore = KeyStore.getInstance("pkcs12");
+            trustStore.load(inputStream, "changeit".toCharArray());
+
+            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/test-user-1-id.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for keystore.");
+            KeyStore keystore = KeyStore.getInstance("pkcs12");
+            keystore.load(inputStream, "changeit".toCharArray());
+            
+            Client suspendedClient = ClientBuilder
+                    .newBuilder()
+                    .withConfig(new ClientConfig().connectorProvider(new ApacheConnectorProvider()))
+                    .register(MyClientRequestFilter.class)
+                    .register(MyClientResponseFilter.class)
+                    .trustStore(trustStore)
+                    .keyStore(keystore, "changeit".toCharArray())
+                    .build();
+            
+            final long MINIMUM_INTERVAL = 1000, REFERENCE_FRAME = 10000; // millis
+            final int MAX_CALLS = 5;
+            
+            try {
+                for (int i=0; i<MAX_CALLS; i++) {
+                    Thread.sleep(MINIMUM_INTERVAL);
+                    try ( Response response = suspendedClient.target(this.baseUrl)
+                            .path("ping")
+                            .request()
+                            .get()) {
+                        tracer.out().printfIndentln("response = %s", response);
+                        assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                        assertThat(response.hasEntity()).isTrue();
+                    }
+                }
+                Thread.sleep(MINIMUM_INTERVAL);
+                try ( Response response = suspendedClient.target(this.baseUrl)
+                        .path("ping")
+                        .request()
+                        .get()) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.PAYMENT_REQUIRED);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+                Thread.sleep(REFERENCE_FRAME);
+                    try ( Response response = suspendedClient.target(this.baseUrl)
+                            .path("ping")
+                            .request()
+                            .get()) {
+                        tracer.out().printfIndentln("response = %s", response);
+                        assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                        assertThat(response.hasEntity()).isTrue();
+                    }
+            } finally {
+                suspendedClient.close();
             }
         } finally {
             tracer.wayout();

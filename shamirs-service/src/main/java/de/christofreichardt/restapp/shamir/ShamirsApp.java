@@ -86,12 +86,23 @@ public class ShamirsApp {
     FilterRegistrationBean<X509AuthenticationFilter> x509AuthenticationFilter() {
         FilterRegistrationBean<X509AuthenticationFilter> filterRegistrationBean = new FilterRegistrationBean<>();
         filterRegistrationBean.setFilter(new X509AuthenticationFilter());
-        boolean x509AuthFilterEnabled = Boolean.parseBoolean(this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthFilterEnabled", "false"));
+        boolean x509AuthFilterEnabled = Boolean.parseBoolean(this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.enabled", "false"));
         filterRegistrationBean.setEnabled(x509AuthFilterEnabled);
         filterRegistrationBean.setUrlPatterns(List.of("/shamir/v1/*"));
-        String adminUserDN = this.environment.getProperty("de.christofreichardt.restapp.shamir.adminUserDN", "CN=test-user-0,L=Rodgau,ST=Hessen,C=DE");
-        String excludeDNs = this.environment.getProperty("de.christofreichardt.restapp.shamir.excludeDNs", "");
-        filterRegistrationBean.setInitParameters(Map.of("adminUserDN", adminUserDN, "excludeDNs", excludeDNs));
+        String adminUserDN = this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.adminUserDN", "CN=test-user-0,L=Rodgau,ST=Hessen,C=DE");
+        String excludeDNs = this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.excludeDNs", "");
+        String throttling = this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.throttling", "true");
+        String minInterval = this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.minInterval", "10");
+        String minIntervalTempUnit = this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.minInterval.temporalUnit", "SECONDS");
+        String timeFrame = this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.timeFrame", "10");
+        String timeFrameTempUnit = this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.timeFrame.temporalUnit", "MINUTES");
+        String maxCalls = this.environment.getProperty("de.christofreichardt.restapp.shamir.x509AuthenticationFilter.timeFrame.maxCalls", "20");
+        filterRegistrationBean.setInitParameters(
+                Map.of(
+                        "adminUserDN", adminUserDN, "excludeDNs", excludeDNs, "throttling", throttling, "minInterval", minInterval, "minInterval.temporalUnit", minIntervalTempUnit,
+                        "timeFrame", timeFrame, "timeFrame.temporalUnit", timeFrameTempUnit, "timeFrame.maxCalls", maxCalls
+                )
+        );
 
         return filterRegistrationBean;
     }

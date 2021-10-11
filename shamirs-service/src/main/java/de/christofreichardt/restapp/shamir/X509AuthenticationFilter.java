@@ -12,14 +12,19 @@ import de.christofreichardt.diagnosis.TracerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,6 +52,7 @@ public class X509AuthenticationFilter implements Filter, Traceable {
     static final Logger LOGGER = LoggerFactory.getLogger(X509AuthenticationFilter.class);
     Map<String, String> config;
     final List<String> excludeDNs = new ArrayList<>();
+    final Map<String, Deque<Instant>> callsPerUser = new HashMap<>();
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -60,11 +66,11 @@ public class X509AuthenticationFilter implements Filter, Traceable {
         this.config = Collections.unmodifiableMap(temp);
 
         LOGGER.info(String.format("%d: config = %s ...", System.identityHashCode(this), this.config));
-        
+
         this.excludeDNs.addAll(
                 Arrays.stream(this.config.get("excludeDNs").split(";"))
-                .map(distinguishedName -> distinguishedName.strip())
-                .toList()
+                        .map(distinguishedName -> distinguishedName.strip())
+                        .toList()
         );
 
         LOGGER.info(String.format("%d: excludeDNs = %s ...", System.identityHashCode(this), this.excludeDNs.stream().map(dn -> "'" + dn + "'").toList()));
@@ -97,24 +103,105 @@ public class X509AuthenticationFilter implements Filter, Traceable {
 
             String subjectPrincipal = certChain[0].getSubjectX500Principal().getName();
             tracer.out().printfIndentln("subjectPrincipal = %s", subjectPrincipal);
-            
+
             if (this.excludeDNs.contains(subjectPrincipal)) {
                 final String msg = String.format("User[%s] has been banned.", subjectPrincipal);
                 tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
                 error(servletResponse, Response.Status.FORBIDDEN, msg);
                 return;
             }
-            
+
             HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
-            if (httpServletRequest.getRequestURI().startsWith("/shamir/v1/actuator")
-                    && !Objects.equals(this.config.getOrDefault("adminUserDN", "CN=test-user-0,L=Rodgau,ST=Hessen,C=DE"), subjectPrincipal)) {
+            if (httpServletRequest.getRequestURI().startsWith("/shamir/v1/actuator") && !isAdminUser(subjectPrincipal)) {
                 final String msg = "Unauthorized call to actuator endpoint.";
                 tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
                 error(servletResponse, Response.Status.FORBIDDEN, msg);
                 return;
             }
-            
+
+            boolean throttlingEnabled = Boolean.parseBoolean(this.config.getOrDefault("throttling", "true"));
+            if (!isAdminUser(subjectPrincipal) && throttlingEnabled) {
+                if (isSuspended(subjectPrincipal)) {
+                    final String msg = String.format("User '%s' is temporarily suspended.", subjectPrincipal);
+                    tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
+                    error(servletResponse, Response.Status.PAYMENT_REQUIRED, msg);
+                    return;
+                }
+            }
+
             filterChain.doFilter(servletRequest, servletResponse);
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    boolean isAdminUser(String subjectPrincipal) {
+        return Objects.equals(this.config.getOrDefault("adminUserDN", "CN=test-user-0,L=Rodgau,ST=Hessen,C=DE"), subjectPrincipal);
+    }
+
+    boolean isSuspended(String subjectPrincipal) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("boolean", this, "isSuspended(String subjectPrincipal)");
+
+        try {
+            boolean suspended;
+            
+            final Duration minInterval = Duration.of(
+                    Long.parseLong(this.config.getOrDefault("minInterval", "10")), 
+                    ChronoUnit.valueOf(this.config.getOrDefault("minInterval.temporalUnit", "SECONDS"))
+            );
+            final Duration timeFrame = Duration.of(
+                    Long.parseLong(this.config.getOrDefault("timeFrame", "10")), 
+                    ChronoUnit.valueOf(this.config.getOrDefault("timeFrame.temporalUnit", "MINUTES"))
+            );
+            final int maxCalls = Integer.parseInt(this.config.getOrDefault("timeFrame.maxCalls", "20"));
+            
+            tracer.out().printfIndentln("minInterval = %s", minInterval);
+            tracer.out().printfIndentln("timeFrame = %s", timeFrame);
+            tracer.out().printfIndentln("maxCalls = %d", maxCalls);
+            
+            Instant now = Instant.now();
+            if (!this.callsPerUser.containsKey(subjectPrincipal)) {
+                this.callsPerUser.put(subjectPrincipal, new LinkedList<>());
+            }
+            Deque<Instant> calls = this.callsPerUser.get(subjectPrincipal);
+            Duration interval = null;
+            if (calls.peekFirst() != null) {
+                interval = Duration.between(calls.peekFirst(), now);
+            }
+            
+            tracer.out().printfIndentln("now = %s", now);
+            tracer.out().printfIndentln("interval = %s", interval);
+            
+            if (interval == null) {
+                calls.addFirst(now);
+                suspended = false;
+            } else if (interval.compareTo(minInterval) >= 0) {
+                while (calls.size() > maxCalls) {
+                    calls.removeLast();
+                }
+                Duration frame = Duration.between(calls.peekLast(), now);
+                
+                tracer.out().printfIndentln("calls.size() = %d, calls = %s", calls.size(), calls);
+                tracer.out().printfIndentln("frame = %s", frame);
+                
+                if (timeFrame.isZero()) {
+                    tracer.out().printfIndentln("Checking the maximal permitted calls within a timeframe is disabled.");
+                    calls.addFirst(now);
+                    suspended = false;
+                } else if (calls.size() < maxCalls || frame.compareTo(timeFrame) > 0) {
+                    calls.addFirst(now);
+                    suspended = false;
+                } else {
+                    tracer.out().printfIndentln("Too much calls within the reference frame.");
+                    suspended = true;
+                }
+            } else {
+                tracer.out().printfIndentln("Minimum interval hasn't been satisfied.");
+                suspended = true;
+            }
+
+            return suspended;
         } finally {
             tracer.wayout();
         }
