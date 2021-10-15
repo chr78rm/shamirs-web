@@ -28,6 +28,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonWriter;
@@ -52,7 +53,7 @@ public class X509AuthenticationFilter implements Filter, Traceable {
     static final Logger LOGGER = LoggerFactory.getLogger(X509AuthenticationFilter.class);
     Map<String, String> config;
     final List<String> excludeDNs = new ArrayList<>();
-    final Map<String, Deque<Instant>> callsPerUser = new HashMap<>();
+    final Map<String, Deque<Instant>> callsPerUser = new ConcurrentHashMap<>();
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
