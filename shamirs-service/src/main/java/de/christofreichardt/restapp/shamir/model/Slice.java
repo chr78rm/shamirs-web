@@ -216,7 +216,9 @@ public class Slice implements Serializable, Comparable<Slice> {
             this.participant = participant;
             modified();
         } else {
-            throw new IllegalStateException();
+            throw new IllegalSliceProcessingStateException(
+                    String.format("Not allowed: %s => %s.", this.getProcessingState().name(), SliceProcessingState.CREATED.name())
+            );
         }
     }
 
@@ -226,7 +228,9 @@ public class Slice implements Serializable, Comparable<Slice> {
             this.share = null;
             modified();
         } else {
-            throw new IllegalStateException();
+            throw new IllegalSliceProcessingStateException(
+                    String.format("Not allowed: %s => %s.", this.getProcessingState().name(), SliceProcessingState.FETCHED.name())
+            );
         }
     }
 
@@ -236,7 +240,9 @@ public class Slice implements Serializable, Comparable<Slice> {
             setShare(share);
             modified();
         } else {
-            throw new IllegalStateException();
+            throw new IllegalSliceProcessingStateException(
+                    String.format("Not allowed: %s => %s.", this.getProcessingState().name(), SliceProcessingState.POSTED.name())
+            );
         }
     }
 
@@ -245,7 +251,9 @@ public class Slice implements Serializable, Comparable<Slice> {
             this.processingState = SliceProcessingState.EXPIRED.name();
             modified();
         } else {
-            throw new IllegalStateException();
+            throw new IllegalSliceProcessingStateException(
+                    String.format("Not allowed: %s => %s.", this.getProcessingState().name(), SliceProcessingState.EXPIRED.name())
+            );
         }
     }
 

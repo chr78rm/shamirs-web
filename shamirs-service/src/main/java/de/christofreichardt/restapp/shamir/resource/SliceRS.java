@@ -8,6 +8,7 @@ package de.christofreichardt.restapp.shamir.resource;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.json.JsonValueCollector;
 import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
+import de.christofreichardt.restapp.shamir.model.IllegalSliceProcessingStateException;
 import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.restapp.shamir.service.SliceService;
 import java.util.List;
@@ -15,7 +16,6 @@ import java.util.Objects;
 import java.util.Optional;
 import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonPointer;
 import javax.json.JsonValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
@@ -75,23 +75,29 @@ public class SliceRS extends BaseRS {
             if (!SliceProcessingState.isValid(instructions.getString("state"))) {
                 return badRequest(String.format("Unknown state '%s'.", instructions.getString("state")));
             }
-            
+
             // ensure that the share object exists
             if (!instructions.containsKey("share") || instructions.get("share").getValueType() != JsonValue.ValueType.OBJECT) {
                 return badRequest("Malformed patch.");
             }
-            
+
             // dispatch
-            if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
-                if (!instructions.get("share").asJsonObject().entrySet().isEmpty()) {
+            try {
+                if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
+                    if (!instructions.get("share").asJsonObject().entrySet().isEmpty()) {
+                        return badRequest("Malformed patch.");
+                    }
+                    return fetchSlice(slice.get());
+                } else if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.POSTED) {
+                    return postSlice(slice.get(), instructions.getJsonObject("share")); // TODO: validate the share object
+                } else {
                     return badRequest("Malformed patch.");
                 }
-                return fetchSlice(slice.get());
-            } else if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.POSTED) {
-                return postSlice(slice.get(), instructions.getJsonObject("share")); // TODO: validate the share object
+            } catch (IllegalSliceProcessingStateException ex) {
+                return badRequest("Illegal processing state transition.", ex);
+            } catch (Exception ex) {
+                return internalServerError("Something went wrong.");
             }
-
-            return internalServerError("Something went wrong");
         } finally {
             tracer.wayout();
         }
@@ -102,10 +108,6 @@ public class SliceRS extends BaseRS {
         tracer.entry("Response", this, "fetchSlice(Slice slice)");
 
         try {
-            if (!(slice.isCreated() || slice.isPosted())) {
-                return badRequest(String.format("The requested slice is neither '%s' nor '%s'.", SliceProcessingState.CREATED.name(), SliceProcessingState.POSTED.name()));
-            }
-
             slice.fetched();
             slice = this.sliceService.save(slice);
 
@@ -120,9 +122,6 @@ public class SliceRS extends BaseRS {
         tracer.entry("Response", this, "postSlice(Slice slice, JsonObject share)");
 
         try {
-            if (!slice.isFetched()) {
-                return badRequest(String.format("The requested slice is not '%s'.", SliceProcessingState.FETCHED.name()));
-            }
             if (!Objects.equals(share.getString("PartitionId"), slice.getPartitionId())) {
                 return badRequest(String.format("Unmatched partitionId '%s'.", slice.getPartitionId()));
             }
