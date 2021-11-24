@@ -77,6 +77,17 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
             return JsonToolsUnit.this.getCurrentTracer();
         }
     }
+    
+    class MyJsonAnyObjectConstraint extends JsonAnyObjectConstraint {
+
+        public MyJsonAnyObjectConstraint() {
+        }
+
+        @Override
+        public AbstractTracer getCurrentTracer() {
+            return JsonToolsUnit.this.getCurrentTracer();
+        }
+    }
 
     @Test
     void jsonStringConstraint() {
@@ -155,7 +166,7 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
             final MyJsonStringConstraint jsonAliasConstraint = new MyJsonStringConstraint(aliasPattern);
             String algoPattern = "AES";
             final MyJsonStringConstraint jsonAlgoConstraint = new MyJsonStringConstraint(algoPattern);
-            String keysizePattern = "[1-9][0-9]{2,3}";
+            String keysizePattern = "128|256|512";
             final MyJsonNumberConstraint jsonKeySizeConstraint = new MyJsonNumberConstraint(keysizePattern);
             String keyTypePattern = "secret-key";
             final MyJsonStringConstraint jsonKeyTypeConstraint = new MyJsonStringConstraint(keyTypePattern);
@@ -575,15 +586,6 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
                     )
                     .build();
             
-            JsonTracer jsonTracer = new JsonTracer() {
-                @Override
-                public AbstractTracer getCurrentTracer() {
-                    return JsonToolsUnit.this.getCurrentTracer();
-                }
-            };
-            
-            jsonTracer.trace(validShare);
-            
             assertThat(
                     shareConstraint.validate(validShare)
             ).isTrue();
@@ -652,12 +654,154 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
                                         )
                                 )
                                 .build(),
+                        Json.createObjectBuilder()
+                                .add("PartitionId", "4c8817d8-cafd-4daf-8538-02567071fbea")
+                                .add("Prime", new BigInteger("20578480839578433406690946154785465029530804091460622363478793090835305100929087"))
+                                .add("Threshold", 4)
+                                .add("SharePoints", Json.createArrayBuilder()
+                                        .add(Json.createObjectBuilder()
+                                                .add("SharePoint", Json.createObjectBuilder()
+                                                        .add("x", new BigDecimal("534353708876665146723718368563914491530345.8993519496215604768621258607770190557"))
+                                                        .add("y", new BigInteger("12123040870242525799199784089760842359830853555007955848266717787238675882765492"))
+                                                )
+                                        )
+                                        .add(Json.createObjectBuilder()
+                                                .add("SharePoint", Json.createObjectBuilder()
+                                                        .add("x", new BigInteger("4992587400096589644966411458474479840083891127803171906966615570472454048811046"))
+                                                        .add("y", new BigInteger("3331447472596458512646320851992615013974771345825613648005571050286395467356219"))
+                                                )
+                                        )
+                                        .add(Json.createObjectBuilder()
+                                                .add("SharePoint", Json.createObjectBuilder()
+                                                        .add("x", new BigInteger("4776132650646788302694822741410760125034403808856592636268649697857192978140080"))
+                                                        .add("y", new BigInteger("2489889427894710311098404634701006983293811668071372095790060111933668950408234"))
+                                                )
+                                        )
+                                        .add(Json.createObjectBuilder()
+                                                .add("SharePoint", Json.createObjectBuilder()
+                                                        .add("x", new BigInteger("11817840164080823997574382054580179660869802129441618659560820293465203931452873"))
+                                                        .add("y", new BigInteger("15622273729109725244555139052709355747200820317138470284340626448011133037374039"))
+                                                )
+                                        )
+                                )
+                                .build(),
                     };
             
             Arrays.stream(invalidShares)
                     .forEach(invalidShare -> {
                         try {
                             shareConstraint.validate(invalidShare);
+                            Assertions.fail();
+                        } catch (Exception ex) {
+                            tracer.out().printfIndentln("==> %s", ex.getMessage());
+                            assertThat(ex).isInstanceOf(JsonValueConstraint.Exception.class);
+                        }
+                    });
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void sliceConstraint() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "sliceConstraint()");
+
+        try {
+            String uuidPattern = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
+            MyJsonStringConstraint uuidConstraint = new MyJsonStringConstraint(uuidPattern);
+            String statePattern = SliceProcessingState.FETCHED.name() + "|"
+                    + SliceProcessingState.POSTED.name();
+            MyJsonStringConstraint stateConstraint = new MyJsonStringConstraint(statePattern);
+            MyJsonObjectConstraint sliceConstraint = new MyJsonObjectConstraint(
+                    Map.of("id", uuidConstraint, "state", stateConstraint, "share", new MyJsonAnyObjectConstraint())
+            );
+
+            JsonObject validPostedSlice = Json.createObjectBuilder()
+                    .add("id", "1495545e-0cf9-4c7f-b46f-8768decdaf73")
+                    .add("state", SliceProcessingState.POSTED.name())
+                    .add("share", Json.createObjectBuilder()
+                            .add("PartitionId", "4c8817d8-cafd-4dff-8538-02567071fbea")
+                            .add("Prime", new BigInteger("20578480839578433406690946154785465029530804091460622363478793090835305100929087"))
+                            .add("Threshold", 4)
+                            .add("SharePoints", Json.createArrayBuilder()
+                                    .add(Json.createObjectBuilder()
+                                            .add("SharePoint", Json.createObjectBuilder()
+                                                    .add("x", new BigInteger("5343537088766651467237183685639144915303458993519496215604768621258607770190557"))
+                                                    .add("y", new BigInteger("12123040870242525799199784089760842359830853555007955848266717787238675882765492"))
+                                            )
+                                    )
+                                    .add(Json.createObjectBuilder()
+                                            .add("SharePoint", Json.createObjectBuilder()
+                                                    .add("x", new BigInteger("4992587400096589644966411458474479840083891127803171906966615570472454048811046"))
+                                                    .add("y", new BigInteger("3331447472596458512646320851992615013974771345825613648005571050286395467356219"))
+                                            )
+                                    )
+                                    .add(Json.createObjectBuilder()
+                                            .add("SharePoint", Json.createObjectBuilder()
+                                                    .add("x", new BigInteger("4776132650646788302694822741410760125034403808856592636268649697857192978140080"))
+                                                    .add("y", new BigInteger("2489889427894710311098404634701006983293811668071372095790060111933668950408234"))
+                                            )
+                                    )
+                                    .add(Json.createObjectBuilder()
+                                            .add("SharePoint", Json.createObjectBuilder()
+                                                    .add("x", new BigInteger("11817840164080823997574382054580179660869802129441618659560820293465203931452873"))
+                                                    .add("y", new BigInteger("15622273729109725244555139052709355747200820317138470284340626448011133037374039"))
+                                            )
+                                    )
+                            )
+                    )
+                    .build();
+
+            JsonObject validFetchedSlice = Json.createObjectBuilder()
+                    .add("id", "1495545e-0cf9-4c7f-b46f-8768decdaf73")
+                    .add("state", SliceProcessingState.FETCHED.name())
+                    .add("share", Json.createObjectBuilder().build()
+                    )
+                    .build();
+
+            JsonObject[] validSlices = {validPostedSlice, validFetchedSlice};
+
+            assertThat(
+                    Arrays.stream(validSlices).allMatch(validSlice -> sliceConstraint.validate(validSlice))
+            ).isTrue();
+
+            JsonObject invalidSlice1 = Json.createObjectBuilder()
+                    .add("id", "1495545e-0cf9-4c7f-b46f-8768decdaf73")
+                    .add("state", SliceProcessingState.CREATED.name())
+                    .add("share", Json.createObjectBuilder().build()
+                    )
+                    .build();
+
+            JsonObject invalidSlice2 = Json.createObjectBuilder()
+                    .add("state", SliceProcessingState.FETCHED.name())
+                    .add("share", Json.createObjectBuilder().build()
+                    )
+                    .build();
+
+            JsonObject invalidSlice3 = Json.createObjectBuilder()
+                    .add("id", "1495545e-0cf9-4c7f-b46f-8768decdaf73")
+                    .add("share", Json.createObjectBuilder().build()
+                    )
+                    .build();
+
+            JsonObject invalidSlice4 = Json.createObjectBuilder()
+                    .add("id", "1495545e-0cf9-4c7f-b46f-8768decdaf73")
+                    .add("state", SliceProcessingState.FETCHED.name())
+                    .build();
+
+            JsonObject invalidSlice5 = Json.createObjectBuilder()
+                    .add("id", "1495545e-0cf9-4c7f-b46f-8768decdaf73")
+                    .add("state", SliceProcessingState.FETCHED.name())
+                    .add("share", "error")
+                    .build();
+            
+            JsonObject[] invalidSlices = {invalidSlice1, invalidSlice2, invalidSlice3, invalidSlice4, invalidSlice5};
+            
+            Arrays.stream(invalidSlices)
+                    .forEach(invalidSlice -> {
+                        try {
+                            sliceConstraint.validate(invalidSlice);
                             Assertions.fail();
                         } catch (Exception ex) {
                             tracer.out().printfIndentln("==> %s", ex.getMessage());

@@ -27,6 +27,13 @@ public abstract class JsonNumberConstraint extends JsonValueConstraint {
         this.maximum = maximum;
     }
 
+    public JsonNumberConstraint(BigDecimal minimum, BigDecimal maximum) {
+        super(true);
+        this.pattern = null;
+        this.minimum = minimum;
+        this.maximum = maximum;
+    }
+
     @Override
     public boolean validate(JsonValue jsonValue) {
         AbstractTracer tracer = getCurrentTracer();
@@ -40,12 +47,21 @@ public abstract class JsonNumberConstraint extends JsonValueConstraint {
             
             tracer.out().printfIndentln("jsonNumber = %s", jsonNumber);
             
-            if (!this.pattern.matcher(jsonNumber.toString()).matches()) {
+            if (this.pattern != null && !this.pattern.matcher(jsonNumber.toString()).matches()) {
                 throw new Exception(String.format("JsonNumber doesn't match '%s'.", this.pattern));
             }
+            
             if (this.maximum != null && this.minimum != null) {
                 if (!(jsonNumber.bigDecimalValue().compareTo(this.minimum) >= 0 && jsonNumber.bigDecimalValue().compareTo(this.maximum) < 0)) {
                     throw new Exception(String.format("JsonNumber '%s' is outside the interval [%s,%s[.", jsonNumber.bigDecimalValue(), this.minimum, this.maximum));
+                }
+            } else if (this.minimum != null) {
+                if (!(jsonNumber.bigDecimalValue().compareTo(this.minimum) >= 0)) {
+                    throw new Exception(String.format("JsonNumber '%s' is below the minimum %s.", jsonNumber.bigDecimalValue(), this.minimum));
+                }
+            } else if (this.maximum != null) {
+                if (!(jsonNumber.bigDecimalValue().compareTo(this.maximum) < 0)) {
+                    throw new Exception(String.format("JsonNumber '%s' is above or equals the maximum %s.", jsonNumber.bigDecimalValue(), this.minimum));
                 }
             }
             
