@@ -7,16 +7,17 @@ package de.christofreichardt.restapp.shamir.resource;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.json.JsonValueConstraint;
 import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
 import de.christofreichardt.restapp.shamir.model.IllegalSliceProcessingStateException;
 import de.christofreichardt.restapp.shamir.model.Slice;
 import de.christofreichardt.restapp.shamir.service.SliceService;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
 import javax.ws.rs.Path;
@@ -56,48 +57,55 @@ public class SliceRS extends BaseRS {
             }
 
             tracer.out().printfIndentln("slice = %s", slice.get());
-
-            // match the id against the path parameter
-            if (!instructions.containsKey("id")) {
-                return badRequest("Missing 'id'.");
-            }
-            if (instructions.get("id").getValueType() != JsonValue.ValueType.STRING) {
-                return badRequest("Wrongtyped 'id'.");
-            }
-            if (!Objects.equals(id, instructions.getString("id"))) {
-                return badRequest(String.format("The transmitted id=%s, doesn't match the id of the resource [id=%s].", instructions.getString("id"), id));
-            }
-
-            // validate the state
-            if (!instructions.containsKey("state") || instructions.get("state").getValueType() != JsonValue.ValueType.STRING) {
-                return badRequest("Malformed patch.");
-            }
-            if (!SliceProcessingState.isValid(instructions.getString("state"))) {
-                return badRequest(String.format("Unknown state '%s'.", instructions.getString("state")));
-            }
-
-            // ensure that the share object exists
-            if (!instructions.containsKey("share") || instructions.get("share").getValueType() != JsonValue.ValueType.OBJECT) {
-                return badRequest("Malformed patch.");
-            }
-
-            // dispatch
+            
             try {
-                if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
-                    if (!instructions.get("share").asJsonObject().entrySet().isEmpty()) {
+                validateSliceInstructions(instructions);
+
+                // match the id against the path parameter
+                if (!Objects.equals(id, instructions.getString("id"))) {
+                    return badRequest(String.format("The transmitted id=%s, doesn't match the id of the resource [id=%s].", instructions.getString("id"), id));
+                }
+
+                // dispatch
+                try {
+                    if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.FETCHED) {
+                        if (!instructions.get("share").asJsonObject().entrySet().isEmpty()) {
+                            return badRequest("Malformed patch.");
+                        }
+                        return fetchSlice(slice.get());
+                    } else if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.POSTED) {
+                        return postSlice(slice.get(), instructions.getJsonObject("share"));
+                    } else {
                         return badRequest("Malformed patch.");
                     }
-                    return fetchSlice(slice.get());
-                } else if (SliceProcessingState.valueOf(instructions.getString("state")) == SliceProcessingState.POSTED) {
-                    return postSlice(slice.get(), instructions.getJsonObject("share")); // TODO: validate the share object
-                } else {
-                    return badRequest("Malformed patch.");
+                } catch (IllegalSliceProcessingStateException ex) {
+                    return badRequest("Illegal processing state transition.", ex);
+                } catch (Exception ex) {
+                    return internalServerError("Something went wrong.");
                 }
-            } catch (IllegalSliceProcessingStateException ex) {
-                return badRequest("Illegal processing state transition.", ex);
-            } catch (Exception ex) {
-                return internalServerError("Something went wrong.");
+            } catch (JsonValueConstraint.Exception ex) {
+                return badRequest("Malformed patch.", ex);
             }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    boolean validateSliceInstructions(JsonObject instructions) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "validateSliceInstructions(JsonObject instructions)");
+
+        try {
+            String uuidPattern = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
+            MyJsonStringConstraint uuidConstraint = new MyJsonStringConstraint(uuidPattern);
+            String statePattern = SliceProcessingState.FETCHED.name() + "|"
+                    + SliceProcessingState.POSTED.name();
+            MyJsonStringConstraint stateConstraint = new MyJsonStringConstraint(statePattern);
+            MyJsonObjectConstraint sliceConstraint = new MyJsonObjectConstraint(
+                    Map.of("id", uuidConstraint, "state", stateConstraint, "share", new MyJsonAnyObjectConstraint())
+            );
+            
+            return sliceConstraint.validate(instructions);
         } finally {
             tracer.wayout();
         }
@@ -122,17 +130,51 @@ public class SliceRS extends BaseRS {
         tracer.entry("Response", this, "postSlice(Slice slice, JsonObject share)");
 
         try {
-            if (!Objects.equals(share.getString("PartitionId"), slice.getPartitionId())) {
-                return badRequest(String.format("Unmatched partitionId '%s'.", slice.getPartitionId()));
+            try {
+                validateShare(share);
+                
+                if (!Objects.equals(share.getString("PartitionId"), slice.getPartitionId())) {
+                    return badRequest(String.format("Unmatched partitionId '%s'.", slice.getPartitionId()));
+                }
+                if (slice.getSize() != share.getJsonArray("SharePoints").size()) {
+                    return badRequest(String.format("Expected %d sharepoints but got %d.", slice.getSize(), share.getJsonArray("SharePoints").size()));
+                }
+                
+                slice.posted(share);
+                slice = this.sliceService.save(slice);
+                
+                return ok(slice.toJson(true));
+            } catch (JsonValueConstraint.Exception ex) {
+                return badRequest("Malformed share.", ex);
             }
-            if (slice.getSize() != share.getJsonArray("SharePoints").size()) {
-                return badRequest(String.format("Expected %d sharepoints but got %d.", slice.getSize(), share.getJsonArray("SharePoints").size()));
-            }
+        } finally {
+            tracer.wayout();
+        }
+    }
 
-            slice.posted(share);
-            slice = this.sliceService.save(slice);
+    boolean validateShare(JsonObject share) {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("boolean", this, "validated(JsonObject share)");
 
-            return ok(slice.toJson(true));
+        try {
+            String uuidPattern = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
+            MyJsonStringConstraint uuidConstraint = new MyJsonStringConstraint(uuidPattern);
+            String bigIntegerPattern = "[1-9][0-9]*";
+            MyJsonNumberConstraint bigIntegerConstraint = new MyJsonNumberConstraint(bigIntegerPattern);
+            String thresholdPattern = "[1-9][0-9]?";
+            MyJsonNumberConstraint thresholdConstraint = new MyJsonNumberConstraint(thresholdPattern);
+            MyJsonObjectConstraint sharePointContraint = new MyJsonObjectConstraint(
+                    Map.of("x", bigIntegerConstraint, "y", bigIntegerConstraint)
+            );
+            MyJsonObjectConstraint wrapConstraint = new MyJsonObjectConstraint(
+                    Map.of("SharePoint", sharePointContraint)
+            );
+            MyJsonArrayConstraint sharePointsConstraint = new MyJsonArrayConstraint(1, 20, wrapConstraint);
+            MyJsonObjectConstraint shareConstraint = new MyJsonObjectConstraint(
+                    Map.of("PartitionId", uuidConstraint, "Prime", bigIntegerConstraint, "Threshold", thresholdConstraint, "SharePoints", sharePointsConstraint)
+            );
+
+            return shareConstraint.validate(share);
         } finally {
             tracer.wayout();
         }

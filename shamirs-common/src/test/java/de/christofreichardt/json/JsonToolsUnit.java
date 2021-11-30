@@ -534,11 +534,6 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
         try {
             String uuidPattern = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
             MyJsonStringConstraint uuidConstraint = new MyJsonStringConstraint(uuidPattern);
-//            String statePattern = SliceProcessingState.CREATED.name() + "|"
-//                    + SliceProcessingState.EXPIRED.name() + "|"
-//                    + SliceProcessingState.FETCHED.name() + "|" 
-//                    + SliceProcessingState.POSTED.name();
-//            MyJsonStringConstraint stateConstraint = new MyJsonStringConstraint(statePattern);
             String bigIntegerPattern = "[1-9][0-9]*";
             MyJsonNumberConstraint bigIntegerConstraint = new MyJsonNumberConstraint(bigIntegerPattern);
             String thresholdPattern = "[1-9][0-9]?";

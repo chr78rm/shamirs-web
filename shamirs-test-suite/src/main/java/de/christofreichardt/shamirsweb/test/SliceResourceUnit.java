@@ -344,7 +344,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
             this.passwordShares = createdSlice.getJsonObject("share");
 
             // try to change the state to FETCHED (missing id)
-            JsonObject instruction = Json.createObjectBuilder()
+            JsonObject malformedInstruction = Json.createObjectBuilder()
                     .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
                     .add("share", JsonValue.EMPTY_JSON_OBJECT)
                     .build();
@@ -352,15 +352,48 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                     .path("slices")
                     .path(createdSlice.getString("id"))
                     .request(MediaType.APPLICATION_JSON)
-                    .method("PATCH", Entity.json(instruction))) {
+                    .method("PATCH", Entity.json(malformedInstruction))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                assertThat(response.hasEntity()).isTrue();
+            }
+
+            // try to change the state to FETCHED (missing share)
+            malformedInstruction = Json.createObjectBuilder()
+                    .add("id", createdSlice.getString("id"))
+                    .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
+                    .build();
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .path(createdSlice.getString("id"))
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("PATCH", Entity.json(malformedInstruction))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                assertThat(response.hasEntity()).isTrue();
+            }
+
+            // try to change the state to EXPIRED (illegal state for patch)
+            malformedInstruction = Json.createObjectBuilder()
+                    .add("id", createdSlice.getString("id"))
+                    .add("state", Json.createValue(SliceProcessingState.EXPIRED.name()))
+                    .add("share", JsonValue.EMPTY_JSON_OBJECT)
+                    .build();
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .path(createdSlice.getString("id"))
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("PATCH", Entity.json(malformedInstruction))) {
                 tracer.out().printfIndentln("response = %s", response);
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
                 assertThat(response.hasEntity()).isTrue();
             }
 
             // change the state to FETCHED
-            JsonObject instructionWithId = Json.createObjectBuilder(instruction)
+            JsonObject instructionWithId = Json.createObjectBuilder()
                     .add("id", createdSlice.getString("id"))
+                    .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
+                    .add("share", JsonValue.EMPTY_JSON_OBJECT)
                     .build();
             JsonObject fetchedSlice;
             try ( Response response = this.client.target(this.baseUrl)
@@ -636,6 +669,88 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
         }
     }
 
+    final String MY_ALIAS = "my-secret-key", DONALDS_ALIAS = "donalds-private-ec-key", DAGOBERTS_ALIAS = "dagoberts-private-dsa-key", DAISIES_ALIAS = "daisies-private-rsa-key";
+
+    JsonObject keystoreInstructionsTemplate = Json.createObjectBuilder()
+            .add("shares", 12)
+            .add("threshold", 4)
+            .add("descriptiveName", "my-default-keystore")
+            .add("keyinfos", Json.createArrayBuilder()
+                    .add(Json.createObjectBuilder()
+                            .add("alias", MY_ALIAS)
+                            .add("algorithm", "AES")
+                            .add("keySize", 256)
+                            .add("type", "secret-key")
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("alias", DONALDS_ALIAS)
+                            .add("algorithm", "EC")
+                            .add("type", "private-key")
+                            .add("x509", Json.createObjectBuilder()
+                                    .add("validity", 100)
+                                    .add("commonName", "Donald Duck")
+                                    .add("locality", "Entenhausen")
+                                    .add("state", "Bayern")
+                                    .add("country", "Deutschland")
+                            )
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("alias", DAGOBERTS_ALIAS)
+                            .add("algorithm", "DSA")
+                            .add("type", "private-key")
+                            .add("x509", Json.createObjectBuilder()
+                                    .add("validity", 100)
+                                    .add("commonName", "Dagobert Duck")
+                                    .add("locality", "Entenhausen")
+                                    .add("state", "Bayern")
+                                    .add("country", "Deutschland")
+                            )
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("alias", DAISIES_ALIAS)
+                            .add("algorithm", "RSA")
+                            .add("type", "private-key")
+                            .add("x509", Json.createObjectBuilder()
+                                    .add("validity", 100)
+                                    .add("commonName", "Daisy Duck")
+                                    .add("locality", "Entenhausen")
+                                    .add("state", "Bayern")
+                                    .add("country", "Deutschland")
+                            )
+                    )
+            )
+            .add("sizes", Json.createArrayBuilder()
+                    .add(Json.createObjectBuilder()
+                            .add("size", 4)
+                            .add("participant", "christof")
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("size", 2)
+                            .add("participant", "test-user-1")
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("size", 2)
+                            .add("participant", "test-user-2")
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("size", 1)
+                            .add("participant", "test-user-3")
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("size", 1)
+                            .add("participant", "test-user-4")
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("size", 1)
+                            .add("participant", "test-user-5")
+                    )
+                    .add(Json.createObjectBuilder()
+                            .add("size", 1)
+                            .add("participant", "test-user-6")
+                    )
+            )
+            .build();
+
     @Test
     @Order(6)
     void threshold_2() throws InterruptedException {
@@ -643,86 +758,8 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
         tracer.entry("void", this, "threshold_2()");
 
         try {
-            final String MY_ALIAS = "my-secret-key", DONALDS_ALIAS = "donalds-private-ec-key", DAGOBERTS_ALIAS = "dagoberts-private-dsa-key", DAISIES_ALIAS = "daisies-private-rsa-key";
-
-            JsonObject keystoreInstructions = Json.createObjectBuilder()
-                    .add("shares", 12)
-                    .add("threshold", 4)
+            JsonObject keystoreInstructions = Json.createObjectBuilder(this.keystoreInstructionsTemplate)
                     .add("descriptiveName", "my-posted-keystore")
-                    .add("keyinfos", Json.createArrayBuilder()
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", MY_ALIAS)
-                                    .add("algorithm", "AES")
-                                    .add("keySize", 256)
-                                    .add("type", "secret-key")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DONALDS_ALIAS)
-                                    .add("algorithm", "EC")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Donald Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DAGOBERTS_ALIAS)
-                                    .add("algorithm", "DSA")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Dagobert Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DAISIES_ALIAS)
-                                    .add("algorithm", "RSA")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Daisy Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                    )
-                    .add("sizes", Json.createArrayBuilder()
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 4)
-                                    .add("participant", "christof")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 2)
-                                    .add("participant", "test-user-1")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 2)
-                                    .add("participant", "test-user-2")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-3")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-4")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-5")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-6")
-                            )
-                    )
                     .build();
 
             String keystoreId;
@@ -1005,86 +1042,8 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
         tracer.entry("void", this, "falsifiedSlice()");
 
         try {
-            final String MY_ALIAS = "my-secret-key", DONALDS_ALIAS = "donalds-private-ec-key", DAGOBERTS_ALIAS = "dagoberts-private-dsa-key", DAISIES_ALIAS = "daisies-private-rsa-key";
-
-            JsonObject keystoreInstructions = Json.createObjectBuilder()
-                    .add("shares", 12)
-                    .add("threshold", 4)
+            JsonObject keystoreInstructions = Json.createObjectBuilder(this.keystoreInstructionsTemplate)
                     .add("descriptiveName", "another-posted-keystore")
-                    .add("keyinfos", Json.createArrayBuilder()
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", MY_ALIAS)
-                                    .add("algorithm", "AES")
-                                    .add("keySize", 256)
-                                    .add("type", "secret-key")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DONALDS_ALIAS)
-                                    .add("algorithm", "EC")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Donald Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DAGOBERTS_ALIAS)
-                                    .add("algorithm", "DSA")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Dagobert Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DAISIES_ALIAS)
-                                    .add("algorithm", "RSA")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Daisy Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                    )
-                    .add("sizes", Json.createArrayBuilder()
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 4)
-                                    .add("participant", "christof")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 2)
-                                    .add("participant", "test-user-1")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 2)
-                                    .add("participant", "test-user-2")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-3")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-4")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-5")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-6")
-                            )
-                    )
                     .build();
 
             // post the keystore instructions
@@ -1326,86 +1285,8 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
         tracer.entry("void", this, "illegalProcessingStateTransitions()");
 
         try {
-            final String MY_ALIAS = "my-secret-key", DONALDS_ALIAS = "donalds-private-ec-key", DAGOBERTS_ALIAS = "dagoberts-private-dsa-key", DAISIES_ALIAS = "daisies-private-rsa-key";
-
-            JsonObject keystoreInstructions = Json.createObjectBuilder()
-                    .add("shares", 12)
-                    .add("threshold", 4)
+            JsonObject keystoreInstructions = Json.createObjectBuilder(this.keystoreInstructionsTemplate)
                     .add("descriptiveName", "third-posted-keystore")
-                    .add("keyinfos", Json.createArrayBuilder()
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", MY_ALIAS)
-                                    .add("algorithm", "AES")
-                                    .add("keySize", 256)
-                                    .add("type", "secret-key")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DONALDS_ALIAS)
-                                    .add("algorithm", "EC")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Donald Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DAGOBERTS_ALIAS)
-                                    .add("algorithm", "DSA")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Dagobert Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("alias", DAISIES_ALIAS)
-                                    .add("algorithm", "RSA")
-                                    .add("type", "private-key")
-                                    .add("x509", Json.createObjectBuilder()
-                                            .add("validity", 100)
-                                            .add("commonName", "Daisy Duck")
-                                            .add("locality", "Entenhausen")
-                                            .add("state", "Bayern")
-                                            .add("country", "Deutschland")
-                                    )
-                            )
-                    )
-                    .add("sizes", Json.createArrayBuilder()
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 4)
-                                    .add("participant", "christof")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 2)
-                                    .add("participant", "test-user-1")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 2)
-                                    .add("participant", "test-user-2")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-3")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-4")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-5")
-                            )
-                            .add(Json.createObjectBuilder()
-                                    .add("size", 1)
-                                    .add("participant", "test-user-6")
-                            )
-                    )
                     .build();
 
             // post the keystore instructions
@@ -1464,7 +1345,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                 assertThat(response.hasEntity()).isTrue();
                 randomSlice = response.readEntity(JsonObject.class);
             }
-            
+
             // try to change the state from CREATED to POSTED
             JsonObject postInstruction = Json.createObjectBuilder()
                     .add("id", randomSlice.getString("id"))
@@ -1497,7 +1378,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
             }
-            
+
             // try to change the state from FETCHED to CREATED
             JsonObject illegalInstruction = Json.createObjectBuilder()
                     .add("id", randomSlice.getString("id"))
@@ -1524,7 +1405,7 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                 assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
                 assertThat(response.hasEntity()).isTrue();
             }
-            
+
             // try to change the state from POSTED to EXPIRED
             illegalInstruction = Json.createObjectBuilder()
                     .add("id", randomSlice.getString("id"))
@@ -1552,6 +1433,156 @@ public class SliceResourceUnit extends ShamirsBaseUnit implements WithAssertions
                 assertThat(response.hasEntity()).isTrue();
                 JsonObject keystoreView = response.readEntity(JsonObject.class);
                 assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.ARRAY);
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Test
+    void invalidShare() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "invalidShare()");
+
+        try {
+            JsonObject keystoreInstructions = Json.createObjectBuilder(this.keystoreInstructionsTemplate)
+                    .add("descriptiveName", "keystore-4")
+                    .build();
+
+            // post the keystore instructions
+            String keystoreId;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.json(keystoreInstructions))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.CREATED);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject keystoreView = response.readEntity(JsonObject.class);
+                keystoreId = keystoreView.getString("id");
+            }
+
+            // assert that the keystore is loadable
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("keystores")
+                    .path(keystoreId)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                JsonObject keystoreView = response.readEntity(JsonObject.class);
+                assertThat(keystoreView.getValue("/keyEntries").getValueType() == JsonValue.ValueType.ARRAY);
+            }
+
+            // retrieve the slice views for the keystore
+            JsonArray slices;
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .queryParam("keystoreId", keystoreId)
+                    .request(MediaType.APPLICATION_JSON)
+                    .get()) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                slices = response.readEntity(JsonObject.class).getJsonArray("slices");
+            }
+            tracer.out().printfIndentln("slices.size() = %d", slices.size());
+            assertThat(slices.size()).isEqualTo(keystoreInstructions.getJsonArray("sizes").size());
+
+            // choose a random slice
+            Random random = new Random();
+            int randomIndex = random.nextInt(slices.size());
+            JsonObject randomSlice = slices.getJsonObject(randomIndex);
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .path(randomSlice.getString("id"))
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("GET")) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+                randomSlice = response.readEntity(JsonObject.class);
+            }
+
+            // change the state from CREATED to FETCHED
+            JsonObject share = randomSlice.getJsonObject("share");
+            final JsonObject fetchInstruction = Json.createObjectBuilder()
+                    .add("id", randomSlice.getString("id"))
+                    .add("state", Json.createValue(SliceProcessingState.FETCHED.name()))
+                    .add("share", JsonValue.EMPTY_JSON_OBJECT)
+                    .build();
+            try ( Response response = this.client.target(this.baseUrl)
+                    .path("slices")
+                    .path(randomSlice.getString("id"))
+                    .request(MediaType.APPLICATION_JSON)
+                    .method("PATCH", Entity.json(fetchInstruction))) {
+                tracer.out().printfIndentln("response = %s", response);
+                assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                assertThat(response.hasEntity()).isTrue();
+            }
+
+            // template for post instructions
+            JsonObject postInstructionTemplate = Json.createObjectBuilder()
+                    .add("id", randomSlice.getString("id"))
+                    .add("state", Json.createValue(SliceProcessingState.POSTED.name()))
+                    .build();
+
+            // Invalid UUID
+            {
+                JsonObject invalidShare = Json.createObjectBuilder(share)
+                        .add("PartitionId", "a59f6728------4d60-9fe3-a951b726a4bc")
+                        .build();
+                JsonObject postInstruction = Json.createObjectBuilder(postInstructionTemplate)
+                        .add("share", invalidShare)
+                        .build();
+                try ( Response response = this.client.target(this.baseUrl)
+                        .path("slices")
+                        .path(randomSlice.getString("id"))
+                        .request(MediaType.APPLICATION_JSON)
+                        .method("PATCH", Entity.json(postInstruction))) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+            }
+            
+            // invalid Prime
+            {
+                JsonObject invalidShare = Json.createObjectBuilder(share)
+                        .add("Prime", share.getJsonNumber("Prime").doubleValue())
+                        .build();
+                JsonObject postInstruction = Json.createObjectBuilder(postInstructionTemplate)
+                        .add("share", invalidShare)
+                        .build();
+                try ( Response response = this.client.target(this.baseUrl)
+                        .path("slices")
+                        .path(randomSlice.getString("id"))
+                        .request(MediaType.APPLICATION_JSON)
+                        .method("PATCH", Entity.json(postInstruction))) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+            }
+            
+            // invalid Threshold
+            {
+                JsonObject invalidShare = Json.createObjectBuilder(share)
+                        .add("Threshold", share.getJsonNumber("Threshold").doubleValue())
+                        .build();
+                JsonObject postInstruction = Json.createObjectBuilder(postInstructionTemplate)
+                        .add("share", invalidShare)
+                        .build();
+                try ( Response response = this.client.target(this.baseUrl)
+                        .path("slices")
+                        .path(randomSlice.getString("id"))
+                        .request(MediaType.APPLICATION_JSON)
+                        .method("PATCH", Entity.json(postInstruction))) {
+                    tracer.out().printfIndentln("response = %s", response);
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.BAD_REQUEST);
+                    assertThat(response.hasEntity()).isTrue();
+                }
             }
         } finally {
             tracer.wayout();
