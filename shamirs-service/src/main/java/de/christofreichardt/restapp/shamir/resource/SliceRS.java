@@ -39,6 +39,12 @@ public class SliceRS extends BaseRS {
 
     @Autowired
     SliceService sliceService;
+    
+    @Autowired
+    SliceInstructionsValidator sliceInstructionValidator;
+    
+    @Autowired
+    ShareValidator shareValidator;
 
     @PATCH
     @Path("/slices/{id}")
@@ -59,7 +65,7 @@ public class SliceRS extends BaseRS {
             tracer.out().printfIndentln("slice = %s", slice.get());
             
             try {
-                validateSliceInstructions(instructions);
+                this.sliceInstructionValidator.check(instructions);
 
                 // match the id against the path parameter
                 if (!Objects.equals(id, instructions.getString("id"))) {
@@ -90,26 +96,6 @@ public class SliceRS extends BaseRS {
             tracer.wayout();
         }
     }
-    
-    boolean validateSliceInstructions(JsonObject instructions) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "validateSliceInstructions(JsonObject instructions)");
-
-        try {
-            String uuidPattern = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
-            MyJsonStringConstraint uuidConstraint = new MyJsonStringConstraint(uuidPattern);
-            String statePattern = SliceProcessingState.FETCHED.name() + "|"
-                    + SliceProcessingState.POSTED.name();
-            MyJsonStringConstraint stateConstraint = new MyJsonStringConstraint(statePattern);
-            MyJsonObjectConstraint sliceConstraint = new MyJsonObjectConstraint(
-                    Map.of("id", uuidConstraint, "state", stateConstraint, "share", new MyJsonAnyObjectConstraint())
-            );
-            
-            return sliceConstraint.validate(instructions);
-        } finally {
-            tracer.wayout();
-        }
-    }
 
     Response fetchSlice(Slice slice) {
         AbstractTracer tracer = getCurrentTracer();
@@ -131,7 +117,7 @@ public class SliceRS extends BaseRS {
 
         try {
             try {
-                validateShare(share);
+                this.shareValidator.check(share);
                 
                 if (!Objects.equals(share.getString("PartitionId"), slice.getPartitionId())) {
                     return badRequest(String.format("Unmatched partitionId '%s'.", slice.getPartitionId()));
@@ -147,34 +133,6 @@ public class SliceRS extends BaseRS {
             } catch (JsonValueConstraint.Exception ex) {
                 return badRequest("Malformed share.", ex);
             }
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    boolean validateShare(JsonObject share) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("boolean", this, "validated(JsonObject share)");
-
-        try {
-            String uuidPattern = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
-            MyJsonStringConstraint uuidConstraint = new MyJsonStringConstraint(uuidPattern);
-            String bigIntegerPattern = "[1-9][0-9]*";
-            MyJsonNumberConstraint bigIntegerConstraint = new MyJsonNumberConstraint(bigIntegerPattern);
-            String thresholdPattern = "[1-9][0-9]?";
-            MyJsonNumberConstraint thresholdConstraint = new MyJsonNumberConstraint(thresholdPattern);
-            MyJsonObjectConstraint sharePointContraint = new MyJsonObjectConstraint(
-                    Map.of("x", bigIntegerConstraint, "y", bigIntegerConstraint)
-            );
-            MyJsonObjectConstraint wrapConstraint = new MyJsonObjectConstraint(
-                    Map.of("SharePoint", sharePointContraint)
-            );
-            MyJsonArrayConstraint sharePointsConstraint = new MyJsonArrayConstraint(1, 20, wrapConstraint);
-            MyJsonObjectConstraint shareConstraint = new MyJsonObjectConstraint(
-                    Map.of("PartitionId", uuidConstraint, "Prime", bigIntegerConstraint, "Threshold", thresholdConstraint, "SharePoints", sharePointsConstraint)
-            );
-
-            return shareConstraint.validate(share);
         } finally {
             tracer.wayout();
         }

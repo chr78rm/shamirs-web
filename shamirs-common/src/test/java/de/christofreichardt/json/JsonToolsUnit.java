@@ -3,6 +3,7 @@ package de.christofreichardt.json;
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
+import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.common.SliceProcessingState;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -44,6 +45,10 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
 
         public MyJsonNumberConstraint(String regex, BigDecimal minimum, BigDecimal maximum) {
             super(regex, minimum, maximum);
+        }
+
+        public MyJsonNumberConstraint(boolean required, String regex, BigDecimal minimum, BigDecimal maximum) {
+            super(required, regex, minimum, maximum);
         }
 
         @Override
@@ -797,6 +802,97 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
                     .forEach(invalidSlice -> {
                         try {
                             sliceConstraint.validate(invalidSlice);
+                            Assertions.fail();
+                        } catch (Exception ex) {
+                            tracer.out().printfIndentln("==> %s", ex.getMessage());
+                            assertThat(ex).isInstanceOf(JsonValueConstraint.Exception.class);
+                        }
+                    });
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void sessionConstraint() {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "sessionConstraint()");
+
+        try {
+            String uuidPattern = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
+            MyJsonStringConstraint uuidConstraint = new MyJsonStringConstraint(uuidPattern);
+            String phasePattern = SessionPhase.ACTIVE.name() + "|"
+                    + SessionPhase.CLOSED.name();
+            MyJsonStringConstraint phaseConstraint = new MyJsonStringConstraint(phasePattern);
+            String idleTimePattern = "[1-9][0-9]{0,3}";
+            BigDecimal min = new BigDecimal("1"), max = new BigDecimal("3601");
+            final MyJsonNumberConstraint idleTimeConstraint = new MyJsonNumberConstraint(false, idleTimePattern, min, max);
+            MyJsonObjectConstraint sessionConstraint = new MyJsonObjectConstraint(
+                    Map.of("id", uuidConstraint, "phase", phaseConstraint, "idleTime", idleTimeConstraint)
+            );
+            
+            JsonObject[] validSessionsInstructions = {
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "ACTIVE")
+                        .add("idleTime", 5)
+                        .build(),
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "CLOSED")
+                        .add("idleTime", 5)
+                        .build(),
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "CLOSED")
+                        .build(),
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "ACTIVE")
+                        .add("idleTime", 3600)
+                        .build(),
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "ACTIVE")
+                        .add("idleTime", 1)
+                        .build(),
+            };
+
+            assertThat(
+                    Arrays.stream(validSessionsInstructions).allMatch(validSessionInstruction -> sessionConstraint.validate(validSessionInstruction))
+            ).isTrue();
+            
+            JsonObject[] invalidSessionsInstructions = {
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "ACTIVation")
+                        .add("idleTime", 5)
+                        .build(),
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "CLOSED")
+                        .add("idleTime", "5")
+                        .build(),
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de------eca4348171c5")
+                        .add("phase", "CLOSED")
+                        .build(),
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "ACTIVE")
+                        .add("idleTime", 3601)
+                        .build(),
+                Json.createObjectBuilder()
+                        .add("id", "8bff8ac6-fc31-40de-bd6a-eca4348171c5")
+                        .add("phase", "ACTIVE")
+                        .add("idleTime", 0)
+                        .build(),
+            };
+            
+            Arrays.stream(invalidSessionsInstructions)
+                    .forEach(invalidSessionsInstruction -> {
+                        try {
+                            sessionConstraint.validate(invalidSessionsInstruction);
                             Assertions.fail();
                         } catch (Exception ex) {
                             tracer.out().printfIndentln("==> %s", ex.getMessage());

@@ -9,14 +9,6 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
-import de.christofreichardt.json.JsonAnyObjectConstraint;
-import de.christofreichardt.json.JsonArrayConstraint;
-import de.christofreichardt.json.JsonNumberConstraint;
-import de.christofreichardt.json.JsonObjectConstraint;
-import de.christofreichardt.json.JsonStringConstraint;
-import de.christofreichardt.json.JsonValueConstraint;
-import java.math.BigDecimal;
-import java.util.Map;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.json.JsonStructure;
@@ -32,73 +24,7 @@ import org.slf4j.LoggerFactory;
 abstract public class BaseRS implements Traceable {
     
     private final Logger LOGGER = LoggerFactory.getLogger(getClass());
-    
-    class MyJsonStringConstraint extends JsonStringConstraint {
-
-        public MyJsonStringConstraint(String regex) {
-            super(regex);
-        }
-
-        @Override
-        public AbstractTracer getCurrentTracer() {
-            return BaseRS.this.getCurrentTracer();
-        }
-
-    }
-
-    class MyJsonObjectConstraint extends JsonObjectConstraint {
-
-        public MyJsonObjectConstraint(Map<String, JsonValueConstraint> constraints) {
-            super(constraints);
-        }
-
-        @Override
-        public AbstractTracer getCurrentTracer() {
-            return BaseRS.this.getCurrentTracer();
-        }
-
-    }
-    
-    class MyJsonAnyObjectConstraint extends JsonAnyObjectConstraint {
-
-        public MyJsonAnyObjectConstraint() {
-        }
-
-        @Override
-        public AbstractTracer getCurrentTracer() {
-            return BaseRS.this.getCurrentTracer();
-        }
-    }
-
-    class MyJsonNumberConstraint extends JsonNumberConstraint {
-
-        public MyJsonNumberConstraint(String regex) {
-            super(regex);
-        }
-
-        public MyJsonNumberConstraint(String regex, BigDecimal minimum, BigDecimal maximum) {
-            super(regex, minimum, maximum);
-        }
-
-        @Override
-        public AbstractTracer getCurrentTracer() {
-            return BaseRS.this.getCurrentTracer();
-        }
-
-    }
-    
-    class MyJsonArrayConstraint extends JsonArrayConstraint {
-
-        public MyJsonArrayConstraint(int minSize, int maxSize, JsonValueConstraint... constraints) {
-            super(minSize, maxSize, constraints);
-        }
-
-        @Override
-        public AbstractTracer getCurrentTracer() {
-            return BaseRS.this.getCurrentTracer();
-        }
-    }
-    
+        
     @PostConstruct
     protected void init() {
         LOGGER.info(String.format("Creating resource component '%s'...", getClass().getSimpleName()));

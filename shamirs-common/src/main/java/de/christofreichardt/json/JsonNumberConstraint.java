@@ -20,6 +20,10 @@ public abstract class JsonNumberConstraint extends JsonValueConstraint {
         this(regex, null, null);
     }
 
+    public JsonNumberConstraint(boolean required, String regex) {
+        this(required, regex, null, null);
+    }
+
     public JsonNumberConstraint(String regex, BigDecimal minimum, BigDecimal maximum) {
         super(true);
         this.pattern = Pattern.compile(regex);
@@ -27,8 +31,22 @@ public abstract class JsonNumberConstraint extends JsonValueConstraint {
         this.maximum = maximum;
     }
 
+    public JsonNumberConstraint(boolean required, String regex, BigDecimal minimum, BigDecimal maximum) {
+        super(required);
+        this.pattern = Pattern.compile(regex);
+        this.minimum = minimum;
+        this.maximum = maximum;
+    }
+
     public JsonNumberConstraint(BigDecimal minimum, BigDecimal maximum) {
         super(true);
+        this.pattern = null;
+        this.minimum = minimum;
+        this.maximum = maximum;
+    }
+
+    public JsonNumberConstraint(boolean required, BigDecimal minimum, BigDecimal maximum) {
+        super(required);
         this.pattern = null;
         this.minimum = minimum;
         this.maximum = maximum;

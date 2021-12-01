@@ -12,6 +12,7 @@ import de.christofreichardt.diagnosis.TracerFactory;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.json.JsonValueConstraint;
 import de.christofreichardt.restapp.shamir.common.SessionPhase;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Metadata;
@@ -37,7 +38,6 @@ import java.util.concurrent.TimeoutException;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
-import javax.json.JsonValue;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
@@ -73,6 +73,9 @@ public class SessionRS extends BaseRS {
     @Autowired
     @Qualifier("singleThreadExecutor")
     ExecutorService executorService;
+    
+    @Autowired
+    SessionInstructionsValidator sessionInstructionsValidator;
 
     final JsonTracer jsonTracer = new JsonTracer() {
         @Override
@@ -145,37 +148,34 @@ public class SessionRS extends BaseRS {
             tracer.out().printfIndentln("keystoreId = %s", keystoreId);
             tracer.out().printfIndentln("sessionId = %s", sessionId);
             
-            // guard clauses
-            if (!sessionInstructions.containsKey("id") || sessionInstructions.get("id").getValueType() != JsonValue.ValueType.STRING) {
-                return badRequest("Malformed patch.");
-            }
-            if (!Objects.equals(sessionId, sessionInstructions.getString("id"))) {
-                return badRequest("SessionIds don't match.");
-            }
-            if (!sessionInstructions.containsKey("phase") || sessionInstructions.get("phase").getValueType() != JsonValue.ValueType.STRING) {
-                return badRequest("Malformed patch.");
-            }
-            String phase = sessionInstructions.getString("phase");
-            if (!SessionPhase.isValid(phase)) {
-                return badRequest("Malformed patch.");
-            }
-            Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
-            if (dbKeystore.isEmpty()) {
-                return notFound(String.format("No such Keystore[id=%s].", keystoreId));
-            }
-            Session currentSession = dbKeystore.get().currentSession();
-            if (!Objects.equals(currentSession.getId(), sessionId)) {
-                return badRequest(String.format("No present Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
-            }
+            try {
+                this.sessionInstructionsValidator.check(sessionInstructions);
 
-            // dispatch
-            if (SessionPhase.valueOf(phase) == SessionPhase.ACTIVE) {
-                return activateSession(dbKeystore.get(), currentSession, sessionInstructions);
-            } else if (SessionPhase.valueOf(phase) == SessionPhase.CLOSED) {
-                return closeSession(dbKeystore.get(), currentSession);
-            }
+                // guard clauses
+                if (!Objects.equals(sessionId, sessionInstructions.getString("id"))) {
+                    return badRequest("SessionIds don't match.");
+                }
+                Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(keystoreId);
+                if (dbKeystore.isEmpty()) {
+                    return notFound(String.format("No such Keystore[id=%s].", keystoreId));
+                }
+                Session currentSession = dbKeystore.get().currentSession();
+                if (!Objects.equals(currentSession.getId(), sessionId)) {
+                    return badRequest(String.format("No present Session[id=%s] found for Keystore[id=%s].", sessionId, keystoreId));
+                }
 
-            return internalServerError("Something went wrong.");
+                // dispatch
+                String phase = sessionInstructions.getString("phase");
+                if (SessionPhase.valueOf(phase) == SessionPhase.ACTIVE) {
+                    return activateSession(dbKeystore.get(), currentSession, sessionInstructions);
+                } else if (SessionPhase.valueOf(phase) == SessionPhase.CLOSED) {
+                    return closeSession(dbKeystore.get(), currentSession);
+                }
+                
+                return internalServerError("Something went wrong.");
+            } catch (JsonValueConstraint.Exception ex) {
+                return badRequest("Malformed patch.", ex);
+            }
         } finally {
             tracer.wayout();
         }
@@ -186,9 +186,10 @@ public class SessionRS extends BaseRS {
         tracer.entry("Response", this, "activateSession(String keystoreId, String sessionId, JsonObject sessionInstructions)");
 
         try {
-            if (!sessionInstructions.containsKey("idleTime") || sessionInstructions.get("idleTime").getValueType() != JsonValue.ValueType.NUMBER) {
+            if (!sessionInstructions.containsKey("idleTime")) {
                 return badRequest("Malformed patch.");
             }
+            
             try {
                 ShamirsProtection shamirsProtection = new ShamirsProtection(dbKeystore.sharePoints()); // TODO: think about checking if enough sharepoints are available beforehand
                 KeyStore keyStore = dbKeystore.keystoreInstance();
