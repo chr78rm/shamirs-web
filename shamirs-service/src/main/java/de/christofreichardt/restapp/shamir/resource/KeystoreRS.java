@@ -7,8 +7,8 @@ package de.christofreichardt.restapp.shamir.resource;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.LogLevel;
-import de.christofreichardt.json.JsonTracer;
 import de.christofreichardt.json.JsonValueCollector;
+import de.christofreichardt.json.JsonValueConstraint;
 import de.christofreichardt.restapp.shamir.model.DatabasedKeystore;
 import de.christofreichardt.restapp.shamir.model.Participant;
 import de.christofreichardt.restapp.shamir.service.KeystoreService;
@@ -48,6 +48,9 @@ public class KeystoreRS extends BaseRS {
     @Autowired
     ParticipantService participantService;
 
+    @Autowired
+    KeystoreInstructionsValidator keystoreInstructionsValidator;
+
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
@@ -58,17 +61,23 @@ public class KeystoreRS extends BaseRS {
 
         try {
             try {
-                KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
-                
-                Map<String, Participant> participants = this.participantService.findByPreferredNames(keystoreGenerator.participantNames());
-                DatabasedKeystore keystore = keystoreGenerator.makeDBKeystore(participants);
-                keystore = this.keystoreService.persist(keystore);
-                
-                return created(keystore.toJson());
-            } catch (GeneralSecurityException | IOException | RuntimeException ex) {
-                return internalServerError("Something went wrong.", ex);
-            } catch(ParticipantNotFoundException ex) {
-                return badRequest("Unknown participants.", ex);
+                this.keystoreInstructionsValidator.check(keystoreInstructions);
+
+                try {
+                    KeystoreGenerator keystoreGenerator = new KeystoreGenerator(keystoreInstructions);
+
+                    Map<String, Participant> participants = this.participantService.findByPreferredNames(keystoreGenerator.participantNames());
+                    DatabasedKeystore keystore = keystoreGenerator.makeDBKeystore(participants);
+                    keystore = this.keystoreService.persist(keystore);
+
+                    return created(keystore.toJson());
+                } catch (GeneralSecurityException | IOException | RuntimeException ex) {
+                    return internalServerError("Something went wrong.", ex);
+                } catch (ParticipantNotFoundException ex) {
+                    return badRequest("Unknown participants.", ex);
+                }
+            } catch (JsonValueConstraint.Exception ex) {
+                return badRequest("Malformed patch.", ex);
             }
         } finally {
             tracer.wayout();

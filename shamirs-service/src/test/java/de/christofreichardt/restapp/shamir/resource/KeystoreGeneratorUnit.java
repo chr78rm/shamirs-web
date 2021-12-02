@@ -13,6 +13,7 @@ import de.christofreichardt.jca.shamir.ShamirsLoadParameter;
 import de.christofreichardt.jca.shamir.ShamirsProtection;
 import de.christofreichardt.jca.shamir.ShamirsProvider;
 import de.christofreichardt.json.JsonTracer;
+import de.christofreichardt.json.JsonValueConstraint;
 import de.christofreichardt.restapp.shamir.ShamirsApp;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -57,6 +58,9 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 @SpringBootTest(classes = ShamirsApp.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class KeystoreGeneratorUnit implements Traceable, WithAssertions {
+
+    @Autowired
+    KeystoreInstructionsValidator keystoreInstructionsValidator;
 
     final JsonTracer jsonTracer = new JsonTracer() {
         @Override
@@ -311,24 +315,33 @@ public class KeystoreGeneratorUnit implements Traceable, WithAssertions {
         tracer.entry("void", this, "invalidInstructions()");
 
         try {
-            Map<String, JsonPointer> jsonPointers = Map.of(
-                    "shares", KeystoreGenerator.SHARES_POINTER,
-                    "threshold", KeystoreGenerator.THRESHOLD_POINTER,
-                    "descriptiveName", KeystoreGenerator.DESCRIPTIVE_NAME_POINTER,
-                    "keyinfos", KeystoreGenerator.KEY_INFOS_POINTER,
-                    "sizes", KeystoreGenerator.SIZES_POINTER
-            );
-            jsonPointers.forEach((name, pointer) -> {
-                JsonObject invalidInstructions = pointer.remove(this.keystoreInstructions);
-                assertThatIllegalArgumentException().isThrownBy(() -> new KeystoreGenerator(invalidInstructions))
-                        .withMessage(String.format("Missing JSON value '%s'.", name));
-            });
-            jsonPointers.forEach((name, pointer) -> {
-                JsonObject invalidInstructions = pointer.replace(this.keystoreInstructions, JsonValue.NULL);
-                this.jsonTracer.trace(invalidInstructions);
-                assertThatIllegalArgumentException().isThrownBy(() -> new KeystoreGenerator(invalidInstructions))
-                        .withMessage(String.format("Invalid value type for '%s'.", name));
-            });
+            QueueTracer<?> qTracer = TracerFactory.getInstance().takeTracer();
+            qTracer.initCurrentTracingContext();
+            qTracer.entry("void", this, "invalidInstructions()");
+            try {
+                Map<String, JsonPointer> jsonPointers = Map.of(
+                        "shares", KeystoreGenerator.SHARES_POINTER,
+                        "threshold", KeystoreGenerator.THRESHOLD_POINTER,
+                        "descriptiveName", KeystoreGenerator.DESCRIPTIVE_NAME_POINTER,
+                        "keyinfos", KeystoreGenerator.KEY_INFOS_POINTER,
+                        "sizes", KeystoreGenerator.SIZES_POINTER
+                );
+                jsonPointers.forEach((name, pointer) -> {
+                    JsonObject invalidInstructions = pointer.remove(this.keystoreInstructions);
+                    JsonValueConstraint.Exception throwable = catchThrowableOfType(() -> this.keystoreInstructionsValidator.check(invalidInstructions), JsonValueConstraint.Exception.class);
+                    assertThat(throwable).isNotNull();
+                    qTracer.out().printfIndentln("throwable.getMessage() = %s", throwable.getMessage());
+                });
+                jsonPointers.forEach((name, pointer) -> {
+                    JsonObject invalidInstructions = pointer.replace(this.keystoreInstructions, JsonValue.NULL);
+                    this.jsonTracer.trace(invalidInstructions);
+                    JsonValueConstraint.Exception throwable = catchThrowableOfType(() -> this.keystoreInstructionsValidator.check(invalidInstructions), JsonValueConstraint.Exception.class);
+                    assertThat(throwable).isNotNull();
+                    qTracer.out().printfIndentln("throwable.getMessage() = %s", throwable.getMessage());
+                });
+            } finally {
+                qTracer.wayout();
+            }
         } finally {
             tracer.wayout();
         }
