@@ -22,7 +22,7 @@ public abstract class JsonValidator implements Traceable {
     final String uuidPattern = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
     final MyJsonStringConstraint uuidConstraint = new MyJsonStringConstraint(uuidPattern);
     
-    class MyJsonStringConstraint extends JsonStringConstraint {
+    class MyJsonStringConstraint extends JsonStringConstraint implements Traceable {
 
         public MyJsonStringConstraint(String regex) {
             super(regex);
@@ -35,7 +35,7 @@ public abstract class JsonValidator implements Traceable {
 
     }
 
-    class MyJsonObjectConstraint extends JsonObjectConstraint {
+    class MyJsonObjectConstraint extends JsonObjectConstraint implements Traceable {
 
         public MyJsonObjectConstraint(Map<String, JsonValueConstraint> constraints) {
             super(constraints);
@@ -48,7 +48,7 @@ public abstract class JsonValidator implements Traceable {
 
     }
     
-    class MyJsonAnyObjectConstraint extends JsonAnyObjectConstraint {
+    class MyJsonAnyObjectConstraint extends JsonAnyObjectConstraint implements Traceable {
 
         public MyJsonAnyObjectConstraint() {
         }
@@ -59,7 +59,7 @@ public abstract class JsonValidator implements Traceable {
         }
     }
 
-    class MyJsonNumberConstraint extends JsonNumberConstraint {
+    class MyJsonNumberConstraint extends JsonNumberConstraint implements Traceable {
 
         public MyJsonNumberConstraint(String regex) {
             super(regex);
@@ -80,7 +80,7 @@ public abstract class JsonValidator implements Traceable {
 
     }
     
-    class MyJsonArrayConstraint extends JsonArrayConstraint {
+    class MyJsonArrayConstraint extends JsonArrayConstraint implements Traceable {
 
         public MyJsonArrayConstraint(int minSize, int maxSize, JsonValueConstraint... constraints) {
             super(minSize, maxSize, constraints);

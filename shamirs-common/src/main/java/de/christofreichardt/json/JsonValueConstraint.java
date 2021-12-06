@@ -1,13 +1,12 @@
 package de.christofreichardt.json;
 
-import de.christofreichardt.diagnosis.Traceable;
 import javax.json.JsonValue;
 
 /**
  *
  * @author Developer
  */
-abstract public class JsonValueConstraint implements Traceable {
+abstract public class JsonValueConstraint {
     
     public static class Exception extends RuntimeException {
 

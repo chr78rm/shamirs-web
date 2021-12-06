@@ -12,6 +12,7 @@ import java.util.Map;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
+import javax.json.JsonValue;
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -24,10 +25,22 @@ import org.junit.jupiter.api.TestInstance;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class JsonToolsUnit implements Traceable, WithAssertions {
 
-    class MyJsonStringConstraint extends JsonStringConstraint {
+    class MyJsonStringConstraint extends JsonStringConstraint implements Traceable {
 
         public MyJsonStringConstraint(String regex) {
             super(regex);
+        }
+
+        @Override
+        public boolean validate(JsonValue jsonValue) {
+            AbstractTracer tracer = getCurrentTracer();
+            tracer.entry("boolean", this, "validate(JsonValue jsonValue)");
+
+            try {
+                return super.validate(jsonValue);
+            } finally {
+                tracer.wayout();
+            }
         }
 
         @Override
@@ -37,7 +50,7 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
 
     }
 
-    class MyJsonNumberConstraint extends JsonNumberConstraint {
+    class MyJsonNumberConstraint extends JsonNumberConstraint implements Traceable {
 
         public MyJsonNumberConstraint(String regex) {
             super(regex);
@@ -52,29 +65,72 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
         }
 
         @Override
+        public boolean validate(JsonValue jsonValue) {
+            AbstractTracer tracer = getCurrentTracer();
+            tracer.entry("boolean", this, "validate(JsonValue jsonValue)");
+
+            try {
+                return super.validate(jsonValue);
+            } finally {
+                tracer.wayout();
+            }
+        }
+
+        @Override
         public AbstractTracer getCurrentTracer() {
             return JsonToolsUnit.this.getCurrentTracer();
         }
 
     }
 
-    class MyJsonObjectConstraint extends JsonObjectConstraint {
+    class MyJsonObjectConstraint extends JsonObjectConstraint implements Traceable {
+
+        final JsonTracer jsonTracer = new JsonTracer() {
+            @Override
+            public AbstractTracer getCurrentTracer() {
+                return MyJsonObjectConstraint.this.getCurrentTracer();
+            }
+        };
 
         public MyJsonObjectConstraint(Map<String, JsonValueConstraint> constraints) {
             super(constraints);
         }
 
         @Override
+        public boolean validate(JsonValue jsonValue) {
+            AbstractTracer tracer = getCurrentTracer();
+            tracer.entry("boolean", this, "validate(JsonValue jsonValue)");
+
+            try {
+                return super.validate(jsonValue);
+            } finally {
+                tracer.wayout();
+            }
+        }
+
+        @Override
         public AbstractTracer getCurrentTracer() {
             return JsonToolsUnit.this.getCurrentTracer();
         }
 
     }
     
-    class MyJsonArrayConstraint extends JsonArrayConstraint {
+    class MyJsonArrayConstraint extends JsonArrayConstraint implements Traceable {
 
         public MyJsonArrayConstraint(int minSize, int maxSize, JsonValueConstraint... constraints) {
             super(minSize, maxSize, constraints);
+        }
+
+        @Override
+        public boolean validate(JsonValue jsonValue) {
+            AbstractTracer tracer = getCurrentTracer();
+            tracer.entry("boolean", this, "validate(JsonValue jsonValue)");
+
+            try {
+                return super.validate(jsonValue);
+            } finally {
+                tracer.wayout();
+            }
         }
 
         @Override
@@ -83,9 +139,21 @@ public class JsonToolsUnit implements Traceable, WithAssertions {
         }
     }
     
-    class MyJsonAnyObjectConstraint extends JsonAnyObjectConstraint {
+    class MyJsonAnyObjectConstraint extends JsonAnyObjectConstraint implements Traceable {
 
         public MyJsonAnyObjectConstraint() {
+        }
+
+        @Override
+        public boolean validate(JsonValue jsonValue) {
+            AbstractTracer tracer = getCurrentTracer();
+            tracer.entry("boolean", this, "validate(JsonValue jsonValue)");
+
+            try {
+                return super.validate(jsonValue);
+            } finally {
+                tracer.wayout();
+            }
         }
 
         @Override
