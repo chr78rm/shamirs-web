@@ -38,16 +38,16 @@ abstract public class JsonTracer implements Traceable {
         this.jsonWriterFactory = Json.createWriterFactory(writerProps);
     }
 
-    public void trace(final JsonArray jsonArray) {
+    public void trace(JsonStructure jsonStructure) {
         AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "trace(JsonArray jsonArray)");
+        tracer.entry("void", this, "trace(JsonStructure jsonStructure)");
 
         try {
             try {
                 byte[] bytes;
                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                 try (JsonWriter jsonWriter = this.jsonWriterFactory.createWriter(byteArrayOutputStream, Charset.forName("UTF-8"));) {
-                    jsonWriter.writeArray(jsonArray);
+                    jsonWriter.write(jsonStructure);
                 }
                 bytes = byteArrayOutputStream.toByteArray();
                 try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
@@ -61,47 +61,6 @@ abstract public class JsonTracer implements Traceable {
             }
         } finally {
             tracer.wayout();
-        }
-    }
-
-    public void trace(JsonObject jsonObject) {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "trace(JsonObject jsonObject)");
-
-        try {
-            try {
-                byte[] bytes;
-                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                try (JsonWriter jsonWriter = this.jsonWriterFactory.createWriter(byteArrayOutputStream);) {
-                    jsonWriter.writeObject(jsonObject);
-                }
-                bytes = byteArrayOutputStream.toByteArray();
-                try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-                        InputStreamReader inputStreamReader = new InputStreamReader(byteArrayInputStream, Charset.forName("UTF-8"));
-                        BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
-                    bufferedReader.lines().forEach(line -> tracer.out().printfIndentln(line));
-                }
-                tracer.out().println();
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
-            }
-        } finally {
-            tracer.wayout();
-        }
-    }
-
-    public void trace(JsonStructure jsonStructure) {
-        AbstractTracer tracer = getCurrentTracer();
-        switch (jsonStructure.getValueType()) {
-            case ARRAY:
-                trace(jsonStructure.asJsonArray());
-                break;
-            case OBJECT:
-                trace(jsonStructure.asJsonObject());
-                break;
-            default:
-                tracer.out().printfIndentln("jsonStructure.getValueType() = %s", jsonStructure.getValueType());
-                break;
         }
     }
 
