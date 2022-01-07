@@ -9,7 +9,7 @@ import javax.json.JsonValue;
  *
  * @author Developer
  */
-public abstract class JsonNumberConstraint extends JsonValueConstraint {
+public class JsonNumberConstraint extends JsonValueConstraint {
 
     final Pattern pattern;
     final BigDecimal minimum;

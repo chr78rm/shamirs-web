@@ -19,7 +19,7 @@ public class KeystoreInstructionsValidator extends JsonValidator {
 
     final MyJsonStringConstraint jsonAliasConstraint = new MyJsonStringConstraint("[A-Za-z0-9-]{8,30}");
 
-    final MyJsonStringConstraint jsonSecretKeyAlgoConstraint = new MyJsonStringConstraint("AES|HmacSHA512|ChaCha20");
+    final MyJsonStringConstraint jsonSecretKeyAlgoConstraint = new MyJsonStringConstraint("AES|HmacSHA512");
     final MyJsonNumberConstraint jsonSecretKeySizeConstraint = new MyJsonNumberConstraint("128|256|512");
     final MyJsonStringConstraint jsonSecretKeyTypeConstraint = new MyJsonStringConstraint("secret-key");
     MyJsonObjectConstraint secretKeyInfoConstraint = new MyJsonObjectConstraint(

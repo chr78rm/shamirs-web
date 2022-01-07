@@ -7,7 +7,7 @@ import javax.json.JsonValue;
  *
  * @author Developer
  */
-abstract public class JsonEmptyObjectConstraint extends JsonValueConstraint {
+public class JsonEmptyObjectConstraint extends JsonAnyObjectConstraint {
 
     public JsonEmptyObjectConstraint() {
         super(true);
@@ -25,11 +25,6 @@ abstract public class JsonEmptyObjectConstraint extends JsonValueConstraint {
         }
 
         return true;
-    }
-
-    @Override
-    boolean isApplicable(JsonValue jsonValue) {
-        return jsonValue.getValueType() == JsonValue.ValueType.OBJECT;
     }
 
 }

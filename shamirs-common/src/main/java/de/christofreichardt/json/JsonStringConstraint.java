@@ -8,7 +8,7 @@ import javax.json.JsonValue;
  *
  * @author Developer
  */
-public abstract class JsonStringConstraint extends JsonValueConstraint {
+public class JsonStringConstraint extends JsonValueConstraint {
 
     final Pattern pattern;
 

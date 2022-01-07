@@ -8,7 +8,7 @@ import javax.json.JsonValue;
  *
  * @author Developer
  */
-public abstract class JsonObjectConstraint extends JsonValueConstraint {
+public class JsonObjectConstraint extends JsonAnyObjectConstraint {
 
     final Map<String, JsonValueConstraint> constraints;
 
@@ -48,11 +48,6 @@ public abstract class JsonObjectConstraint extends JsonValueConstraint {
         });
 
         return true;
-    }
-
-    @Override
-    boolean isApplicable(JsonValue jsonValue) {
-        return jsonValue.getValueType() == JsonValue.ValueType.OBJECT;
     }
 
 }

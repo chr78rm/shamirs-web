@@ -6,10 +6,14 @@ import javax.json.JsonValue;
  *
  * @author Developer
  */
-abstract public class JsonAnyObjectConstraint extends JsonValueConstraint {
+public class JsonAnyObjectConstraint extends JsonStructureConstraint {
 
     public JsonAnyObjectConstraint() {
         super(true);
+    }
+
+    public JsonAnyObjectConstraint(boolean required) {
+        super(required);
     }
 
     @Override

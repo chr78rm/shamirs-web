@@ -7,7 +7,7 @@ import javax.json.JsonValue;
  *
  * @author Developer
  */
-public abstract class JsonArrayConstraint extends JsonValueConstraint {
+public class JsonArrayConstraint extends JsonStructureConstraint {
 
     final int maxSize;
     final int minSize;
