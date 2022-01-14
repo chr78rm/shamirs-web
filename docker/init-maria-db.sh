@@ -6,6 +6,7 @@ ARGS=$* # all parameter
 # defaults
 PROJECT_DIR=projects/shamirs-web
 DATA_DIR=data/mariadb/1
+MARIADB_TAG=10.6.5-focal
 
 # evaluate parameter
 MARIADB_ROOT_PW_REGEX="^--mariadb_root_pw=[A-Za-z0-9\(\)]{1,25}$"
@@ -31,7 +32,7 @@ fi
 
 HEALTH_CMD="mysqladmin --user=root --password=$ROOT_PW --silent ping"
 docker run --publish 127.0.0.1:3306:3306 --name docker-mariadb --env MARIADB_ROOT_PASSWORD="$ROOT_PW" --env TZ=Europe/Berlin --detach --rm --mount type=bind,src=$HOME/$DATA_DIR,dst=/var/lib/mysql \
---health-cmd='$HEALTH_CMD' --health-interval=5s --health-retries=6 mariadb:10.6.3-focal
+--health-cmd='$HEALTH_CMD' --health-interval=5s --health-retries=6 mariadb:$MARIADB_TAG
 
 while [ $(docker inspect --format={{.State.Health.Status}} docker-mariadb) != "healthy" ]
 do
