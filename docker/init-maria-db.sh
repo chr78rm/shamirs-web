@@ -7,6 +7,7 @@ ARGS=$* # all parameter
 PROJECT_DIR=projects/shamirs-web
 DATA_DIR=data/mariadb/1
 MARIADB_TAG=10.6.5-focal
+USER_PW=Msiw47Ut129
 
 # evaluate parameter
 MARIADB_ROOT_PW_REGEX="^--mariadb_root_pw=[A-Za-z0-9\(\)]{1,25}$"
@@ -40,6 +41,14 @@ do
 	sleep 1; 
 done
 
-docker exec --interactive docker-mariadb bash -c 'exec mysql --user=root --password="$MARIADB_ROOT_PASSWORD" --verbose' < $HOME/$PROJECT_DIR/sql/mariadb/create-database.sql
-docker exec --interactive docker-mariadb bash -c 'exec mysql --user=shamir --password=Msiw47Ut129 --database=shamirs_db --verbose' < $HOME/$PROJECT_DIR/sql/mariadb/create-schema.sql
+docker exec --interactive docker-mariadb bash -c 'exec mysql --user=root --password="$MARIADB_ROOT_PASSWORD" --verbose' <<-EOF
+CREATE OR REPLACE USER 'shamir'@'localhost' IDENTIFIED BY '${USER_PW}';
+CREATE OR REPLACE USER 'shamir'@'172.17.0.1' IDENTIFIED BY '${USER_PW}';
+CREATE OR REPLACE DATABASE shamirs_db;
+GRANT ALL ON shamirs_db.* TO 'shamir'@'localhost';
+GRANT ALL ON shamirs_db.* TO 'shamir'@'172.17.0.1';
+GRANT FILE ON *.* TO 'shamir'@'localhost';
+EOF
+
+docker exec --interactive docker-mariadb bash -c "exec mysql --user=shamir --password=$USER_PW --database=shamirs_db --verbose" < $HOME/$PROJECT_DIR/sql/mariadb/create-schema.sql
 
