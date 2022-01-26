@@ -1,0 +1,21 @@
+FROM ubuntu:20.04
+ENV JDK_VERSION=17.0.2
+ENV JDK_NAME=openjdk-${JDK_VERSION}
+ENV JDK_DIST=${JDK_NAME}_linux-x64_bin
+ENV SHA256_CHECKSUM=0022753d0cceecacdd3a795dd4cea2bd7ffdf9dc06e22ffd1be98411742fbb44
+RUN useradd --create-home --shell /bin/bash vodalus
+RUN apt-get update && apt-get upgrade --assume-yes && apt-get --assume-yes install curl
+WORKDIR /home/vodalus
+RUN mkdir java
+WORKDIR java
+RUN curl -O https://download.java.net/java/GA/jdk${JDK_VERSION}/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/${JDK_DIST}.tar.gz \
+    && sha256sum ${JDK_DIST}.tar.gz | grep ${SHA256_CHECKSUM} \
+    && gzip --uncompress ${JDK_DIST}.tar.gz \
+    && tar --extract --verbose --file=${JDK_DIST}.tar \
+    && mv jdk-${JDK_VERSION} ${JDK_NAME} \
+    && rm ${JDK_DIST}.tar \
+    && chown --recursive vodalus:vodalus ${JDK_NAME} \
+    && update-alternatives --install /usr/bin/java java /home/vodalus/java/${JDK_NAME}/bin/java 1 \
+    && update-alternatives --set java /home/vodalus/java/${JDK_NAME}/bin/java
+WORKDIR /home/vodalus
+USER vodalus
