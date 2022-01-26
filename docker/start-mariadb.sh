@@ -36,7 +36,7 @@ fi
 # start container with health check
 HEALTH_CMD="mysqladmin --user=root --password=$ROOT_PW --silent ping"
 docker run --publish 127.0.0.1:3306:3306 --name docker-mariadb --detach --rm --env TZ=Europe/Berlin --mount type=bind,src=$HOME/$DATA_DIR,dst=/var/lib/mysql \
---health-cmd='$HEALTH_CMD' --health-interval=5s --health-retries=6 mariadb:$MARIADB_TAG
+--health-cmd='$HEALTH_CMD' --health-interval=5s --health-retries=6 --hostname=shamirs-db --network=shamirs-network mariadb:$MARIADB_TAG
 
 # wait until container is healthy
 while [ $(docker inspect --format={{.State.Health.Status}} docker-mariadb) != "healthy" ]
