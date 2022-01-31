@@ -11,3 +11,4 @@ pki/*.p10
 shamirs-service/xml/out/*.xml
 json/*.json
 nb-configuration.xml
+data/mariadb/1
