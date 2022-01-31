@@ -3,8 +3,12 @@
 set -o errexit # terminate on error
 ARGS=$* # all parameter
 
+# directories
+CURRENT_DIR=$(pwd)
+PROJECT_DIR=$(dirname $(dirname $(realpath $0)))
+
 # defaults
-DATA_DIR=data/mariadb/1
+DATA_DIR=${PROJECT_DIR}/data/mariadb/1
 MARIADB_TAG=10.6.5-focal
 
 # evaluate parameter
@@ -24,7 +28,7 @@ done
 
 # print parameter
 echo ROOT_PW=$ROOT_PW
-echo DATA_DIR=$HOME/$DATA_DIR
+echo DATA_DIR=$DATA_DIR
 
 # check preconditions
 if [ x$ROOT_PW = "x" ]
@@ -35,7 +39,7 @@ fi
 
 # start container with health check
 HEALTH_CMD="mysqladmin --user=root --password=$ROOT_PW --silent ping"
-docker run --publish 127.0.0.1:3306:3306 --name docker-mariadb --detach --rm --env TZ=Europe/Berlin --mount type=bind,src=$HOME/$DATA_DIR,dst=/var/lib/mysql \
+docker run --publish 127.0.0.1:3306:3306 --name docker-mariadb --detach --rm --env TZ=Europe/Berlin --mount type=bind,src=$DATA_DIR,dst=/var/lib/mysql \
 --health-cmd='$HEALTH_CMD' --health-interval=5s --health-retries=6 --hostname=shamirs-db --network=shamirs-network mariadb:$MARIADB_TAG
 
 # wait until container is healthy
