@@ -21,6 +21,7 @@ import java.security.KeyStore;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -41,6 +42,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(PropertiesExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ShamirsBaseUnit implements Traceable {
+    
+    enum ServiceType {NATIVE, DOCKER}
 
     final Map<String, String> config;
     final String baseUrl;
@@ -48,6 +51,7 @@ public class ShamirsBaseUnit implements Traceable {
     final int maxTrials;
     final int pause;
     final String dbClassName;
+    final boolean nativeService;
 
     Client client;
     Process process;
@@ -59,6 +63,7 @@ public class ShamirsBaseUnit implements Traceable {
         this.maxTrials = Integer.parseInt(config.getOrDefault("de.christofreichardt.shamirsweb.test.maxTrials", "10"));
         this.pause = Integer.parseInt(config.getOrDefault("de.christofreichardt.shamirsweb.test.pause", "1"));
         this.dbClassName = config.getOrDefault("de.christofreichardt.shamirsweb.test.dbClassName", "de.christofreichardt.shamirsweb.test.NativeMariaDB");
+        this.nativeService = ServiceType.valueOf(config.getOrDefault("de.christofreichardt.shamirsweb.test.serviceType", "native").toUpperCase()) == ServiceType.NATIVE;
     }
     
 
@@ -77,12 +82,22 @@ public class ShamirsBaseUnit implements Traceable {
             database.execute(batch);
 
             if (!this.externalService) {
-                ProcessBuilder processBuilder = new ProcessBuilder("java", "-Djava.security.egd=file:/dev/urandom", "-jar", "target/shamirs-service.jar");
-                File workingDir = baseDir.resolve(Path.of("..", "shamirs-service")).toFile();
-                File logFile = baseDir.resolve(this.config.getOrDefault("de.christofreichardt.shamirsweb.test.spring.log", "log/spring-boot.log")).toFile();
-                this.process = processBuilder.directory(workingDir)
-                        .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
-                        .start();
+                if (this.nativeService) {
+                    ProcessBuilder processBuilder = new ProcessBuilder("java", "-Djava.security.egd=file:/dev/urandom", "-jar", "target/shamirs-service.jar");
+                    File workingDir = baseDir.resolve(Path.of("..", "shamirs-service")).toFile();
+                    File logFile = baseDir.resolve(this.config.getOrDefault("de.christofreichardt.shamirsweb.test.spring.log", "log/spring-boot.log")).toFile();
+                    this.process = processBuilder.directory(workingDir)
+                            .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
+                            .start();
+                } else {
+                    Path logDir = Path.of(System.getProperty("user.dir"), "..", "data", "log").toRealPath();
+                    ProcessBuilder processBuilder = new ProcessBuilder(
+                            "docker", "run", "--interactive", "--tty", "--rm", "--network=shamirs-network", "--hostname=shamirs-service", "--name=shamirs-service",
+                            "--publish", "127.0.0.1:8443:8443", "--mount", String.format("type=bind,src=%s,dst=/home/vodalus/shamirs-service/log", logDir),
+                            "--detach", "shamirs-service:latest"
+                    );
+                    this.process = processBuilder.start();
+                }
                 tracer.out().printfIndentln("this.process.pid() = %d", this.process.pid());
             }
 
@@ -133,7 +148,7 @@ public class ShamirsBaseUnit implements Traceable {
 
                     tracer.out().printfIndentln("%d. Connection attempt failed: ex.getCause() = %s", trials, ex.getCause());
 
-                    if (ex.getCause() != null && (ex.getCause() instanceof ConnectException)) {
+                    if (ex.getCause() != null && ((ex.getCause() instanceof ConnectException) || ex.getCause() instanceof SSLHandshakeException)) {
                         if (trials >= this.maxTrials) {
                             abort = true;
                             break;

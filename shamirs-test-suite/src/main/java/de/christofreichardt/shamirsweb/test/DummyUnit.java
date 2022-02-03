@@ -9,6 +9,7 @@ import de.christofreichardt.diagnosis.AbstractTracer;
 import de.christofreichardt.diagnosis.Traceable;
 import de.christofreichardt.diagnosis.TracerFactory;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -51,6 +52,19 @@ public class DummyUnit implements Traceable {
             Path baseDir = Path.of(System.getProperty("de.christofreichardt.shamirsweb.test.baseDir"));
             Path logPath = baseDir.resolve(config.getOrDefault("de.christofreichardt.shamirsweb.test.spring.log", "log/spring-boot.log"));
             Files.deleteIfExists(logPath);
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    void paths() throws IOException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "paths()");
+
+        try {
+            Path logDir = Path.of(System.getProperty("user.dir"), "..", "data", "log").toRealPath();
+            tracer.out().printfIndentln("logDir = %s", logDir);
         } finally {
             tracer.wayout();
         }
