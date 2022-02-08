@@ -52,6 +52,9 @@ public class ShamirsBaseUnit implements Traceable {
     final int pause;
     final String dbClassName;
     final boolean nativeService;
+    final String keystoreName;
+    final String alias;
+    final String trustStoreName;
 
     Client client;
     Process process;
@@ -64,6 +67,9 @@ public class ShamirsBaseUnit implements Traceable {
         this.pause = Integer.parseInt(config.getOrDefault("de.christofreichardt.shamirsweb.test.pause", "1"));
         this.dbClassName = config.getOrDefault("de.christofreichardt.shamirsweb.test.dbClassName", "de.christofreichardt.shamirsweb.test.NativeMariaDB");
         this.nativeService = ServiceType.valueOf(config.getOrDefault("de.christofreichardt.shamirsweb.test.serviceType", "native").toUpperCase()) == ServiceType.NATIVE;
+        this.keystoreName = config.getOrDefault("de.christofreichardt.shamirsweb.test.keystore", "service-id.p12");
+        this.alias = config.getOrDefault("de.christofreichardt.shamirsweb.test.alias", "local-shamirs-service-id");
+        this.trustStoreName = config.getOrDefault("de.christofreichardt.shamirsweb.test.trustStore", "service-id-trust.p12");
     }
     
 
@@ -77,7 +83,7 @@ public class ShamirsBaseUnit implements Traceable {
 
             Path baseDir = Path.of(System.getProperty("de.christofreichardt.shamirsweb.test.baseDir"));
             
-            File batch = baseDir.resolve(Path.of("..", "sql", "mariadb", "setup-scenario.sql")).toFile();
+            File batch = baseDir.resolve(Path.of("sql", "mariadb", "setup-scenario.sql")).toFile();
             Database database = (Database) Class.forName(this.dbClassName).getDeclaredConstructor().newInstance();
             database.execute(batch);
 
@@ -94,14 +100,14 @@ public class ShamirsBaseUnit implements Traceable {
                     ProcessBuilder processBuilder = new ProcessBuilder(
                             "docker", "run", "--interactive", "--tty", "--rm", "--network=shamirs-network", "--hostname=shamirs-service", "--name=shamirs-service",
                             "--publish", "127.0.0.1:8443:8443", "--mount", String.format("type=bind,src=%s,dst=/home/vodalus/shamirs-service/log", logDir),
-                            "--detach", "shamirs-service:latest"
+                            "--detach", "shamirs-service:latest", String.format("--keystore=%s", this.keystoreName), String.format("--alias=%s", this.alias)
                     );
                     this.process = processBuilder.start();
                 }
                 tracer.out().printfIndentln("this.process.pid() = %d", this.process.pid());
             }
 
-            InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
+            InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream(String.format("de/christofreichardt/shamirsweb/test/%s", this.trustStoreName));
             Objects.requireNonNull(inputStream, "No InputStream for truststore.");
             KeyStore trustStore = KeyStore.getInstance("pkcs12");
             trustStore.load(inputStream, "changeit".toCharArray());

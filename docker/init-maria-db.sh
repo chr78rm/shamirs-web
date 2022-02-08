@@ -14,7 +14,8 @@ MARIADB_TAG=10.6.5-focal
 USER_PW=Msiw47Ut129
 DOCKER_BRIDGE_GATEWAY=172.17.0.1
 DOCKER_SHAMIRS_GATEWAY=172.19.0.1
-DOCKER_SHAMIRS_IP=172.19.0.3
+DOCKER_SHAMIRS_IP_1=172.19.0.3
+DOCKER_SHAMIRS_IP_2=172.19.0.4
 
 # evaluate parameter
 MARIADB_ROOT_PW_REGEX="^--mariadb_root_pw=[A-Za-z0-9\(\)]{1,25}$"
@@ -53,12 +54,14 @@ docker exec --interactive docker-mariadb bash -c 'exec mysql --user=root --passw
 CREATE OR REPLACE USER 'shamir'@'localhost' IDENTIFIED BY '${USER_PW}';
 CREATE OR REPLACE USER 'shamir'@'${DOCKER_BRIDGE_GATEWAY}' IDENTIFIED BY '${USER_PW}';
 CREATE OR REPLACE USER 'shamir'@'${DOCKER_SHAMIRS_GATEWAY}' IDENTIFIED BY '${USER_PW}';
-CREATE OR REPLACE USER 'shamir'@'${DOCKER_SHAMIRS_IP}' IDENTIFIED BY '${USER_PW}';
+CREATE OR REPLACE USER 'shamir'@'${DOCKER_SHAMIRS_IP_1}' IDENTIFIED BY '${USER_PW}';
+CREATE OR REPLACE USER 'shamir'@'${DOCKER_SHAMIRS_IP_2}' IDENTIFIED BY '${USER_PW}';
 CREATE OR REPLACE DATABASE shamirs_db;
 GRANT ALL ON shamirs_db.* TO 'shamir'@'localhost';
 GRANT ALL ON shamirs_db.* TO 'shamir'@'${DOCKER_BRIDGE_GATEWAY}';
 GRANT ALL ON shamirs_db.* TO 'shamir'@'${DOCKER_SHAMIRS_GATEWAY}';
-GRANT ALL ON shamirs_db.* TO 'shamir'@'${DOCKER_SHAMIRS_IP}';
+GRANT ALL ON shamirs_db.* TO 'shamir'@'${DOCKER_SHAMIRS_IP_1}';
+GRANT ALL ON shamirs_db.* TO 'shamir'@'${DOCKER_SHAMIRS_IP_2}';
 GRANT FILE ON *.* TO 'shamir'@'localhost';
 EOF
 

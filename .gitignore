@@ -12,3 +12,4 @@ shamirs-service/xml/out/*.xml
 json/*.json
 nb-configuration.xml
 data/mariadb/1
+dependency-reduced-pom.xml

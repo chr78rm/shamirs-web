@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.christofreichardt.shamirsweb.test;
 
 import de.christofreichardt.diagnosis.AbstractTracer;
@@ -15,7 +10,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Developer
  */
-public class NativeMariaDB extends Database {
+public class RemoteMariaDB extends Database {
 
     @Override
     void execute(File batch) throws IOException, InterruptedException {
@@ -24,7 +19,7 @@ public class NativeMariaDB extends Database {
 
         try {
             Path baseDir = Path.of(System.getProperty("de.christofreichardt.shamirsweb.test.baseDir"));
-            ProcessBuilder processBuilder = new ProcessBuilder("mysql", "--defaults-extra-file=shamir-db.user.ini", "--verbose");
+            ProcessBuilder processBuilder = new ProcessBuilder("mysql", "--defaults-extra-file=shamir-db.user.ini", "--verbose", "--host=shamirs-db");
             
             processBuilder.environment().entrySet().forEach(entry -> tracer.out().printfIndentln("%s = %s", entry.getKey(), entry.getValue()));
             

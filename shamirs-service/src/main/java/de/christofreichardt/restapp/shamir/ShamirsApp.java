@@ -181,6 +181,10 @@ public class ShamirsApp {
             tracer.entry("void", this, "onApplicationEvent(ApplicationEnvironmentPreparedEvent applicationEnvironmentPreparedEvent)");
 
             try {
+                String[] args = applicationEnvironmentPreparedEvent.getArgs();
+                for (int i=0; i<args.length; i++) {
+                    tracer.out().printfIndentln("arg[%d] = %s", i, args[i]);
+                }
                 ConfigurableEnvironment configurableEnvironment = applicationEnvironmentPreparedEvent.getEnvironment();
                 MutablePropertySources mutablePropertySources = configurableEnvironment.getPropertySources();
                 mutablePropertySources.stream()
@@ -243,7 +247,7 @@ public class ShamirsApp {
             Security.addProvider(new ShamirsProvider());
             SpringApplication springApplication = new SpringApplication(ShamirsApp.class);
             springApplication.addListeners(new MyEnvironmentListener());
-            springApplication.run();
+            springApplication.run(args);
         } finally {
             tracer.wayout();
         }
