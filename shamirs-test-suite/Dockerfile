@@ -9,3 +9,4 @@ COPY shamirs-app.properties shamirs-test-suite/app.properties
 COPY test-config.xml shamirs-test-suite
 COPY sql/mariadb/setup-scenario.sql sql/mariadb/shamir-db.user.ini shamirs-test-suite/sql/mariadb
 WORKDIR shamirs-test-suite
+ENTRYPOINT ["java", "-Dde.christofreichardt.shamirsweb.test.baseDir=.", "-jar", "target/shamirs-test-suite.jar"]

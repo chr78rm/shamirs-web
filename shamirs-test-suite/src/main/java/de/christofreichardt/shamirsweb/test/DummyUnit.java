@@ -56,19 +56,6 @@ public class DummyUnit implements Traceable {
             tracer.wayout();
         }
     }
-    
-    @Test
-    void paths() throws IOException {
-        AbstractTracer tracer = getCurrentTracer();
-        tracer.entry("void", this, "paths()");
-
-        try {
-            Path logDir = Path.of(System.getProperty("user.dir"), "..", "data", "log").toRealPath();
-            tracer.out().printfIndentln("logDir = %s", logDir);
-        } finally {
-            tracer.wayout();
-        }
-    }
 
     @AfterAll
     void exit() {
