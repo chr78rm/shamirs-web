@@ -113,8 +113,9 @@ public class X509AuthenticationFilter implements Filter, Traceable {
             }
 
             HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
-            if (httpServletRequest.getRequestURI().startsWith("/shamir/v1/actuator") && !isAdminUser(subjectPrincipal)) {
-                final String msg = "Unauthorized call to actuator endpoint.";
+            String requestURI = httpServletRequest.getRequestURI();
+            if ((requestURI.startsWith("/shamir/v1/actuator") || requestURI.startsWith("/shamir/v1/management"))  && !isAdminUser(subjectPrincipal)) {
+                final String msg = "Unauthorized call to actuator or management endpoint.";
                 tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
                 error(servletResponse, Response.Status.FORBIDDEN, msg);
                 return;

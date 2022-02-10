@@ -7,6 +7,7 @@ package de.christofreichardt.restapp.shamir;
 
 import de.christofreichardt.restapp.shamir.resource.DocumentRS;
 import de.christofreichardt.restapp.shamir.resource.KeystoreRS;
+import de.christofreichardt.restapp.shamir.resource.ManagementRS;
 import de.christofreichardt.restapp.shamir.resource.PingRS;
 import de.christofreichardt.restapp.shamir.resource.SessionRS;
 import de.christofreichardt.restapp.shamir.resource.SliceRS;
@@ -31,6 +32,7 @@ public class MyJerseyConfig extends ResourceConfig {
         register(SliceRS.class);
         register(JsonProcessingFeature.class);
         register(MyContainerRequestFilter.class);
+        register(ManagementRS.class);
     }
     
 }

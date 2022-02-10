@@ -11,8 +11,8 @@ ALIAS_REGEX="^--alias=[a-z0-9-]{1,25}$"
 KEYSTORE_REGEX="^--keystore=[A-Za-z]+[A-Za-z0-9-]{1,50}.p12$"
 
 # defaults
-ALIAS=local-shamirs-service-id
-KEYSTORE=service-id.p12
+ALIAS=docker-shamirs-service-id
+KEYSTORE=docker-service-id.p12
 
 # evaluate args
 for ARG in ${ARGS} 

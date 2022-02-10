@@ -14,6 +14,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.Map;
 import java.util.Objects;
+import javax.json.JsonValue;
 import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
@@ -346,6 +347,48 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                     }
             } finally {
                 suspendedClient.close();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+
+    @Test
+    void makeUnauthorizedRestartRequest() throws GeneralSecurityException, IOException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "makeUnauthorizedRestartRequest()");
+
+        try {
+            InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for truststore.");
+            KeyStore trustStore = KeyStore.getInstance("pkcs12");
+            trustStore.load(inputStream, "changeit".toCharArray());
+
+            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/test-user-1-id.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for keystore.");
+            KeyStore keystore = KeyStore.getInstance("pkcs12");
+            keystore.load(inputStream, "changeit".toCharArray());
+
+            Client unauthorizedClient = ClientBuilder
+                    .newBuilder()
+                    .withConfig(new ClientConfig().connectorProvider(new ApacheConnectorProvider()))
+                    .register(MyClientRequestFilter.class)
+                    .register(MyClientResponseFilter.class)
+                    .trustStore(trustStore)
+                    .keyStore(keystore, "changeit".toCharArray())
+                    .build();
+
+            try {
+                try ( Response response = unauthorizedClient.target(this.baseUrl)
+                        .path("management")
+                        .path("restart")
+                        .request()
+                        .post(Entity.json(JsonValue.EMPTY_JSON_OBJECT))) {
+                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.FORBIDDEN);
+                    assertThat(response.hasEntity()).isTrue();
+                }
+            } finally {
+                unauthorizedClient.close();
             }
         } finally {
             tracer.wayout();

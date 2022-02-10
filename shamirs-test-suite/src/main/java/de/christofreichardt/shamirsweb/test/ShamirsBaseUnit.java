@@ -21,6 +21,8 @@ import java.security.KeyStore;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import javax.json.JsonObject;
+import javax.json.JsonValue;
 import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
@@ -174,9 +176,11 @@ public class ShamirsBaseUnit implements Traceable {
             
             if (abort) {
                 tracer.logMessage(LogLevel.SEVERE, "Cannot establish connection to the service. Aborting ...", getClass(), "ping()");
-                this.process.destroy();
-                boolean terminated = this.process.waitFor(5, TimeUnit.SECONDS);
-                tracer.out().printfIndentln("terminated = %b", terminated);
+                if (!this.externalService) {
+                    this.process.destroy();
+                    boolean terminated = this.process.waitFor(5, TimeUnit.SECONDS);
+                    tracer.out().printfIndentln("terminated = %b", terminated);
+                }
                 TracerFactory.getInstance().closePoolTracer();
                 System.exit(1);
             }
@@ -206,6 +210,14 @@ public class ShamirsBaseUnit implements Traceable {
                 }
                 boolean terminated = this.process.waitFor(2500, TimeUnit.MILLISECONDS);
                 tracer.out().printfIndentln("terminated = %b", terminated);
+            } else {
+                try ( Response response = this.client.target(this.baseUrl)
+                        .path("management")
+                        .path("restart")
+                        .request()
+                        .post(Entity.json(JsonValue.EMPTY_JSON_OBJECT))) {
+                    response.readEntity(JsonObject.class);
+                }
             }
 
             if (Objects.nonNull(this.client)) {

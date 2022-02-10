@@ -17,26 +17,33 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.sql.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.ApplicationListener;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -53,6 +60,12 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 @SpringBootApplication
 @EnableJpaRepositories("de.christofreichardt.restapp.shamir.service")
 public class ShamirsApp {
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(ShamirsApp.class);
+    private static ConfigurableApplicationContext configurableApplicationContext; 
+
+    public ShamirsApp() {
+    }
 
     @PostConstruct
     void init() {
@@ -173,7 +186,7 @@ public class ShamirsApp {
         return Executors.newSingleThreadExecutor(myThreadFactory);
     }
 
-    static class MyEnvironmentListener implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Traceable {
+    static class EnvironmentPreparedEventListener implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Traceable {
 
         @Override
         public void onApplicationEvent(ApplicationEnvironmentPreparedEvent applicationEnvironmentPreparedEvent) {
@@ -215,6 +228,20 @@ public class ShamirsApp {
         }
 
     }
+    
+    static class ReadyEventListener implements ApplicationListener<ApplicationReadyEvent>, Traceable {
+
+        @Override
+        public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
+            LOGGER.info("onApplicationEvent(ApplicationReadyEvent applicationReadyEvent)");
+        }
+
+        @Override
+        public AbstractTracer getCurrentTracer() {
+            return TracerFactory.getInstance().getCurrentPoolTracer();
+        }
+
+    }
 
     /**
      * @param args the command line arguments
@@ -246,11 +273,41 @@ public class ShamirsApp {
         try {
             Security.addProvider(new ShamirsProvider());
             SpringApplication springApplication = new SpringApplication(ShamirsApp.class);
-            springApplication.addListeners(new MyEnvironmentListener());
-            springApplication.run(args);
+            springApplication.addListeners(new EnvironmentPreparedEventListener(), new ReadyEventListener());
+            ShamirsApp.configurableApplicationContext = springApplication.run(args);
         } finally {
             tracer.wayout();
         }
     }
+    
+    static class RestartThreadFactory implements ThreadFactory {
+        
+        AtomicInteger counter = new AtomicInteger();
 
+        @Override
+        public Thread newThread(Runnable runnable) {
+            Thread thread = new Thread(runnable, String.format("restarter-%d", this.counter.getAndIncrement()));
+            thread.setDaemon(false);
+            return thread;
+         }
+        
+    }
+    
+    static final private RestartThreadFactory restartThreadFactory = new RestartThreadFactory();
+
+    public static void restart(CountDownLatch countDownLatch) {
+        ApplicationArguments applicationArguments = ShamirsApp.configurableApplicationContext.getBean(ApplicationArguments.class);
+        Thread thread = ShamirsApp.restartThreadFactory.newThread(() -> {
+            try {
+                countDownLatch.await(1, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+            }
+            LOGGER.info("Restarting ...");
+            ShamirsApp.configurableApplicationContext.close();
+            SpringApplication springApplication = new SpringApplication(ShamirsApp.class);
+            springApplication.addListeners(new EnvironmentPreparedEventListener(), new ReadyEventListener());
+            ShamirsApp.configurableApplicationContext = springApplication.run(applicationArguments.getSourceArgs());
+        });
+        thread.start();
+    }
 }
