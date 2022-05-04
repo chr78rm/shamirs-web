@@ -107,7 +107,7 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
             KeyStore trustStore = KeyStore.getInstance("pkcs12");
             trustStore.load(inputStream, "changeit".toCharArray());
 
-            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/invalid-user.p12");
+            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/invalid-user-id.p12");
             Objects.requireNonNull(inputStream, "No InputStream for keystore.");
             KeyStore keystore = KeyStore.getInstance("pkcs12");
             keystore.load(inputStream, "changeit".toCharArray());
