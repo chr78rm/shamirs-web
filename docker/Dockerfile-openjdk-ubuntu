@@ -1,21 +1,30 @@
 FROM ubuntu:20.04
-ENV JDK_VERSION=17.0.2
-ENV JDK_NAME=openjdk-${JDK_VERSION}
-ENV JDK_DIST=${JDK_NAME}_linux-x64_bin
-ENV SHA256_CHECKSUM=0022753d0cceecacdd3a795dd4cea2bd7ffdf9dc06e22ffd1be98411742fbb44
-RUN useradd --create-home --shell /bin/bash vodalus
+
+ARG JDK_NAME=openjdk-18.0.1.1
+ARG SHA256_CHECKSUM=4f81af7203fa4c8a12c9c53c94304aab69ea1551bc6119189c9883f4266a2b24
+ARG DOWNLOAD_LINK=https://download.java.net/java/GA/jdk18.0.1.1/65ae32619e2f40f3a9af3af1851d6e19/2/GPL/openjdk-18.0.1.1_linux-x64_bin.tar.gz
+ARG MY_UID=1000
+ARG MY_GID=1000
+
+RUN groupadd --gid ${MY_GID} vodalus \
+    && useradd --create-home --uid ${MY_UID} --gid ${MY_GID} --shell /bin/bash vodalus
+
 RUN apt-get update && apt-get upgrade --assume-yes && apt-get --assume-yes install curl
+
 WORKDIR /home/vodalus
 RUN mkdir java
 WORKDIR java
-RUN curl -O https://download.java.net/java/GA/jdk${JDK_VERSION}/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/${JDK_DIST}.tar.gz \
-    && sha256sum ${JDK_DIST}.tar.gz | grep ${SHA256_CHECKSUM} \
-    && gzip --uncompress ${JDK_DIST}.tar.gz \
-    && tar --extract --verbose --file=${JDK_DIST}.tar \
-    && mv jdk-${JDK_VERSION} ${JDK_NAME} \
-    && rm ${JDK_DIST}.tar \
+RUN curl --output ${JDK_NAME}.tar.gz ${DOWNLOAD_LINK} \
+    && sha256sum ${JDK_NAME}.tar.gz | grep ${SHA256_CHECKSUM} \
+    && gzip --uncompress ${JDK_NAME}.tar.gz \
+    && tar --extract --verbose --file=${JDK_NAME}.tar \
+    && DIR_NAME=$(tar --extract --verbose --file=${JDK_NAME}.tar | head --lines=1 | sed --expression='s/\/.*//') \
+    && mv ${DIR_NAME} ${JDK_NAME} \
+    && rm ${JDK_NAME}.tar \
     && chown --recursive vodalus:vodalus ${JDK_NAME} \
     && update-alternatives --install /usr/bin/java java /home/vodalus/java/${JDK_NAME}/bin/java 1 \
     && update-alternatives --set java /home/vodalus/java/${JDK_NAME}/bin/java
+ENV JAVA_HOME=/home/vodalus/java
+
 WORKDIR /home/vodalus
 USER vodalus

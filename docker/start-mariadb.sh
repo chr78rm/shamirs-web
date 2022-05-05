@@ -9,7 +9,7 @@ PROJECT_DIR=$(dirname $(dirname $(realpath $0)))
 
 # defaults
 DATA_DIR=${PROJECT_DIR}/data/mariadb/1
-MARIADB_TAG=10.6.5-focal
+MARIADB_TAG=10.7.3-focal
 
 # evaluate parameter
 MARIADB_ROOT_PW_REGEX="^--mariadb_root_pw=[A-Za-z0-9\(\)]{1,25}$"

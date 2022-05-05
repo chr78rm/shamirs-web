@@ -10,7 +10,7 @@ PROJECT_DIR=$(dirname $(dirname $(realpath $0)))
 # defaults
 # PROJECT_DIR=projects/shamirs-web
 DATA_DIR=${PROJECT_DIR}/data/mariadb/1
-MARIADB_TAG=10.6.5-focal
+MARIADB_TAG=10.7.3-focal
 USER_PW=Msiw47Ut129
 DOCKER_BRIDGE_GATEWAY=172.17.0.1
 DOCKER_SHAMIRS_GATEWAY=172.19.0.1
