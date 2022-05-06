@@ -10,6 +10,3 @@ PROJECT_DIR=$(dirname $(dirname $(realpath $0)))
 # build image
 cd ${PROJECT_DIR}/shamirs-service
 mvn clean verify -P docker
-
-# switch back
-cd ${CURRENT_DIR}
