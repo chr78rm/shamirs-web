@@ -13,3 +13,4 @@ json/*.json
 nb-configuration.xml
 data/mariadb/1
 dependency-reduced-pom.xml
+.idea
