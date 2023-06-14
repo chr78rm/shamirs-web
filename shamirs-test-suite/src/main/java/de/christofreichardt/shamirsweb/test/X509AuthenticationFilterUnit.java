@@ -12,8 +12,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.json.JsonValue;
 import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.ProcessingException;
@@ -249,7 +261,7 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                     .keyStore(keystore, "changeit".toCharArray())
                     .build();
             
-            final long MINIMUM_INTERVAL = 1000, REFERENCE_FRAME = 10000; // millis
+            final long MINIMUM_INTERVAL = 1000, REFERENCE_FRAME = 10000, SUFFICIENT_INTERVAL = 3000; // millis
             
             try {
                 Thread.sleep(REFERENCE_FRAME);
@@ -269,14 +281,16 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                     assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.PAYMENT_REQUIRED);
                     assertThat(response.hasEntity()).isTrue();
                 }
-                Thread.sleep(MINIMUM_INTERVAL);
-                try ( Response response = suspendedClient.target(this.baseUrl)
-                        .path("ping")
-                        .request()
-                        .get()) {
-                    tracer.out().printfIndentln("response = %s", response);
-                    assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
-                    assertThat(response.hasEntity()).isTrue();
+                for (int i=0; i<10; i++) {
+                    Thread.sleep(SUFFICIENT_INTERVAL);
+                    try ( Response response = suspendedClient.target(this.baseUrl)
+                            .path("ping")
+                            .request()
+                            .get()) {
+                        tracer.out().printfIndentln("response = %s", response);
+                        assertThat(response.getStatusInfo().toEnum()).isEqualTo(Response.Status.OK);
+                        assertThat(response.hasEntity()).isTrue();
+                    }
                 }
             } finally {
                 suspendedClient.close();
@@ -347,6 +361,76 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                     }
             } finally {
                 suspendedClient.close();
+            }
+        } finally {
+            tracer.wayout();
+        }
+    }
+    
+    @Test
+    @Order(3)
+    void concurrentRequests() throws InterruptedException, ExecutionException {
+        AbstractTracer tracer = getCurrentTracer();
+        tracer.entry("void", this, "concurrentRequests()");
+
+        try {
+            ThreadFactory threadFactory = new ThreadFactory() {
+                final AtomicInteger counter = new AtomicInteger();
+
+                @Override
+                public Thread newThread(Runnable runnable) {
+                    return new Thread(runnable, String.format("worker-%d", this.counter.getAndDecrement()));
+                }
+            };
+
+            final int CONCURRENT_CALLS = 2;
+            ExecutorService executorService = Executors.newFixedThreadPool(CONCURRENT_CALLS, threadFactory);
+            CyclicBarrier cyclicBarrier = new CyclicBarrier(CONCURRENT_CALLS);
+
+            class Request implements Callable<Response> {
+
+                @Override
+                public Response call() throws Exception {
+                    cyclicBarrier.await();
+                    try (Response response = X509AuthenticationFilterUnit.this.client.target(X509AuthenticationFilterUnit.this.baseUrl)
+                            .path("ping")
+                            .request()
+                            .get()) {
+                        return response;
+                    }
+                }
+
+            }
+            
+            final int TIME_OUT = 5;
+            
+            try {
+                List<Future<Response>> futures = new ArrayList<>();
+                for (int i = 0; i < CONCURRENT_CALLS; i++) {
+                    futures.add(executorService.submit(new Request()));
+                }
+                List<Response> responses = futures.stream()
+                        .map(future -> {
+                            try {
+                                return future.get(TIME_OUT, TimeUnit.SECONDS);
+                            } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+                                throw new RuntimeException(ex);
+                            }
+                        })
+                        .peek(response -> tracer.out().printfIndentln("response = %s", response))
+                        .toList();
+                assertThat(
+                        responses.stream()
+                                .anyMatch(response -> response.getStatus() == 429) // http 429 == too many requests
+                ).isTrue();
+                assertThat(
+                        responses.stream()
+                                .anyMatch(response -> response.getStatus() == 200) // http 200 == ok
+                ).isTrue();
+            } finally {
+                executorService.shutdown();
+                boolean terminated = executorService.awaitTermination(TIME_OUT, TimeUnit.SECONDS);
+                tracer.out().printfIndentln("terminated = %b", terminated);
             }
         } finally {
             tracer.wayout();

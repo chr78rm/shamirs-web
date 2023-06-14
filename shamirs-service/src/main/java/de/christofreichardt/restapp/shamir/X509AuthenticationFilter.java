@@ -23,12 +23,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonWriter;
@@ -54,6 +58,8 @@ public class X509AuthenticationFilter implements Filter, Traceable {
     Map<String, String> config;
     final List<String> excludeDNs = new ArrayList<>();
     final Map<String, Deque<Instant>> callsPerUser = new ConcurrentHashMap<>();
+    final Set<String> activeUsers = new HashSet<>();
+    final Lock lock = new ReentrantLock();
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -104,34 +110,61 @@ public class X509AuthenticationFilter implements Filter, Traceable {
 
             String subjectPrincipal = certChain[0].getSubjectX500Principal().getName();
             tracer.out().printfIndentln("subjectPrincipal = %s", subjectPrincipal);
-
-            if (this.excludeDNs.contains(subjectPrincipal)) {
-                final String msg = String.format("User[%s] has been banned.", subjectPrincipal);
-                tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
-                error(servletResponse, Response.Status.FORBIDDEN, msg);
-                return;
-            }
-
-            HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
-            String requestURI = httpServletRequest.getRequestURI();
-            if ((requestURI.startsWith("/shamir/v1/actuator") || requestURI.startsWith("/shamir/v1/management"))  && !isAdminUser(subjectPrincipal)) {
-                final String msg = "Unauthorized call to actuator or management endpoint.";
-                tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
-                error(servletResponse, Response.Status.FORBIDDEN, msg);
-                return;
-            }
-
-            boolean throttlingEnabled = Boolean.parseBoolean(this.config.getOrDefault("throttling", "true"));
-            if (!isAdminUser(subjectPrincipal) && throttlingEnabled) {
-                if (isSuspended(subjectPrincipal)) {
-                    final String msg = String.format("User '%s' is temporarily suspended.", subjectPrincipal);
+            
+            this.lock.lock();
+            try {
+                if (this.activeUsers.contains(subjectPrincipal)) {
+                    final String msg = String.format("User '%s' has submitted an unfinished call.", subjectPrincipal);
                     tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
-                    error(servletResponse, Response.Status.PAYMENT_REQUIRED, msg);
+                    error(servletResponse, Response.Status.TOO_MANY_REQUESTS, msg);
                     return;
                 }
+                this.activeUsers.add(subjectPrincipal);
+            } finally {
+                this.lock.unlock();
             }
-
-            filterChain.doFilter(servletRequest, servletResponse);
+                
+            try {
+                if (this.excludeDNs.contains(subjectPrincipal)) {
+                    final String msg = String.format("User[%s] has been banned.", subjectPrincipal);
+                    tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
+                    error(servletResponse, Response.Status.FORBIDDEN, msg);
+                    return;
+                }
+                
+                HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
+                String requestURI = httpServletRequest.getRequestURI();
+                if ((requestURI.startsWith("/shamir/v1/actuator") || requestURI.startsWith("/shamir/v1/management")) && !isAdminUser(subjectPrincipal)) {
+                    final String msg = "Unauthorized call to actuator or management endpoint.";
+                    tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
+                    error(servletResponse, Response.Status.FORBIDDEN, msg);
+                    return;
+                }
+                
+                boolean throttlingEnabled = Boolean.parseBoolean(this.config.getOrDefault("throttling", "true"));
+                if (!isAdminUser(subjectPrincipal) && throttlingEnabled) {
+                    if (isSuspended(subjectPrincipal)) {
+                        final String msg = String.format("User '%s' is temporarily suspended.", subjectPrincipal);
+                        tracer.logMessage(LogLevel.ERROR, msg, getClass(), "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
+                        error(servletResponse, Response.Status.PAYMENT_REQUIRED, msg);
+                        return;
+                    }
+                }
+                
+                filterChain.doFilter(servletRequest, servletResponse);
+            } finally {
+                this.lock.lock();
+                try {
+                    boolean removed = this.activeUsers.remove(subjectPrincipal);
+                    tracer.out().printfIndentln("Invocation for user '%s' is complete.", subjectPrincipal);
+                    if (!removed) {
+                        tracer.logMessage(LogLevel.WARNING, String.format("User '%s' hasn't been found within the set of active invocations.", subjectPrincipal), getClass(), 
+                                "doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)");
+                    }
+                } finally {
+                    this.lock.unlock();
+                }
+            }
         } finally {
             tracer.wayout();
         }
