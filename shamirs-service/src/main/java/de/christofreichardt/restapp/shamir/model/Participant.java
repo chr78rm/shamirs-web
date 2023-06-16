@@ -39,9 +39,7 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Participant.findByEffectiveTime", query = "SELECT p FROM Participant p WHERE p.creationTime = :creationTime"),
     @NamedQuery(name = "Participant.findByKeystore", query = "SELECT p FROM Participant p JOIN p.slices s WHERE s.keystore.id = :keystoreId"),
 })
-public class Participant implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class Participant {
     
     @Id
     @Basic(optional = false)

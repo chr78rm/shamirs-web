@@ -47,9 +47,7 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Session.findAllByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId"),
     @NamedQuery(name = "Session.findCurrentByKeystore", query = "SELECT s FROM Session s WHERE s.keystore.id = :keystoreId AND s.phase != 'CLOSED'"),
 })
-public class Session implements Serializable { 
-    
-    private static final long serialVersionUID = 1L;
+public class Session { 
     
     @Id
     @Basic(optional = false)

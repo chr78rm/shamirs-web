@@ -39,9 +39,7 @@ import javax.validation.constraints.Size;
 @NamedQueries({
     @NamedQuery(name = "Document.findAll", query = "SELECT d FROM Document d"),
     @NamedQuery(name = "Document.findById", query = "SELECT d FROM Document d WHERE d.id = :id")})
-public class Document implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class Document {
 
     @Id
     @Basic(optional = false)

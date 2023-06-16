@@ -75,9 +75,7 @@ import javax.validation.constraints.Size;
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices sl LEFT JOIN FETCH k.sessions se WHERE k.id = :id AND (sl.processingState = 'POSTED' OR sl.processingState = 'CREATED') AND (se.phase = 'PENDING' OR se.phase = 'ACTIVE')"),
     @NamedQuery(name = "DatabasedKeystore.findByIdAndParticipantWithPostedSlices",
             query = "SELECT k FROM DatabasedKeystore k LEFT JOIN FETCH k.slices s WHERE k.id = :id AND s.processingState = 'POSTED' AND s.participant.id = :participantId"),})
-public class DatabasedKeystore implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class DatabasedKeystore {
 
     @Id
     @Basic(optional = false)

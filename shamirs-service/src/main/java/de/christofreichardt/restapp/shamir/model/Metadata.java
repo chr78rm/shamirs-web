@@ -36,13 +36,11 @@ import javax.validation.constraints.Size;
  */
 @Entity
 @Table(name = "metadata")
-public class Metadata implements Serializable {
+public class Metadata {
 
     public enum Status {
         NEW, PENDING, PROCESSED, ERROR // TODO: move this to shamirs-common
     };
-
-    private static final long serialVersionUID = 1L;
 
     @Id
     @Basic(optional = false)

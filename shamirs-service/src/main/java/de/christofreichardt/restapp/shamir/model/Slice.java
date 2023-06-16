@@ -49,9 +49,7 @@ import javax.validation.constraints.Size;
     @NamedQuery(name = "Slice.findByKeystoreId", query = "SELECT s FROM Slice s WHERE s.keystore.id = :keystoreId"),
     @NamedQuery(name = "Slice.findByParticipantId", query = "SELECT s FROM Slice s WHERE s.participant.id = :participantId"),
     @NamedQuery(name = "Slice.findByKeystoreIdAndParticipantId", query = "SELECT s FROM Slice s WHERE s.keystore.id = :keystoreId AND s.participant.id = :participantId"),})
-public class Slice implements Serializable, Comparable<Slice> {
-
-    private static final long serialVersionUID = 1L;
+public class Slice implements Comparable<Slice> {
 
     @Id
     @Basic(optional = false)
