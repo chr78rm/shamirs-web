@@ -136,7 +136,7 @@
                     </plugin>
                     <plugin>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.0.0-M5</version>
+                        <version>3.1.2</version>
                         <configuration>
                             <skipTests>true</skipTests>
                         </configuration>
@@ -197,7 +197,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>3.1.2</version>
                 <configuration>
                     <includes>
                         <include>de/christofreichardt/restapp/shamir/resource/KeystoreGeneratorUnit.java</include>
