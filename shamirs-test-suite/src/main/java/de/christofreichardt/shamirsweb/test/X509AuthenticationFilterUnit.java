@@ -394,6 +394,7 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                     cyclicBarrier.await();
                     try (Response response = X509AuthenticationFilterUnit.this.client.target(X509AuthenticationFilterUnit.this.baseUrl)
                             .path("ping")
+                            .queryParam("delay", 100)
                             .request()
                             .get()) {
                         return response;

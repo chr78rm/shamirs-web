@@ -7,6 +7,7 @@ import java.util.Optional;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,16 +29,22 @@ public class PingRS extends BaseRS {
     @GET
     @Produces(MediaType.TEXT_PLAIN)
     @Path("ping")
-    public Response ping() {
+    public Response ping(@QueryParam("delay") long delay) throws InterruptedException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("Response", this, "ping()");
 
         try {
+            tracer.out().printfIndentln("delay = %d", delay);
+            
             Optional<DatabasedKeystore> dbKeystore = this.keystoreService.findByIdWithActiveSlicesAndCurrentSession(KEYSTORE_ID);
             if (dbKeystore.isEmpty()) {
                 return internalServerError("Something went wrong.");
             }
             dbKeystore.get().trace(tracer, true);
+            
+            if (delay != 0) {
+                Thread.sleep(delay);
+            }
 
             return Response.status(Response.Status.OK)
                     .entity("ping")
