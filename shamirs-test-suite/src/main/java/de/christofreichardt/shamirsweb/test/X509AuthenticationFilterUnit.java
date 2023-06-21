@@ -369,11 +369,30 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
     
     @Test
     @Order(3)
-    void concurrentRequests() throws InterruptedException, ExecutionException {
+    void concurrentRequests() throws InterruptedException, ExecutionException, GeneralSecurityException, IOException {
         AbstractTracer tracer = getCurrentTracer();
         tracer.entry("void", this, "concurrentRequests()");
 
         try {
+            InputStream inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/service-id-trust.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for truststore.");
+            KeyStore trustStore = KeyStore.getInstance("pkcs12");
+            trustStore.load(inputStream, "changeit".toCharArray());
+
+            inputStream = ShamirsServiceUnit.class.getClassLoader().getResourceAsStream("de/christofreichardt/shamirsweb/test/test-user-1-id.p12");
+            Objects.requireNonNull(inputStream, "No InputStream for keystore.");
+            KeyStore keystore = KeyStore.getInstance("pkcs12");
+            keystore.load(inputStream, "changeit".toCharArray());
+            
+            Client otherClient = ClientBuilder
+                    .newBuilder()
+                    .withConfig(new ClientConfig().connectorProvider(new ApacheConnectorProvider()))
+                    .register(MyClientRequestFilter.class)
+                    .register(MyClientResponseFilter.class)
+                    .trustStore(trustStore)
+                    .keyStore(keystore, "changeit".toCharArray())
+                    .build();
+            
             ThreadFactory threadFactory = new ThreadFactory() {
                 final AtomicInteger counter = new AtomicInteger();
 
@@ -383,16 +402,23 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                 }
             };
 
-            final int CONCURRENT_CALLS = 2;
+            final int CONCURRENT_CALLS = 3, TIME_OUT = 5;
+            final long MINIMUM_INTERVAL = 1000;
             ExecutorService executorService = Executors.newFixedThreadPool(CONCURRENT_CALLS, threadFactory);
             CyclicBarrier cyclicBarrier = new CyclicBarrier(CONCURRENT_CALLS);
 
             class Request implements Callable<Response> {
+                
+                final Client client;
+
+                public Request(Client client) {
+                    this.client = client;
+                }
 
                 @Override
                 public Response call() throws Exception {
                     cyclicBarrier.await();
-                    try (Response response = X509AuthenticationFilterUnit.this.client.target(X509AuthenticationFilterUnit.this.baseUrl)
+                    try (Response response = this.client.target(X509AuthenticationFilterUnit.this.baseUrl)
                             .path("ping")
                             .queryParam("delay", 100)
                             .request()
@@ -403,12 +429,13 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
 
             }
             
-            final int TIME_OUT = 5;
+            Thread.sleep(MINIMUM_INTERVAL); // must wait for testuser-1 since he had recently made calls
             
             try {
                 List<Future<Response>> futures = new ArrayList<>();
+                Client[] clients = {this.client, this.client, otherClient};
                 for (int i = 0; i < CONCURRENT_CALLS; i++) {
-                    futures.add(executorService.submit(new Request()));
+                    futures.add(executorService.submit(new Request(clients[i])));
                 }
                 List<Response> responses = futures.stream()
                         .map(future -> {
@@ -426,7 +453,8 @@ public class X509AuthenticationFilterUnit extends ShamirsBaseUnit implements Wit
                 ).isTrue();
                 assertThat(
                         responses.stream()
-                                .anyMatch(response -> response.getStatus() == 200) // http 200 == ok
+                                .filter(response -> response.getStatus() == 200) // http 200 == ok
+                                .count() == 2
                 ).isTrue();
             } finally {
                 executorService.shutdown();
